@@ -12,10 +12,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CollectionService = game:GetService("CollectionService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local VirtualUser = game:GetService("VirtualUser")
+local UserInputService = game:GetService("UserInputService")
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local Lighting = game:GetService("Lighting")
-local CoreGui = game:GetService("CoreGui")
 
 local LocalPlayer = Players.LocalPlayer
 repeat task.wait() until LocalPlayer:FindFirstChild("PlayerGui")
@@ -95,7 +95,6 @@ _G.Settings = {
         ["Fruit Sniper"] = false,
         ["Auto Store Fruit"] = false,
         ["Auto Drop Fruit"] = false,
-        ["Auto Collect World Fruits"] = false,
         ["Auto Roll Fruit"] = false,
     },
     SubFarm = {
@@ -124,13 +123,12 @@ _G.Settings = {
         ["Auto Katakuri"] = false,
         ["Auto Spawn Cake Prince"] = false,
         ["Auto Kill Cake Prince"] = false,
-        ["Auto Kill Dough King"] = false,
-        ["Cake Progress Display"] = true,
-        ["Dough Progress Display"] = true
+        ["Auto Kill Dough King"] = false
     },
     Race = {
         ["Auto Find Mirage"] = false,
         ["Tween To Highest Mirage"] = false,
+        ["Teleport To Mirage"] = false,
         ["Teleport To Blue Gear"] = false,
         ["Look Moon Ability"] = false,
         ["Teleport To Race Door"] = false,
@@ -160,9 +158,12 @@ _G.Settings = {
         ["Auto Farm Seabeasts"] = false,
         ["Dodge Seabeasts Attack"] = true,
         ["Auto Find Kitsune Island"] = false,
+        ["Teleport To Kitsune Island"] = false,
         ["Auto Prehistoric Island"] = false,
         ["Auto Complete Prehistoric Island"] = false,
         ["Auto Draco Trail"] = false,
+        ["Auto Frozen Dimension"] = false,
+        ["Auto Drive Hydra"] = false,
     },
     Raid = {
         ["Selected Chip"] = "Flame",
@@ -233,12 +234,6 @@ _G.Settings = {
         ["Bypass Anticheat"] = false,
         ["Show Ping"] = false,
         ["Show FPS"] = false,
-        ["Server Time"] = false,
-        ["Server Time AFK"] = false,
-        ["Update 28 Submerged"] = true,
-        ["Auto Find Mirage"] = false,
-        ["Auto Find Kitsune"] = false,
-        ["Auto Sea Events"] = false,
     }
 }
 
@@ -271,6 +266,9 @@ end
 --------------------------------------------------------------------------------
 -- 4. Anti-Fall & Vertical Safety Engine
 --------------------------------------------------------------------------------
+local currentTween = nil
+local currentTweenOwner = nil
+
 local function GetCharacter(): (Model?, BasePart?, Humanoid?)
     local char = LocalPlayer.Character
     if not char then char = LocalPlayer.CharacterAdded:Wait() end
@@ -279,30 +277,22 @@ local function GetCharacter(): (Model?, BasePart?, Humanoid?)
     return char, hrp, hum
 end
 
-RunService.Stepped:Connect(function()
-    local active = _G.Settings.Main["Auto Farm Level"] or _G.Settings.Main["Auto Farm Material"] or
-                   _G.Settings.Main["Auto Farm Boss"] or _G.Settings.Main["Auto Farm All Boss"] or
-                   _G.Settings.SubFarm["Auto Farm Bone"] or _G.Settings.Cake["Auto Katakuri"] or
-                   _G.Settings.Sea["Sail Boat"] or _G.Settings.SubFarm["Auto Chest Tween"] or
-                   _G.Settings.Race["Auto Train"] or _G.Settings.SubFarm["Auto Farm Leviathan"] or
-                   _G.Settings.ItemsQuests["Auto Sword Quest"] or _G.Settings.Race["Auto Race V2 Quest"] or 
-                   _G.Settings.Race["Auto Race V3 Quest"] or _G.Settings.ItemsQuests["Auto Farm CDK"] or 
-                   _G.Settings.ItemsQuests["Auto Farm TTK"] or _G.Settings.SubFarm["Auto Mastery Melee (Tiki)"] or 
-                   _G.Settings.SubFarm["Auto Mastery Swords"] or _G.Settings.SubFarm["Auto Mastery Blox Fruits"] or 
-                   _G.Settings.SubFarm["Auto Mastery Guns"] or _G.Settings.Race["Auto Find Mirage"] or 
-                   _G.Settings.Sea["Auto Find Kitsune Island"] or _G.Settings.Raid["Auto Dungeon / Raid"] or 
-                   _G.Settings.Combat["Auto PvP Escape"] or _G.Settings.Fruits["Fruit Sniper"] or
-                   _G.Settings.Sea["Auto Farm Shark"] or _G.Settings.Sea["Auto Farm Piranha"] or
-                   _G.Settings.Sea["Auto Farm Fish Crew Member"] or _G.Settings.Sea["Auto Farm Ghost Ship"] or
-                   _G.Settings.Sea["Auto Farm Terrorshark"] or _G.Settings.Sea["Auto Farm Seabeasts"] or
-                   _G.Settings.Sea["Auto Prehistoric Island"] or _G.Settings.Sea["Auto Complete Prehistoric Island"] or
-                   _G.Settings.Sea["Auto Draco Trail"] or _G.Settings.Raid["Auto Next Island"] or
-                   _G.Settings.DragonDojo["Auto Farm Blaze Ember"] or _G.Settings.SubFarm["Auto Elite Hunter"] or
-                   _G.Settings.Quests["Auto Citizen Quest"]
+local function AnyMovementFeatureActive()
+    local S = _G.Settings
+    return S.Main["Auto Farm Level"] or S.Main["Auto Farm Material"] or S.Main["Auto Farm Boss"] or
+           S.Main["Auto Farm All Boss"] or S.SubFarm["Auto Farm Bone"] or S.Cake["Auto Katakuri"] or
+           S.Sea["Sail Boat"] or S.Race["Auto Find Mirage"] or S.Sea["Auto Find Kitsune Island"] or
+           S.Raid["Auto Dungeon / Raid"] or S.Cake["Auto Kill Cake Prince"] or S.Cake["Auto Kill Dough King"] or S.Main["Auto Farm Material"] or S.SubFarm["Auto Farm Leviathan"] or S.Sea["Auto Frozen Dimension"] or S.Sea["Auto Drive Hydra"] or S.SubFarm["Auto Chest Tween"] or S.Race["Auto Train"] or
+           S.SubFarm["Auto Farm Leviathan"] or S.ItemsQuests["Auto Sword Quest"] or S.ItemsQuests["Auto Farm CDK"] or
+           S.ItemsQuests["Auto Farm TTK"] or S.Race["Auto Race V2 Quest"] or S.Race["Auto Race V3 Quest"] or
+           S.Sea["Auto Prehistoric Island"] or S.Sea["Auto Complete Prehistoric Island"] or
+           S.Sea["Auto Draco Trail"] or S.Raid["Auto Next Island"] or S.Fruits["Fruit Sniper"]
+end
 
+RunService.Stepped:Connect(function()
+    local active = AnyMovementFeatureActive()
     local char, hrp, hum = GetCharacter()
     if not char or not hrp or not hum then return end
-
     if active then
         pcall(function()
             for _, v in pairs(char:GetDescendants()) do
@@ -318,114 +308,51 @@ RunService.Stepped:Connect(function()
         end)
     else
         pcall(function()
-            if hrp:FindFirstChild("HaroonBV") then
-                hrp.HaroonBV:Destroy()
-            end
+            if hrp:FindFirstChild("HaroonBV") then hrp.HaroonBV:Destroy() end
         end)
     end
 end)
 
-local currentTween = nil
-local currentTweenTarget = nil
-local currentTweenOwner = nil
-
-local function TweenPlayer(pos: CFrame | Vector3 | BasePart, offset: Vector3?, owner: string?)
+local function TweenPlayer(pos: CFrame | Vector3 | BasePart, offset: Vector3?, owner: string?): Tween?
     local char, hrp, hum = GetCharacter()
-    if not char or not hrp or not hum or hum.Health <= 0 then return nil end
+    if not char or not hrp or not hum then return nil end
     if hum.Sit then hum.Sit = false end
 
-    local targetCFrame
-    if typeof(pos) == "CFrame" then
-        targetCFrame = pos
-    elseif typeof(pos) == "Vector3" then
-        targetCFrame = CFrame.new(pos)
-    elseif typeof(pos) == "Instance" and pos:IsA("BasePart") then
-        targetCFrame = pos.CFrame
-    else
-        return nil
-    end
-
-    if offset then
-        targetCFrame = targetCFrame * CFrame.new(offset)
-    end
+    local targetCFrame: CFrame
+    if typeof(pos) == "CFrame" then targetCFrame = pos
+    elseif typeof(pos) == "Vector3" then targetCFrame = CFrame.new(pos)
+    elseif pos:IsA("BasePart") then targetCFrame = pos.CFrame
+    else return nil end
+    if offset then targetCFrame = targetCFrame * CFrame.new(offset) end
 
     local distance = (hrp.Position - targetCFrame.Position).Magnitude
+    local uprightCFrame = CFrame.new(targetCFrame.Position, targetCFrame.Position + Vector3.new(targetCFrame.LookVector.X, 0, targetCFrame.LookVector.Z))
     if distance <= 25 then
-        if currentTween then
-            currentTween:Cancel()
-            currentTween = nil
-        end
-        currentTweenTarget = nil
+        hrp.CFrame = uprightCFrame
+        if currentTween then currentTween:Cancel() end
+        currentTween = nil
         currentTweenOwner = nil
-        hrp.CFrame = targetCFrame
         return nil
     end
 
-    -- Do not restart the same tween every 0.1–0.2s. This was causing
-    -- movement to reset/reverse when several feature loops were active.
-    if currentTween and currentTween.PlaybackState == Enum.PlaybackState.Playing
-        and currentTweenTarget
-        and (currentTweenTarget.Position - targetCFrame.Position).Magnitude < 8 then
-        currentTweenOwner = owner or currentTweenOwner
-        return currentTween
-    end
-
-    if currentTween then
-        currentTween:Cancel()
-        currentTween = nil
-    end
-
-    local speed = math.max(50, tonumber(_G.Settings.Main["Player Tween Speed"]) or 180)
-    local tweenInfo = TweenInfo.new(distance / speed, Enum.EasingStyle.Linear)
-    currentTweenTarget = targetCFrame
-    currentTweenOwner = owner
-
-    currentTween = TweenService:Create(hrp, tweenInfo, {CFrame = targetCFrame})
-    currentTween.Completed:Connect(function()
-        if currentTweenTarget == targetCFrame then
-            currentTween = nil
-            currentTweenTarget = nil
-            currentTweenOwner = nil
-        end
-    end)
+    local speed = _G.Settings.Main["Player Tween Speed"] or 180
+    local tweenInfo = TweenInfo.new(math.max(0.05, distance / speed), Enum.EasingStyle.Linear)
+    if currentTween then currentTween:Cancel() end
+    currentTweenOwner = owner or "Generic"
+    currentTween = TweenService:Create(hrp, tweenInfo, {CFrame = uprightCFrame})
     currentTween:Play()
     return currentTween
 end
 
-local function AnyMovementFeatureActive()
-    local S = _G.Settings
-    return S.Main["Auto Farm Level"] or S.Main["Auto Farm Material"]
-        or S.Main["Auto Farm Boss"] or S.Main["Auto Farm All Boss"]
-        or S.SubFarm["Auto Farm Bone"] or S.SubFarm["Auto Elite Hunter"]
-        or S.SubFarm["Auto Chest Tween"] or S.SubFarm["Auto Chest Instant"]
-        or S.SubFarm["Auto Farm Leviathan"]
-        or S.SubFarm["Auto Mastery Melee (Tiki)"] or S.SubFarm["Auto Mastery Swords"]
-        or S.SubFarm["Auto Mastery Blox Fruits"] or S.SubFarm["Auto Mastery Guns"]
-        or S.Raid["Auto Dungeon / Raid"] or S.Raid["Auto Clear Dungeon Waves"]
-        or S.Raid["Auto Next Island"] or S.Raid["Law Raid"]
-        or S.ItemsQuests["Auto Sword Quest"] or S.ItemsQuests["Auto Farm CDK"]
-        or S.ItemsQuests["Auto Farm TTK"] or S.Race["Auto Find Mirage"]
-        or S.Race["Auto Race V2 Quest"] or S.Race["Auto Race V3 Quest"]
-        or S.Sea["Auto Find Kitsune Island"] or S.Sea["Auto Prehistoric Island"]
-        or S.Sea["Auto Complete Prehistoric Island"] or S.Sea["Auto Draco Trail"]
-        or S.Combat["Auto PvP Escape"] or S.Fruits["Fruit Sniper"]
-end
-
 local function StopTween(owner: string?)
-    -- If another movement feature is still active, never kill its movement.
     if owner and currentTweenOwner and currentTweenOwner ~= owner and AnyMovementFeatureActive() then
         return
     end
-
-    if currentTween then
-        currentTween:Cancel()
-        currentTween = nil
-    end
-    currentTweenTarget = nil
+    if currentTween then currentTween:Cancel() end
+    currentTween = nil
     currentTweenOwner = nil
-
     local _, hrp = GetCharacter()
-    if hrp and hrp:FindFirstChild("HaroonBV") then
+    if hrp and hrp:FindFirstChild("HaroonBV") and not AnyMovementFeatureActive() then
         hrp.HaroonBV:Destroy()
     end
 end
@@ -852,360 +779,226 @@ local function GetMaterialConfig(mat: string): ({string}, CFrame)
     return {}, CFrame.new(0,0,0)
 end
 
--- ============================================================
--- HAROON HUB UPDATE 28 PROFESSIONAL WORLD / SEA / STATUS ENGINE
--- ============================================================
-local BFState = rawget(getgenv(), "HaroonBFState") or {
-    ServerTime = false, ServerTimeAFK = false, AutoCakePrince = false,
-    AutoDoughKing = false, AutoSummonCakePrince = false,
-    AutoFindMirage = false, AutoFindKitsune = false, AutoSeaEvents = false,
-    AutoSubmerged = false
+--------------------------------------------------------------------------------
+-- Integrated Blox Fruits Systems From Attachment
+--------------------------------------------------------------------------------
+local IntegratedMaterialByWorld = {
+    [1] = {
+        ["Angel Wings"]={Mobs={"Shanda","Royal Squad","Royal Soldier","Wysper"},Position=CFrame.new(-4698,845,-1912)},
+        ["Leather + Scrap Metal"]={Mobs={"Brute","Pirate"},Position=CFrame.new(-1145,15,4350)},
+        ["Magma Ore"]={Mobs={"Military Soldier","Military Spy"},Position=CFrame.new(-5815,84,8820)},
+        ["Fish Tail"]={Mobs={"Fishman Warrior","Fishman Commando"},Position=CFrame.new(61123,19,1569)},
+    },
+    [2] = {
+        ["Leather + Scrap Metal"]={Mobs={"Marine Captain"},Position=CFrame.new(-2010,73,-3326)},
+        ["Magma Ore"]={Mobs={"Magma Ninja","Lava Pirate"},Position=CFrame.new(-5428,78,-5959)},
+        ["Ectoplasm"]={Mobs={"Ship Deckhand","Ship Engineer","Ship Steward","Ship Officer"},Position=CFrame.new(911,125,33159)},
+        ["Mystic Droplet"]={Mobs={"Water Fighter"},Position=CFrame.new(-3385,239,-10542)},
+        ["Radioactive Material"]={Mobs={"Factory Staff"},Position=CFrame.new(295,73,-56)},
+        ["Vampire Fang"]={Mobs={"Vampire"},Position=CFrame.new(-6033,7,-1317)},
+    },
+    [3] = {
+        ["Scrap Metal"]={Mobs={"Jungle Pirate","Forest Pirate","Pirate Millionaire"},Position=CFrame.new(-11975,332,-10620)},
+        ["Fish Tail"]={Mobs={"Fishman Raider","Fishman Captain"},Position=CFrame.new(-10993,332,-8940)},
+        ["Conjured Cocoa"]={Mobs={"Chocolate Bar Battler","Cocoa Warrior"},Position=CFrame.new(620,79,-12581)},
+        ["Dragon Scale"]={Mobs={"Dragon Crew Archer","Dragon Crew Warrior"},Position=CFrame.new(6594,383,139)},
+        ["Gunpowder"]={Mobs={"Pistol Billionaire"},Position=CFrame.new(-84,86,6132)},
+        ["Mini Tusk"]={Mobs={"Mythological Pirate"},Position=CFrame.new(-13545,470,-6917)},
+        ["Demonic Wisp"]={Mobs={"Demonic Soul"},Position=CFrame.new(-9495,454,5977)},
+    },
 }
-getgenv().HaroonBFState = BFState
 
-local function BFAlive(model)
-    local h = model and model:FindFirstChildOfClass("Humanoid")
-    return h and h.Health > 0
-end
-
-local function BFFindEnemy(names)
-    names = type(names) == "table" and names or {names}
-    local folder = workspace:FindFirstChild("Enemies")
-    if not folder then return nil end
-    for _, v in ipairs(folder:GetChildren()) do
-        if v:IsA("Model") and table.find(names, v.Name) and BFAlive(v) then return v end
+local function integratedFindEnemy(names)
+    if type(names)=="string" then names={names} end
+    local containers={workspace:FindFirstChild("Enemies"),ReplicatedStorage}
+    for _,container in ipairs(containers) do
+        if container then
+            for _,name in ipairs(names) do
+                local obj=container:FindFirstChild(name)
+                local hum=obj and obj:FindFirstChildOfClass("Humanoid")
+                if obj and hum and hum.Health>0 and obj:FindFirstChild("HumanoidRootPart") then return obj end
+            end
+        end
     end
 end
 
-local function BFHasItem(name)
-    local bp = LocalPlayer:FindFirstChildOfClass("Backpack")
-    local c = LocalPlayer.Character
+local function integratedItem(name)
+    local bp=LocalPlayer:FindFirstChildOfClass("Backpack")
+    local c=LocalPlayer.Character
     return (bp and bp:FindFirstChild(name)) or (c and c:FindFirstChild(name))
 end
 
-local function BFParseProgress(result)
-    if type(result) ~= "string" then return nil end
-    local n = tonumber(string.match(result, "%d+"))
-    if not n then return nil end
-    return math.clamp(n, 0, 500)
-end
-
-function BFGetCakeStatus()
-    local boss = BFFindEnemy("Cake Prince")
-    if boss then return true, 500, 0 end
-    local result = nil
-    pcall(function() result = CommF_:InvokeServer("CakePrinceSpawner") end)
-    local lower = type(result) == "string" and result:lower() or ""
-    if lower:find("spawned") or lower:find("ready") then return true, 500, 0 end
-    local remaining = BFParseProgress(result)
-    if remaining ~= nil then return false, 500 - remaining, remaining end
-    return false, 0, 500
-end
-
-function BFGetDoughStatus()
-    local boss = BFFindEnemy("Dough King")
-    if boss then return true, 500, 0, true end
-    local hasSweet = BFHasItem("Sweet Chalice")
-    local hasGod = BFHasItem("God's Chalice")
-    local cakeSpawned, killed, remaining = BFGetCakeStatus()
-    local ready = hasSweet
-    return false, killed or 0, remaining or 500, ready or hasGod
-end
-
-local function BFFormatTime(seconds)
-    seconds = math.max(0, math.floor(seconds or 0))
-    return string.format("%02d:%02d:%02d", math.floor(seconds/3600), math.floor(seconds/60)%60, seconds%60)
-end
-
-local function BFMap()
-    return workspace:FindFirstChild("Map")
-end
-
-local function BFFindIsland(kind)
-    local map = BFMap()
-    if not map then return nil end
-    local exact = kind == "Mirage" and {"MysticIsland","Mirage Island","MirageIsland"} or {"KitsuneIsland","Kitsune Island","KitsuneIslandEvent"}
-    for _, n in ipairs(exact) do
-        local obj = map:FindFirstChild(n, true)
-        if obj then return obj end
-    end
-    local needle = kind:lower():gsub("%s+", "")
-    for _, obj in ipairs(map:GetDescendants()) do
-        local n = obj.Name:lower():gsub("%s+", "")
-        if obj:IsA("Model") or obj:IsA("Folder") or obj:IsA("BasePart") then
-            if n:find(needle) then return obj end
+local function integratedMaterialCount(name)
+    local data=LocalPlayer:FindFirstChild("Data")
+    local inv=data and data:FindFirstChild("Inventory")
+    local val=inv and inv:FindFirstChild(name)
+    if val and val:IsA("NumberValue") then return val.Value end
+    local result
+    local ok=pcall(function() result=CommF_:InvokeServer("getInventory") end)
+    if ok and type(result)=="table" then
+        for _,item in pairs(result) do
+            if type(item)=="table" and item.Name==name then return tonumber(item.Count or item.Amount or 0) or 0 end
         end
     end
+    return 0
 end
 
-local function BFIslandPivot(obj)
-    if not obj then return nil end
-    if obj:IsA("Model") then return obj:GetPivot() end
-    if obj:IsA("BasePart") then return obj.CFrame end
-    local p = obj:FindFirstChildWhichIsA("BasePart", true)
-    return p and p.CFrame or nil
+local function integratedCakeProgress()
+    if not World3 then return 0,500,false end
+    local result
+    local ok=pcall(function() result=CommF_:InvokeServer("CakePrinceSpawner") end)
+    if not ok then return 0,500,false end
+    if tostring(result):lower():find("spawned") or integratedFindEnemy("Cake Prince") then return 500,0,true end
+    local n=tonumber(string.match(tostring(result or ""),"%d+"))
+    if n then n=math.clamp(n,0,500); return 500-n,n,false end
+    return 0,500,false
 end
 
-local function BFTeleportToIsland(kind)
-    local cf = BFIslandPivot(BFFindIsland(kind))
-    local r = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if cf and r then
-        r.CFrame = cf * CFrame.new(0, 35, 0)
-        return true
+local function integratedCakeStep()
+    local boss=integratedFindEnemy("Cake Prince")
+    if boss then
+        AutoHaki(); TweenPlayer(boss.HumanoidRootPart.CFrame,Vector3.new(0,25,0),"CakePrince"); SmartAttackMob(boss); return
     end
-    return false
+    local mob=integratedFindEnemy({"Cookie Crafter","Cake Guard","Baking Staff","Head Baker"})
+    if mob then AutoHaki(); TweenPlayer(mob.HumanoidRootPart.CFrame,Vector3.new(0,25,0),"CakePrince"); SmartAttackMob(mob); return end
+    TweenPlayer(CFrame.new(-2077,252,-12373),nil,"CakePrince")
 end
 
-local function BFGetOwnedBoat()
-    local boats = workspace:FindFirstChild("Boats")
-    if not boats then return nil end
-    for _, boat in ipairs(boats:GetChildren()) do
-        local owner = boat:FindFirstChild("Owner")
-        if owner and tostring(owner.Value) == tostring(LocalPlayer.Name) then return boat end
-        if boat:GetAttribute("Owner") == LocalPlayer.Name then return boat end
-    end
-end
-
-local function BFBoatPivot(boat)
-    if not boat then return nil end
-    return boat:IsA("Model") and boat:GetPivot() or (boat:IsA("BasePart") and boat.CFrame)
-end
-
-local function BFMoveBoatOnSurface(boat, pos)
-    if not boat then return false end
-    local cf = BFBoatPivot(boat)
-    if not cf then return false end
-    local target = CFrame.new(pos.X, 8, pos.Z) * CFrame.Angles(0, math.rad((os.clock()*18)%360), 0)
-    pcall(function()
-        if boat:IsA("Model") then boat:PivotTo(target) else boat.CFrame = target end
-    end)
-    return true
-end
-
-local MirageSearchStarted = os.clock()
-local KitsuneSearchStarted = os.clock()
-local SeaSearchStarted = os.clock()
-
-local function BFSearchBoat(kind)
-    local boat = BFGetOwnedBoat()
-    if not boat then
-        pcall(function() CommF_:InvokeServer("BuyBoat", _G.Settings.Sea["Selected Boat"] or "Guardian") end)
-        return
-    end
-    local origin = BFBoatPivot(boat)
-    if not origin then return end
-    local elapsed = kind == "Mirage" and (os.clock()-MirageSearchStarted) or (os.clock()-KitsuneSearchStarted)
-    local radius = 900 + math.min(elapsed * 35, 6000)
-    local angle = elapsed * 0.35
-    local target = origin.Position + Vector3.new(math.cos(angle)*radius, 0, math.sin(angle)*radius)
-    BFMoveBoatOnSurface(boat, target)
-    local seat = boat:FindFirstChildWhichIsA("VehicleSeat", true)
-    local r = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if seat and r and (r.Position-seat.Position).Magnitude > 60 then r.CFrame = seat.CFrame * CFrame.new(0, 4, 0) end
-end
-
-local SeaEventNames = {
-    ["Terrorshark"] = true, ["Shark"] = true, ["Piranha"] = true,
-    ["Fish Crew Member"] = true, ["Ghost Ship"] = true, ["Sea Beast"] = true,
-    ["Leviathan"] = true
-}
-
-local function BFFindSeaEvent()
-    local sea = workspace:FindFirstChild("SeaBeasts")
-    if sea then
-        for _, v in ipairs(sea:GetChildren()) do
-            if SeaEventNames[v.Name] or v.Name:lower():find("sea") or v.Name:lower():find("leviathan") then return v end
-        end
-    end
-    local enemies = workspace:FindFirstChild("Enemies")
-    if enemies then
-        for _, v in ipairs(enemies:GetChildren()) do
-            if SeaEventNames[v.Name] then return v end
-        end
-    end
-end
-
-local function BFFindSubmergedQuest(level)
-    local map = BFMap()
-    if not map then return nil end
-    local desired = level < 2650 and "Submerged Quest Giver 1" or (level < 2675 and "Submerged Quest Giver 2" or "Submerged Quest Giver 3")
-    local npc = workspace:FindFirstChild(desired, true) or map:FindFirstChild(desired, true)
-    if npc and npc:IsA("Model") then return npc end
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("Model") and obj.Name:lower() == desired:lower() then return obj end
-    end
-end
-
-local SubmergedQuests = {
-    {Min=2600, Max=2624, Mob="Reef Bandit", Quest="SubmergedQuest1", Level=1, Giver="Submerged Quest Giver 1"},
-    {Min=2625, Max=2649, Mob="Coral Pirate", Quest="SubmergedQuest1", Level=2, Giver="Submerged Quest Giver 1"},
-    {Min=2650, Max=2674, Mob="Sea Chanter", Quest="SubmergedQuest2", Level=1, Giver="Submerged Quest Giver 2"},
-    {Min=2675, Max=2699, Mob="Ocean Prophet", Quest="SubmergedQuest2", Level=2, Giver="Submerged Quest Giver 2"},
-    {Min=2700, Max=2800, Mob="Grand Devotee", Quest="SubmergedQuest3", Level=2, Giver="Submerged Quest Giver 3"},
-}
-
-local function BFGetLevel()
-    local stats = LocalPlayer:FindFirstChild("Data") or LocalPlayer:FindFirstChild("leaderstats")
-    local lv = stats and stats:FindFirstChild("Level")
-    return tonumber(lv and lv.Value) or 0
-end
-
-local function BFSubmergedStep()
-    local level = BFGetLevel()
-    if level < 2600 or level > 2800 then return false end
-    local q
-    for _, data in ipairs(SubmergedQuests) do if level >= data.Min and level <= data.Max then q=data break end end
-    if not q then return false end
-    local mob = BFFindEnemy(q.Mob)
-    local r = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    local giver = BFFindSubmergedQuest(level)
-    if mob then
-        attackTarget(mob)
-        return true
-    end
-    local questGui = LocalPlayer.PlayerGui:FindFirstChild("Main") and LocalPlayer.PlayerGui.Main:FindFirstChild("Quest")
-    local title = questGui and questGui:FindFirstChild("Container") and questGui.Container:FindFirstChild("QuestTitle") and questGui.Container.QuestTitle:FindFirstChild("Title")
-    local active = title and title.Text:find(q.Mob)
-    if not active then
-        if giver then
-            local gp = giver:FindFirstChild("HumanoidRootPart") or giver.PrimaryPart
-            if gp and r and (r.Position-gp.Position).Magnitude > 25 then r.CFrame = gp.CFrame * CFrame.new(0,5,0) end
-            pcall(function() CommF_:InvokeServer("StartQuest", q.Quest, q.Level) end)
+local function integratedSummonCake()
+    local _,remaining,spawned=integratedCakeProgress()
+    if spawned or remaining>0 then return end
+    local map=workspace:FindFirstChild("Map")
+    local cakeMap=map and cakeMap or nil
+    local mirror=cakeMap and cakeMap:FindFirstChild("CakeLoaf") and cakeMap.CakeLoaf:FindFirstChild("BigMirror")
+    if mirror then
+        local other=mirror:FindFirstChild("Other")
+        if other and other:IsA("BasePart") and other.Transparency>0 then
+            pcall(function() CommF_:InvokeServer("CakePrinceSpawner",true) end)
         end
     else
-        -- Keep the player safely inside the underwater island; high Y values can resurface the player.
-        if r and r.Position.Y > 0 then r.CFrame = CFrame.new(r.Position.X, -18, r.Position.Z) end
+        pcall(function() CommF_:InvokeServer("CakePrinceSpawner",true) end)
     end
-    return true
 end
 
--- Dedicated Update 28 level route. Submerged Island covers 2600-2800.
-task.spawn(function()
-    while task.wait(0.12) do
-        if BFState.AutoSubmerged and _G.Settings.Main["Auto Farm Level"] then
-            pcall(BFSubmergedStep)
-        end
+local function integratedDoughStep()
+    local boss=integratedFindEnemy("Dough King")
+    if boss then
+        AutoHaki(); TweenPlayer(boss.HumanoidRootPart.CFrame,Vector3.new(0,30,0),"DoughKing"); SmartAttackMob(boss); return
     end
-end)
-
--- Fruit / AFK / Cake / Dough controllers (independent and stoppable).
-local FruitLoopToken = 0
-local function BFIsFruitTool(obj)
-    if not obj or not obj:IsA("Tool") then return false end
-    local n = obj.Name:lower()
-    local tip = (obj.ToolTip or ""):lower()
-    return tip == "blox fruit" or n:find("fruit") or n:find("falcon") or n:find("leopard") or n:find("dough") or n:find("dragon") or n:find("kitsune")
-end
-local function BFFruitTools()
-    local out = {}
-    local bp = LocalPlayer:FindFirstChildOfClass("Backpack")
-    local c = LocalPlayer.Character
-    for _, parent in ipairs({bp,c}) do
-        if parent then for _, v in ipairs(parent:GetChildren()) do if BFIsFruitTool(v) then table.insert(out,v) end end end
+    if integratedMaterialCount("Conjured Cocoa") < 10 then
+        local mob=integratedFindEnemy({"Cocoa Warrior","Chocolate Bar Battler"})
+        if mob then AutoHaki(); TweenPlayer(mob.HumanoidRootPart.CFrame,Vector3.new(0,25,0),"DoughKing"); SmartAttackMob(mob)
+        else TweenPlayer(CFrame.new(402,81,-12259),nil,"DoughKing") end
+        return
     end
-    return out
-end
-local function BFStartFruitLoop()
-    FruitLoopToken += 1
-    local token = FruitLoopToken
-    task.spawn(function()
-        while token == FruitLoopToken and (_G.Settings.Fruits["Auto Store Fruit"] or _G.Settings.Fruits["Auto Drop Fruit"] or _G.Settings.Fruits["Auto Collect World Fruits"]) do
-            pcall(function()
-                local r = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                if _G.Settings.Fruits["Auto Collect World Fruits"] and r then
-                    for _, v in ipairs(workspace:GetDescendants()) do
-                        if v:IsA("Tool") and BFIsFruitTool(v) then
-                            local part = v:FindFirstChild("Handle") or v:FindFirstChildWhichIsA("BasePart")
-                            if part and (part.Position-r.Position).Magnitude < 250 then r.CFrame = part.CFrame end
-                        end
-                    end
-                end
-                for _, fruit in ipairs(BFFruitTools()) do
-                    if _G.Settings.Fruits["Auto Store Fruit"] then
-                        pcall(function() CommF_:InvokeServer("StoreFruit", fruit.Name, fruit) end)
-                    elseif _G.Settings.Fruits["Auto Drop Fruit"] then
-                        pcall(function() fruit.Parent = workspace end)
-                    end
-                end
-            end)
-            task.wait(0.7)
-        end
-    end)
+    if integratedItem("God's Chalice") then pcall(function() CommF_:InvokeServer("SweetChaliceNpc") end) end
+    if integratedItem("Sweet Chalice") then pcall(function() CommF_:InvokeServer("CakePrinceSpawner",true) end) end
 end
 
-local AFKToken = 0
-local function BFStartAFK()
-    AFKToken += 1
-    local token = AFKToken
-    task.spawn(function()
-        while token == AFKToken and BFState.ServerTimeAFK do
-            pcall(function()
-                local vu = VirtualUser
-                local camera = workspace.CurrentCamera
-                if vu and LocalPlayer.Character and camera then
-                    vu:CaptureController()
-                    vu:ClickButton2(Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2))
-                end
-            end)
-            task.wait(45)
-        end
-    end)
-end
-
-local function BFStartCakeDoughLoops()
-    task.spawn(function()
-        while BFState.AutoCakePrince do
-            pcall(function()
-                local boss = BFFindEnemy("Cake Prince")
-                if boss then attackTarget(boss) else
-                    local mob = BFFindEnemy({"Cookie Crafter","Cake Guard","Baking Staff","Head Baker"})
-                    if mob then attackTarget(mob) else moveTo(CFrame.new(-2077, 252, -12373)) end
-                end
-            end)
-            task.wait(0.15)
-        end
-    end)
-    task.spawn(function()
-        while BFState.AutoDoughKing do
-            pcall(function()
-                local boss = BFFindEnemy("Dough King")
-                if boss then attackTarget(boss) else
-                    if BFHasItem("Sweet Chalice") then pcall(function() CommF_:InvokeServer("CakePrinceSpawner", true) end)
-                    elseif BFHasItem("God's Chalice") then pcall(function() CommF_:InvokeServer("SweetChaliceNpc") end)
-                    else
-                        local mob = BFFindEnemy({"Cocoa Warrior","Chocolate Bar Battler"})
-                        if mob then attackTarget(mob) else moveTo(CFrame.new(402.719,81.061,-12259.543)) end
-                    end
-                end
-            end)
-            task.wait(0.2)
-        end
-    end)
-end
-
--- Mirage / Kitsune search: keep the boat at surface height instead of lifting the player into the air.
-task.spawn(function()
-    while task.wait(0.35) do
-        if BFState.AutoFindMirage and not BFFindIsland("Mirage") then pcall(BFSearchBoat, "Mirage") else MirageSearchStarted = os.clock() end
-        if BFState.AutoFindKitsune and not BFFindIsland("Kitsune") then pcall(BFSearchBoat, "Kitsune") else KitsuneSearchStarted = os.clock() end
+local function integratedMaterialStep()
+    local cfg=IntegratedMaterialByWorld[World] and IntegratedMaterialByWorld[World][_G.Settings.Main["Selected Material"]]
+    if not cfg then return end
+    local mob=integratedFindEnemy(cfg.Mobs)
+    if mob then
+        AutoHaki(); TweenPlayer(mob.HumanoidRootPart.CFrame,Vector3.new(0,_G.Settings.Main["Farm Distance"],0),"Material"); SmartAttackMob(mob); return
     end
-end)
+    TweenPlayer(cfg.Position,Vector3.new(0,_G.Settings.Main["Farm Distance"],0),"Material")
+end
 
--- Sea-event tracker / auto-positioning.
-task.spawn(function()
-    while task.wait(0.25) do
-        if BFState.AutoSeaEvents then
-            pcall(function()
-                local event = BFFindSeaEvent()
-                local part = event and (event:FindFirstChild("HumanoidRootPart") or event.PrimaryPart or event:FindFirstChildWhichIsA("BasePart", true))
-                local r = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                if part and r then r.CFrame = part.CFrame * CFrame.new(0, 35, 0) end
-            end)
+local function integratedLeviathanStep()
+    local sea=workspace:FindFirstChild("SeaBeasts")
+    local levi=sea and (sea:FindFirstChild("Leviathan") or sea:FindFirstChild("LeviathanCore"))
+    local target=levi and (levi:FindFirstChild("HumanoidRootPart") or levi.PrimaryPart)
+    if target then AutoHaki(); TweenPlayer(target.CFrame,Vector3.new(0,50,0),"Leviathan"); FastAttackTarget(levi) end
+end
+
+local function integratedFrozenStep()
+    local gate=workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("LeviathanGate")
+    if gate then
+        local part=gate:IsA("BasePart") and gate or gate:FindFirstChildWhichIsA("BasePart",true)
+        if part then TweenPlayer(part.CFrame,nil,"Frozen") end
+        pcall(function() CommF_:InvokeServer("OpenLeviathanGate") end)
+    end
+end
+
+local function integratedHydraStep()
+    local boat=GetMyBoatIntegrated and GetMyBoatIntegrated() or nil
+    if not boat then ensureBoat(); return end
+    local seat=getBoatSeat(boat)
+    local _,hrp,hum=GetCharacter()
+    if seat and hum and not hum.Sit then pcall(function() hrp.CFrame=seat.CFrame*CFrame.new(0,2.5,0) end); return end
+    if seat then moveBoatOverSea(boat,CFrame.new(5433,35,290),true) end
+end
+
+-- Independent controllers; each stops as soon as its own flag becomes false.
+task.spawn(function() while task.wait(0.25) do if _G.Settings.Cake["Auto Kill Cake Prince"] then pcall(integratedCakeStep) end end end)
+task.spawn(function() while task.wait(1.5) do if _G.Settings.Cake["Auto Spawn Cake Prince"] then pcall(integratedSummonCake) end end end)
+task.spawn(function() while task.wait(0.25) do if _G.Settings.Cake["Auto Kill Dough King"] then pcall(integratedDoughStep) end end end)
+task.spawn(function() while task.wait(0.25) do if _G.Settings.Main["Auto Farm Material"] then pcall(integratedMaterialStep) end end end)
+task.spawn(function() while task.wait(0.25) do if _G.Settings.SubFarm["Auto Farm Leviathan"] then pcall(integratedLeviathanStep) end end end)
+
+--------------------------------------------------------------------------------
+-- 10B. Raid Island Progression Fix
+--------------------------------------------------------------------------------
+local RaidIslandState = {Index=1, LastJob=tostring(game.JobId), Locked=false}
+local function raidIslandCF(obj)
+    if obj:IsA("BasePart") then return obj.CFrame end
+    if obj:IsA("Model") then return obj.PrimaryPart and obj.PrimaryPart.CFrame or obj:GetPivot() end
+end
+local function getRaidIslandsSorted()
+    local found={}
+    local folders={workspace:FindFirstChild("_WorldOrigin") and workspace._WorldOrigin:FindFirstChild("Locations"),workspace:FindFirstChild("Locations"),workspace:FindFirstChild("Map")}
+    for _,folder in ipairs(folders) do
+        if folder then
+            for _,child in ipairs(folder:GetChildren()) do
+                local n=tonumber(string.match(child.Name,"Island%s*(%d+)")) or tonumber(string.match(child.Name,"<%s*Island%s*(%d+)%s*>"))
+                if n and n>=1 and n<=5 then found[n]=raidIslandCF(child) or found[n] end
+            end
         end
     end
-end)
-
-
+    return found
+end
+local function aliveEnemyNear(position,radius)
+    local enemies=workspace:FindFirstChild("Enemies")
+    if not enemies then return nil end
+    local _,hrp=GetCharacter()
+    if not hrp then return nil end
+    local best,bestD=nil,math.huge
+    for _,mob in ipairs(enemies:GetChildren()) do
+        local h=mob:FindFirstChildOfClass("Humanoid")
+        local r=mob:FindFirstChild("HumanoidRootPart")
+        if h and h.Health>0 and r and (r.Position-position).Magnitude<=radius then
+            local d=(r.Position-hrp.Position).Magnitude
+            if d<bestD then best,bestD=mob,d end
+        end
+    end
+    return best
+end
+local function autoNextIslandFixed()
+    local islands=getRaidIslandsSorted()
+    if RaidIslandState.LastJob~=tostring(game.JobId) then RaidIslandState={Index=1,LastJob=tostring(game.JobId),Locked=false} end
+    if not islands[RaidIslandState.Index] then return end
+    local _,hrp=GetCharacter(); if not hrp then return end
+    local current=islands[RaidIslandState.Index]
+    local mob=aliveEnemyNear(current.Position,650)
+    if mob then
+        AutoHaki(); TweenPlayer(mob.HumanoidRootPart.CFrame,Vector3.new(0,_G.Settings.Main["Farm Distance"],0),"Raid")
+        if _G.Settings.Raid["Auto Clear Dungeon Waves"] then SmartAttackMob(mob) end
+        return
+    end
+    if (hrp.Position-current.Position).Magnitude>70 then
+        TweenPlayer(current,Vector3.new(0,35,0),"Raid")
+        return
+    end
+    -- Current island is clear. Advance only forward, never scan from island 1 again.
+    if RaidIslandState.Index<5 then
+        RaidIslandState.Index += 1
+        local nextCF=islands[RaidIslandState.Index]
+        if nextCF then TweenPlayer(nextCF,Vector3.new(0,35,0),"Raid") end
+    else
+        RaidIslandState.Locked=true
+    end
+end
 --------------------------------------------------------------------------------
 -- 7. AetherUI Framework Integration (100% Full English Interface)
 --------------------------------------------------------------------------------
@@ -1253,15 +1046,7 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
 
         MainTab:CreateToggle("Auto Farm Level", "AutoFarmFlag", false, function(state)
             _G.Settings.Main["Auto Farm Level"] = state
-            if not state then StopTween("AutoFarmLevel") end
-        end)
-
-        MainTab:CreateSection("Update 28 • Submerged Island • Max Level 2800")
-        MainTab:CreateParagraph({Title="Submerged Route", Desc="Lv. 2600 → 2800 | Third Sea | Underwater", Image="rbxassetid://6034453535", ImageSize=20})
-        MainTab:CreateToggle("Auto Farm Submerged Island (2600-2800)", "AutoSubmergedFlag", false, function(state)
-            _G.Settings.Misc["Update 28 Submerged"] = state
-            BFState.AutoSubmerged = state
-            if not state then StopTween("AutoSubmerged") end
+            if not state then StopTween() end
         end)
 
         MainTab:CreateToggle("Include Boss Quests", "IncludeBossQuestFlag", false, function(state)
@@ -1284,6 +1069,19 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
             _G.Settings.Main["Fast Attack"] = state
         end)
 
+        MainTab:CreateSection("Cake Prince & Dough King")
+        MainTab:CreateToggle("Auto Kill Cake Prince", "AutoKillCakePrinceFlag", false, function(state)
+            _G.Settings.Cake["Auto Kill Cake Prince"] = state
+            if not state then StopTween("CakePrince") end
+        end)
+        MainTab:CreateToggle("Auto Spawn Cake Prince", "AutoSpawnCakePrinceFlag", false, function(state)
+            _G.Settings.Cake["Auto Spawn Cake Prince"] = state
+        end)
+        MainTab:CreateToggle("Auto Kill Dough King", "AutoKillDoughKingFlag", false, function(state)
+            _G.Settings.Cake["Auto Kill Dough King"] = state
+            if not state then StopTween("DoughKing") end
+        end)
+
         MainTab:CreateSection("Materials Farming")
 
         MainTab:CreateDropdown("Select Material", "MatDropdownFlag", MaterialList, MaterialList[1], function(selected)
@@ -1292,7 +1090,7 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
 
         MainTab:CreateToggle("Auto Farm Material", "FarmMatFlag", false, function(state)
             _G.Settings.Main["Auto Farm Material"] = state
-            if not state then StopTween("AutoFarmMaterial") end
+            if not state then StopTween() end
         end)
 
         MainTab:CreateSection("Boss Farming")
@@ -1303,12 +1101,12 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
 
         MainTab:CreateToggle("Auto Farm Selected Boss", "FarmBossFlag", false, function(state)
             _G.Settings.Main["Auto Farm Boss"] = state
-            if not state then StopTween("AutoFarmBoss") end
+            if not state then StopTween() end
         end)
 
         MainTab:CreateToggle("Auto Farm All Available Bosses", "FarmAllBossFlag", false, function(state)
             _G.Settings.Main["Auto Farm All Boss"] = state
-            if not state then StopTween("AutoFarmAllBoss") end
+            if not state then StopTween() end
         end)
 
         ---------------------------------------------------------
@@ -1331,7 +1129,7 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
 
         QuestsTab:CreateToggle("Auto Citizen Quest Complete", "CitizenQuestFlag", false, function(state)
             _G.Settings.Quests["Auto Citizen Quest"] = state
-            if not state then StopTween("Citizen") end
+            if not state then StopTween() end
         end)
 
         QuestsTab:CreateButton("Start Citizen Quest Immediately", function()
@@ -1347,25 +1145,6 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
         QuestsTab:CreateToggle("Auto Tushita Puzzle", "TushitaPuzzleFlag", false, function(s) _G.Settings.Quests["Auto Tushita Puzzle"] = s end)
         QuestsTab:CreateToggle("Auto Colosseum Puzzle", "ColosseumPuzzleFlag", false, function(s) _G.Settings.Quests["Auto Colosseum Puzzle"] = s end)
         QuestsTab:CreateToggle("Auto Dough / Cake Challenges", "DoughChallengeFlag", false, function(s) _G.Settings.Quests["Auto Dough Challenges"] = s end)
-        QuestsTab:CreateToggle("Auto Cake Prince", "AutoCakePrinceFlag", false, function(state)
-            _G.Settings.Cake["Auto Kill Cake Prince"] = state
-            BFState.AutoCakePrince = state
-            if state then BFStartCakeDoughLoops() else StopTween("CakePrince") end
-        end)
-
-        QuestsTab:CreateToggle("Auto Dough King", "AutoDoughKingFlag", false, function(state)
-            _G.Settings.Cake["Auto Kill Dough King"] = state
-            BFState.AutoDoughKing = state
-            if state then BFStartCakeDoughLoops() else StopTween("DoughKing") end
-        end)
-
-        QuestsTab:CreateToggle("Cake Prince Progress Display", "CakeProgressDisplayFlag", true, function(state)
-            _G.Settings.Cake["Cake Progress Display"] = state
-        end)
-
-        QuestsTab:CreateToggle("Dough King Progress Display", "DoughProgressDisplayFlag", true, function(state)
-            _G.Settings.Cake["Dough Progress Display"] = state
-        end)
         QuestsTab:CreateToggle("Auto Soul Guitar Puzzle", "SoulGuitarPuzzleFlag", false, function(s) _G.Settings.Quests["Auto Soul Guitar Puzzle"] = s end)
 
         ---------------------------------------------------------
@@ -1453,7 +1232,7 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
 
         SubFarmTab:CreateToggle("Auto Farm Bones", "AutoFarmBoneFlag", false, function(state)
             _G.Settings.SubFarm["Auto Farm Bone"] = state
-            if not state then StopTween("AutoBone") end
+            if not state then StopTween() end
         end)
 
         SubFarmTab:CreateToggle("Auto Accept Bone Quest", "AutoAcceptBoneQuestFlag", false, function(state)
@@ -1466,24 +1245,24 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
 
         SubFarmTab:CreateToggle("Auto Elite Hunter", "EliteFlag", false, function(state)
             _G.Settings.SubFarm["Auto Elite Hunter"] = state
-            if not state then StopTween("AutoElite") end
+            if not state then StopTween() end
         end)
 
         SubFarmTab:CreateToggle("Auto Elite Hunter Hop", "EliteHopFlag", false, function(state)
             _G.Settings.SubFarm["Auto Elite Hunter Hop"] = state
-            if not state then StopTween("AutoEliteHop") end
+            if not state then StopTween() end
         end)
 
         SubFarmTab:CreateSection("Chests Farming")
 
         SubFarmTab:CreateToggle("Auto Chest (Tween)", "ChestTweenFlag", false, function(state)
             _G.Settings.SubFarm["Auto Chest Tween"] = state
-            if not state then StopTween("AutoChestTween") end
+            if not state then StopTween() end
         end)
 
         SubFarmTab:CreateToggle("Auto Chest (Instant)", "ChestInstantFlag", false, function(state)
             _G.Settings.SubFarm["Auto Chest Instant"] = state
-            if not state then StopTween("AutoChestInstant") end
+            if not state then StopTween() end
         end)
 
         ---------------------------------------------------------
@@ -1497,7 +1276,7 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
 
         RaidTab:CreateToggle("Auto Dungeon / Fruits Raid", "AutoDungeonFlag", false, function(state)
             _G.Settings.Raid["Auto Dungeon / Raid"] = state
-            if not state then StopTween("AutoRaid") end
+            if not state then StopTween() end
         end)
 
         RaidTab:CreateToggle("Auto Buy Chip & Start Raid", "AutoBuyStartRaidFlag", false, function(state)
@@ -1506,12 +1285,12 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
 
         RaidTab:CreateToggle("Auto Clear Dungeon Waves", "AutoClearDungeonFlag", false, function(state)
             _G.Settings.Raid["Auto Clear Dungeon Waves"] = state
-            if not state then StopTween("RaidClear") end
+            if not state then StopTween() end
         end)
 
         RaidTab:CreateToggle("Auto Next Island (5 Islands Full Scanner)", "AutoNextIslandFlag", false, function(state)
             _G.Settings.Raid["Auto Next Island"] = state
-            if not state then StopTween("RaidNextIsland") end
+            if not state then StopTween() end
         end)
 
         RaidTab:CreateToggle("Auto Awaken Skills", "AutoAwakenSkillsFlag", false, function(state)
@@ -1520,7 +1299,7 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
 
         RaidTab:CreateToggle("Auto Law Raid", "LawRaidFlag", false, function(state)
             _G.Settings.Raid["Law Raid"] = state
-            if not state then StopTween("LawRaid") end
+            if not state then StopTween() end
         end)
 
         ---------------------------------------------------------
@@ -1535,17 +1314,34 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
 
         SeaTab:CreateToggle("Auto Prehistoric Island", "AutoPrehistoricFlag", false, function(state)
             _G.Settings.Sea["Auto Prehistoric Island"] = state
-            if not state then StopTween("Prehistoric") end
+            if not state then StopTween() end
         end)
 
         SeaTab:CreateToggle("Auto Complete Prehistoric Torches", "AutoCompletePrehistoricFlag", false, function(state)
             _G.Settings.Sea["Auto Complete Prehistoric Island"] = state
-            if not state then StopTween("PrehistoricTorches") end
+            if not state then StopTween() end
         end)
 
         SeaTab:CreateToggle("Auto Draco Trail", "AutoDracoTrailFlag", false, function(state)
             _G.Settings.Sea["Auto Draco Trail"] = state
-            if not state then StopTween("Draco") end
+            if not state then StopTween() end
+        end)
+
+        SeaTab:CreateSection("Advanced Sea Engines")
+
+        SeaTab:CreateToggle("Auto Attack Leviathan", "AutoLeviathanFlag", false, function(state)
+            _G.Settings.SubFarm["Auto Farm Leviathan"] = state
+            if not state then StopTween("Leviathan") end
+        end)
+
+        SeaTab:CreateToggle("Auto Frozen Dimension", "AutoFrozenDimensionFlag", false, function(state)
+            _G.Settings.Sea["Auto Frozen Dimension"] = state
+            if not state then StopTween("Frozen") end
+        end)
+
+        SeaTab:CreateToggle("Auto Drive Hydra", "AutoDriveHydraFlag", false, function(state)
+            _G.Settings.Sea["Auto Drive Hydra"] = state
+            if not state then StopTween("Hydra") end
         end)
 
         SeaTab:CreateSection("Sailing & Boat Controls")
@@ -1571,12 +1367,6 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
 
         SeaTab:CreateToggle("Auto Attack Sea Events", "AutoAttackSeaFlag", false, function(state)
             _G.Settings.Sea["Auto Attack Sea Events"] = state
-        end)
-
-        local SeaEventStatusPara = SeaTab:CreateParagraph({Title="Sea Event Status", Desc="🔴 No Sea Event", Image="rbxassetid://6034453535", ImageSize=20})
-        SeaTab:CreateToggle("Auto Sea Event Scanner / Position", "AutoSeaEventsFlag", false, function(state)
-            _G.Settings.Misc["Auto Sea Events"] = state
-            BFState.AutoSeaEvents = state
         end)
 
         SeaTab:CreateToggle("Auto Farm Shark", "SharkFlag", false, function(state)
@@ -1611,7 +1401,25 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
 
         SeaTab:CreateToggle("Auto Find Kitsune Island", "AutoFindKitsuneIslandFlag", false, function(state)
             _G.Settings.Sea["Auto Find Kitsune Island"] = state
-            if not state then StopTween() end
+            if not state then StopTween("Kitsune") end
+        end)
+
+        SeaTab:CreateButton("Teleport To Kitsune Island", function()
+            if World3 then
+                local island = GetKitsuneIsland()
+                if island then
+                    local cf = GetModelCFrame(island)
+                    if cf then TweenPlayer(cf, Vector3.new(0, 80, 0), "KitsuneTP") end
+                    AetherUI:Notify({Title = "Kitsune Island", Content = "Teleporting to Kitsune Island...", Duration = 2})
+                else
+                    AetherUI:Notify({Title = "Kitsune Island", Content = "Kitsune Island is not spawned.", Duration = 3})
+                end
+            end
+        end)
+
+        SeaTab:CreateToggle("Teleport To Kitsune (Auto)", "TeleportToKitsuneFlag", false, function(state)
+            _G.Settings.Sea["Teleport To Kitsune Island"] = state
+            if not state then StopTween("KitsuneTP") end
         end)
 
         ---------------------------------------------------------
@@ -1647,51 +1455,106 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
             end)
         end)
 
-        RaceTab:CreateSection("Mirage / Kitsune Professional Scanner")
+        RaceTab:CreateSection("Mirage Island & Gear Suite")
 
-        local MirageStatusPara = RaceTab:CreateParagraph({Title = "Mirage Island Status", Desc = "🔴 Not Spawned", Image = "rbxassetid://6034453535", ImageSize = 20})
-        local KitsuneStatusPara = RaceTab:CreateParagraph({Title = "Kitsune Island Status", Desc = "🔴 Not Spawned", Image = "rbxassetid://6034453535", ImageSize = 20})
-
-        RaceTab:CreateToggle("Auto Find Mirage Island • Surface Boat", "AutoFindMirageFlag", false, function(state)
+        RaceTab:CreateToggle("Auto Find Mirage Island", "AutoFindMirageFlag", false, function(state)
             _G.Settings.Race["Auto Find Mirage"] = state
-            BFState.AutoFindMirage = state
-            if state then MirageSearchStarted = os.clock() end
+            if not state then StopTween("Mirage") end
         end)
 
         RaceTab:CreateButton("Teleport To Mirage Island", function()
-            if not BFTeleportToIsland("Mirage") then
-                AetherUI:Notify({Title="Mirage", Content="Mirage Island is not spawned in this server.", Duration=3})
+            if World3 then
+                local island = GetMirageIsland()
+                if island then
+                    local cf = GetModelCFrame(island)
+                    if cf then TweenPlayer(cf, Vector3.new(0, 80, 0), "MirageTP") end
+                    AetherUI:Notify({Title = "Mirage Island", Content = "Teleporting to Mirage Island...", Duration = 2})
+                else
+                    AetherUI:Notify({Title = "Mirage Island", Content = "Mirage Island is not spawned.", Duration = 3})
+                end
             end
         end)
 
-        RaceTab:CreateToggle("Auto Find Kitsune Island • Surface Boat", "AutoFindKitsuneFlag", false, function(state)
-            _G.Settings.Race["Auto Find Kitsune Island"] = state
-            BFState.AutoFindKitsune = state
-            if state then KitsuneSearchStarted = os.clock() end
-        end)
-
-        RaceTab:CreateButton("Teleport To Kitsune Island", function()
-            if not BFTeleportToIsland("Kitsune") then
-                AetherUI:Notify({Title="Kitsune", Content="Kitsune Island is not spawned in this server.", Duration=3})
-            end
+        RaceTab:CreateToggle("Teleport To Mirage (Auto)", "TeleportToMirageFlag", false, function(state)
+            _G.Settings.Race["Teleport To Mirage"] = state
+            if not state then StopTween("MirageTP") end
         end)
 
         RaceTab:CreateToggle("Tween To Highest Mirage Point", "TweenMirageFlag", false, function(state)
             _G.Settings.Race["Tween To Highest Mirage"] = state
-            if not state then StopTween("MirageHighest") end
+            if not state then StopTween() end
+            task.spawn(function()
+                while _G.Settings.Race["Tween To Highest Mirage"] do
+                    task.wait()
+                    pcall(function()
+                        if workspace.Map:FindFirstChild("MysticIsland") then
+                            for _, v in pairs(workspace.Map.MysticIsland:GetDescendants()) do
+                                if v:IsA("MeshPart") and v.MeshId == "rbxassetid://6745037796" then
+                                    TweenPlayer(v.CFrame, Vector3.new(0, 212, 0))
+                                end
+                            end
+                        end
+                    end)
+                end
+            end)
         end)
 
         RaceTab:CreateToggle("Teleport To Blue Gear", "TeleportToGearFlag", false, function(state)
             _G.Settings.Race["Teleport To Blue Gear"] = state
-            if not state then StopTween("BlueGear") end
+            if not state then StopTween() end
+            task.spawn(function()
+                while _G.Settings.Race["Teleport To Blue Gear"] do
+                    task.wait(0.2)
+                    pcall(function()
+                        if workspace.Map:FindFirstChild("MysticIsland") then
+                            for _, v in pairs(workspace.Map.MysticIsland:GetChildren()) do
+                                if v:IsA("MeshPart") and (v.Material == Enum.Material.Neon or string.find(v.Name:lower(), "gear")) then
+                                    TweenPlayer(v.CFrame)
+                                    if (LocalPlayer.Character.HumanoidRootPart.Position - v.Position).Magnitude < 15 then
+                                        if CommF_ then CommF_:InvokeServer("InteractGear", v) end
+                                    end
+                                end
+                            end
+                        end
+                    end)
+                end
+            end)
         end)
 
         RaceTab:CreateToggle("Auto Look Moon Ability", "LookMoonFlag", false, function(state)
             _G.Settings.Race["Look Moon Ability"] = state
+            task.spawn(function()
+                while _G.Settings.Race["Look Moon Ability"] do
+                    task.wait()
+                    pcall(function()
+                        local moonDir = game.Lighting:GetMoonDirection()
+                        local lookAtPos = workspace.CurrentCamera.CFrame.p + moonDir * 100
+                        workspace.CurrentCamera.CFrame = CFrame.lookAt(workspace.CurrentCamera.CFrame.p, lookAtPos)
+                    end)
+                end
+            end)
         end)
 
         RaceTab:CreateToggle("Teleport To Race Door", "TPDoorFlag", false, function(state)
             _G.Settings.Race["Teleport To Race Door"] = state
+            if not state then StopTween() end
+            if state then
+                local myRace = (LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Race")) and LocalPlayer.Data.Race.Value or "Human"
+                local raceDoors = {
+                    ["Human"] = CFrame.new(29221.82, 14890.97, -205.99),
+                    ["Skypian"] = CFrame.new(28960.15, 14919.62, 235.03),
+                    ["Fishman"] = CFrame.new(28231.17, 14890.97, -211.64),
+                    ["Cyborg"] = CFrame.new(28502.68, 14895.97, -423.72),
+                    ["Ghoul"] = CFrame.new(28674.24, 14890.67, 445.43),
+                    ["Mink"] = CFrame.new(29012.34, 14890.97, -380.14)
+                }
+                local char, hrp = GetCharacter()
+                if char and hrp then
+                    hrp.CFrame = CFrame.new(28286.35, 14895.30, 102.62)
+                    task.wait(0.3)
+                    if raceDoors[myRace] then TweenPlayer(raceDoors[myRace]) end
+                end
+            end
         end)
 
         RaceTab:CreateToggle("Auto V4 Training", "AutoTrainFlag", false, function(state)
@@ -1767,20 +1630,36 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
 
         FruitsTab:CreateToggle("Auto Store Fruit", "AutoStoreFruitFlag", false, function(state)
             _G.Settings.Fruits["Auto Store Fruit"] = state
-            BFState.AutoStoreFruit = state
-            BFStartFruitLoop()
+            task.spawn(function()
+                while _G.Settings.Fruits["Auto Store Fruit"] do
+                    task.wait(0.5)
+                    local backpack = LocalPlayer:FindFirstChild("Backpack")
+                    if backpack then
+                        for _, tool in pairs(backpack:GetChildren()) do
+                            if tool:IsA("Tool") and string.find(tool.Name:lower(), "fruit") then
+                                pcall(function() CommF_:InvokeServer("StoreFruit", tool.Name) end)
+                            end
+                        end
+                    end
+                end
+            end)
         end)
 
         FruitsTab:CreateToggle("Auto Drop Fruit", "AutoDropFruitFlag", false, function(state)
             _G.Settings.Fruits["Auto Drop Fruit"] = state
-            BFState.AutoDropFruit = state
-            BFStartFruitLoop()
-        end)
-
-        FruitsTab:CreateToggle("Auto Collect World Fruits", "AutoCollectWorldFruitsFlag", false, function(state)
-            _G.Settings.Fruits["Auto Collect World Fruits"] = state
-            BFState.CollectWorldFruits = state
-            BFStartFruitLoop()
+            task.spawn(function()
+                while _G.Settings.Fruits["Auto Drop Fruit"] do
+                    task.wait(0.5)
+                    local backpack = LocalPlayer:FindFirstChild("Backpack")
+                    if backpack then
+                        for _, tool in pairs(backpack:GetChildren()) do
+                            if tool:IsA("Tool") and string.find(tool.Name:lower(), "fruit") then
+                                tool.Parent = workspace
+                            end
+                        end
+                    end
+                end
+            end)
         end)
 
         FruitsTab:CreateButton("Open Blox Fruits Shop Remotely", function()
@@ -1961,236 +1840,103 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
             AetherUI:Notify({Title = "Codes", Content = "Redeeming all working codes automatically...", Duration = 4})
         end)
 
-        MiscTab:CreateSection("Live Server & Player Information")
+        MiscTab:CreateSection("Live Server & World Status")
 
-        local SessionTimePara = MiscTab:CreateParagraph({
-            Title = "Session Time",
-            Desc = "00:00:00",
-            Image = "rbxassetid://6034287594",
-            ImageSize = 20
-        })
+        local SessionTimePara = MiscTab:CreateParagraph({Title="Session Time", Desc="00:00:00", Image="rbxassetid://6034287594", ImageSize=20})
+        local ServerTimePara = MiscTab:CreateParagraph({Title="Server Uptime", Desc="00:00:00", Image="rbxassetid://6034287594", ImageSize=20})
+        local AFKTimePara = MiscTab:CreateParagraph({Title="AFK / Idle Time", Desc="00:00:00", Image="rbxassetid://6034287594", ImageSize=20})
+        local TimezonePara = MiscTab:CreateParagraph({Title="Time", Desc="Local: --:--:-- | UTC: --:--:--", Image="rbxassetid://6034287594", ImageSize=20})
+        local SeaIslandPara = MiscTab:CreateParagraph({Title="Location & Sea", Desc="Sea: Detecting... | Island: Detecting...", Image="rbxassetid://6034453535", ImageSize=20})
+        local StatsPara = MiscTab:CreateParagraph({Title="Player Stats & Currency", Desc="Level: -- | Beli: -- | Fragments: --", Image="rbxassetid://6031280882", ImageSize=20})
+        local ServerInfoPara = MiscTab:CreateParagraph({Title="Server", Desc="Players: 0/0 | Server Time: 00:00:00", Image="rbxassetid://6034287594", ImageSize=20})
+        local CakePrincePara = MiscTab:CreateParagraph({Title="Cake Prince", Desc="🔴 Not Spawned | Progress: 0/500 | Remaining: 500", Image="rbxassetid://6034834832", ImageSize=20})
+        local DoughKingPara = MiscTab:CreateParagraph({Title="Dough King", Desc="🔴 Not Spawned | Progress: 0/500 | Remaining: 500 | Sweet Chalice: ❌", Image="rbxassetid://6034834832", ImageSize=20})
+        local MiragePara = MiscTab:CreateParagraph({Title="Mirage Status", Desc="🔴 Not Spawned", Image="rbxassetid://6034453535", ImageSize=20})
+        local KitsunePara = MiscTab:CreateParagraph({Title="Kitsune Status", Desc="🔴 Not Spawned", Image="rbxassetid://6034453535", ImageSize=20})
+        local SeaEventPara = MiscTab:CreateParagraph({Title="Sea Events", Desc="No active sea events detected.", Image="rbxassetid://6034453535", ImageSize=20})
+        local ElitePara = MiscTab:CreateParagraph({Title="Elite Hunters Killed", Desc="N/A", Image="rbxassetid://6034834832", ImageSize=20})
+        local SwordPara = MiscTab:CreateParagraph({Title="Legendary Swords Owned", Desc="0 / 3", Image="rbxassetid://6034834832", ImageSize=20})
+        local NetworkPara = MiscTab:CreateParagraph({Title="Network", Desc="FPS: -- | Ping: -- ms", Image="rbxassetid://6031280882", ImageSize=20})
 
-        local TimezonePara = MiscTab:CreateParagraph({
-            Title = "Timezones",
-            Desc = "Local: --:--:-- | UTC: --:--:--",
-            Image = "rbxassetid://6034287594",
-            ImageSize = 20
-        })
-
-        local ElitePara = MiscTab:CreateParagraph({
-            Title = "Elite Hunters Killed",
-            Desc = "Checking...",
-            Image = "rbxassetid://6034834832",
-            ImageSize = 20
-        })
-
-        local SwordPara = MiscTab:CreateParagraph({
-            Title = "Legendary Swords Owned",
-            Desc = "0 / 3 Owned",
-            Image = "rbxassetid://6034834832",
-            ImageSize = 20
-        })
-
-        local SeaIslandPara = MiscTab:CreateParagraph({
-            Title = "Location & Sea",
-            Desc = "Sea: Detecting... | Island: Detecting...",
-            Image = "rbxassetid://6034453535",
-            ImageSize = 20
-        })
-
-        local StatsPara = MiscTab:CreateParagraph({
-            Title = "Player Stats & Currency",
-            Desc = "Level: -- | Beli: -- | Fragments: --",
-            Image = "rbxassetid://6031280882",
-            ImageSize = 20
-        })
-
-        local ServerInfoPara = MiscTab:CreateParagraph({
-            Title = "Server Uptime & Players",
-            Desc = "Players: 0/0 | Uptime: 00:00:00",
-            Image = "rbxassetid://6034287594",
-            ImageSize = 20
-        })
-
-        local CakePrinceStatusPara = MiscTab:CreateParagraph({
-            Title = "Cake Prince Status",
-            Desc = "🔴 Not Spawned",
-            Image = "rbxassetid://6034834832",
-            ImageSize = 20
-        })
-
-        local CakePrinceProgressPara = MiscTab:CreateParagraph({
-            Title = "Cake Prince Progress",
-            Desc = "0/500",
-            Image = "rbxassetid://6034834832",
-            ImageSize = 20
-        })
-
-        local DoughKingStatusPara = MiscTab:CreateParagraph({
-            Title = "Dough King Status",
-            Desc = "🔴 Not Ready",
-            Image = "rbxassetid://6034834832",
-            ImageSize = 20
-        })
-
-        local DoughKingProgressPara = MiscTab:CreateParagraph({
-            Title = "Dough King Progress",
-            Desc = "0/500",
-            Image = "rbxassetid://6034834832",
-            ImageSize = 20
-        })
-
-        local DoughItemsPara = MiscTab:CreateParagraph({
-            Title = "Sweet Chalice",
-            Desc = "🔴 Not Owned",
-            Image = "rbxassetid://6034834832",
-            ImageSize = 20
-        })
-
-        local AFKStatusPara = MiscTab:CreateParagraph({
-            Title = "Server Time / Anti-AFK",
-            Desc = "Server: --:--:-- | Anti-AFK: 🔴 Off",
-            Image = "rbxassetid://6034287594",
-            ImageSize = 20
-        })
-
-        MiscTab:CreateToggle("Server Time", "ServerTimeFlag", false, function(state)
-            _G.Settings.Misc["Server Time"] = state
-            BFState.ServerTime = state
+        local uiStartClock = os.clock()
+        local lastInputClock = os.clock()
+        UserInputService.InputBegan:Connect(function(input, processed)
+            if not processed then lastInputClock = os.clock() end
+        end)
+        UserInputService.InputChanged:Connect(function(input, processed)
+            if not processed then lastInputClock = os.clock() end
         end)
 
-        MiscTab:CreateToggle("Server Time AFK / Anti-AFK", "ServerTimeAFKFlag", false, function(state)
-            _G.Settings.Misc["Server Time AFK"] = state
-            BFState.ServerTimeAFK = state
-            if state then BFStartAFK() end
-        end)
+        local function fmtHMS(sec)
+            sec = math.max(0, math.floor(sec or 0))
+            return string.format("%02d:%02d:%02d", math.floor(sec/3600), math.floor((sec%3600)/60), sec%60)
+        end
 
-        local NetworkPara = MiscTab:CreateParagraph({
-            Title = "Network FPS & Ping",
-            Desc = "FPS: -- | Ping: -- ms",
-            Image = "rbxassetid://6031280882",
-            ImageSize = 20
-        })
-
-        -- Live Updater Coroutine
-        local scriptStartTime = os.clock()
-        local serverStartTime = os.clock()
+        local function liveServerElapsed()
+            local v = workspace.DistributedGameTime
+            if type(v) == "number" and v > 0 then return v end
+            return os.clock()
+        end
 
         task.spawn(function()
-            while task.wait(1) do
+            while task.wait(0.5) do
                 pcall(function()
-                    -- 1. Session Time
-                    local elapsed = math.floor(os.clock() - scriptStartTime)
-                    local sH = math.floor(elapsed / 3600)
-                    local sM = math.floor((elapsed % 3600) / 60)
-                    local sS = elapsed % 60
-                    SessionTimePara:SetDesc(string.format("%02d:%02d:%02d", sH, sM, sS))
-
-                    -- 2. Timezones
-                    local localTime = os.date("%H:%M:%S")
-                    local utcTime = os.date("!%H:%M:%S")
-                    TimezonePara:SetDesc("Local: " .. localTime .. " | UTC: " .. utcTime)
-
-                    -- 3. Elite Kills
                     local stats = LocalPlayer:FindFirstChild("leaderstats")
-                    local ekVal = "N/A"
-                    if stats then
-                        for _, v in pairs(stats:GetChildren()) do
-                            if v.Name:lower():find("elite") then ekVal = tostring(v.Value) break end
-                        end
-                    end
-                    ElitePara:SetDesc(ekVal)
+                    local sessionElapsed = os.clock() - uiStartClock
+                    local serverElapsed = liveServerElapsed()
+                    local afkElapsed = os.clock() - lastInputClock
+                    SessionTimePara:SetDesc(fmtHMS(sessionElapsed))
+                    ServerTimePara:SetDesc("Uptime: " .. fmtHMS(serverElapsed))
+                    AFKTimePara:SetDesc("Idle: " .. fmtHMS(afkElapsed) .. (afkElapsed >= 60 and " | AFK" or ""))
+                    TimezonePara:SetDesc("Local: " .. os.date("%H:%M:%S") .. " | UTC: " .. os.date("!%H:%M:%S"))
 
-                    -- 4. Legendary Swords
-                    local ownedCount = 0
-                    local bp = LocalPlayer:FindFirstChild("Backpack")
-                    local c = LocalPlayer.Character
-                    for _, sName in ipairs({"Shisui", "Saddi", "Wando"}) do
-                        if (bp and bp:FindFirstChild(sName)) or (c and c:FindFirstChild(sName)) then
-                            ownedCount = ownedCount + 1
-                        end
-                    end
-                    SwordPara:SetDesc(ownedCount .. " / 3 Owned")
-
-                    -- 5. Sea & Island
                     local currentSeaName = World1 and "First Sea" or (World2 and "Second Sea" or (World3 and "Third Sea" or "Unknown"))
-                    SeaIslandPara:SetDesc("Sea: " .. currentSeaName)
+                    local islandText = "Unknown"
+                    local locations = workspace:FindFirstChild("_WorldOrigin") and workspace._WorldOrigin:FindFirstChild("Locations")
+                    if World3 then
+                        local mi = GetMirageIsland(); local ki = GetKitsuneIsland()
+                        if mi then islandText = "Mirage Island" elseif ki then islandText = "Kitsune Island" end
+                    end
+                    SeaIslandPara:SetDesc("Sea: " .. currentSeaName .. " | Island/Event: " .. islandText)
 
-                    -- 6. Player Stats & Currency
                     local level = stats and stats:FindFirstChild("Level") and stats.Level.Value or "N/A"
                     local beli = stats and stats:FindFirstChild("Beli") and stats.Beli.Value or "N/A"
                     local frags = stats and stats:FindFirstChild("Fragments") and stats.Fragments.Value or "N/A"
-                    StatsPara:SetDesc("Level: " .. level .. " | Beli: " .. beli .. " | Fragments: " .. frags)
+                    StatsPara:SetDesc("Level: " .. tostring(level) .. " | Beli: " .. tostring(beli) .. " | Fragments: " .. tostring(frags))
 
-                    -- 7. Server Uptime & Players
                     local pCount = #Players:GetPlayers()
-                    local maxP = Players.MaxPlayers
-                    local upSec = math.floor(os.clock() - serverStartTime)
-                    local uH = math.floor(upSec / 3600)
-                    local uM = math.floor((upSec % 3600) / 60)
-                    local uS = upSec % 60
-                    ServerInfoPara:SetDesc("Players: " .. pCount .. "/" .. maxP .. " | Uptime: " .. string.format("%02d:%02d:%02d", uH, uM, uS))
+                    ServerInfoPara:SetDesc("Players: " .. pCount .. "/" .. tostring(Players.MaxPlayers) .. " | Server: " .. fmtHMS(serverElapsed))
 
-                    -- 8. Cake Prince / Dough King live progress
-                    if World3 and CommF_ then
-                        local cakeSpawned, cakeKilled, cakeRemaining = BFGetCakeStatus()
-                        local doughSpawned, doughKilled, doughRemaining, hasSweet = BFGetDoughStatus()
+                    local princeResult = getCakePrinceProgressIntegrated()
+                    CakePrincePara:SetDesc(princeResult)
+                    DoughKingPara:SetDesc(getDoughKingStatusText())
 
-                        CakePrinceStatusPara:SetDesc(cakeSpawned and "🟢 Spawned" or "🔴 Not Spawned")
-                        CakePrinceProgressPara:SetDesc(cakeKilled and (tostring(cakeKilled) .. "/500 | " .. tostring(cakeRemaining) .. " remaining") or "Checking...")
+                    MiragePara:SetDesc(GetMirageIsland() and "🟢 Spawned" or "🔴 Not Spawned")
+                    KitsunePara:SetDesc(GetKitsuneIsland() and "🟢 Spawned" or "🔴 Not Spawned")
 
-                        local doughReady = doughSpawned or (hasSweet and doughRemaining == 0)
-                        DoughKingStatusPara:SetDesc(doughSpawned and "🟢 Spawned" or (doughReady and "🟢 Ready" or "🔴 Not Ready"))
-                        DoughKingProgressPara:SetDesc(doughKilled and (tostring(doughKilled) .. "/500 | " .. tostring(doughRemaining) .. " remaining") or "Checking...")
-                        DoughItemsPara:SetDesc(hasSweet and "🟢 Owned" or "🔴 Not Owned")
-                    else
-                        CakePrinceStatusPara:SetDesc("🔴 Third Sea Only")
-                        CakePrinceProgressPara:SetDesc("0/500")
-                        DoughKingStatusPara:SetDesc("🔴 Third Sea Only")
-                        DoughKingProgressPara:SetDesc("0/500")
-                        DoughItemsPara:SetDesc("🔴 Not Available")
+                    local counts = getSeaEventCounts()
+                    local active = {}
+                    for name, count in pairs(counts) do table.insert(active, name .. " x" .. count) end
+                    table.sort(active)
+                    SeaEventPara:SetDesc(#active > 0 and table.concat(active, " | ") or "🔴 No active Sea Events")
+
+                    local ek = "N/A"
+                    if stats then
+                        for _, v in ipairs(stats:GetChildren()) do
+                            if v.Name:lower():find("elite") then ek = tostring(v.Value) break end
+                        end
                     end
-
-                    local serverClock = workspace:GetServerTimeNow()
-                    local antiAFK = BFState.ServerTimeAFK and "🟢 Active" or "🔴 Off"
-                    AFKStatusPara:SetDesc("Server Clock: " .. os.date("%H:%M:%S", math.floor(serverClock)) .. " | Anti-AFK: " .. antiAFK .. " | Session: " .. string.format("%02d:%02d:%02d", math.floor(elapsed/3600), math.floor((elapsed%3600)/60), elapsed%60))
-
-                    -- 9. FPS & Ping
-                    local ping = math.floor(game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue())
-                    NetworkPara:SetDesc("Ping: " .. ping .. " ms")
-                end)
-            end
-        end)
-
-        -- Professional live status updater: Paragraph:SetDesc is used consistently.
-        task.spawn(function()
-            while task.wait(1) do
-                pcall(function()
-                    local mirage = BFFindIsland("Mirage")
-                    local kitsune = BFFindIsland("Kitsune")
-                    local seaEvent = BFFindSeaEvent()
-                    local map = BFMap()
-                    local function setIslandParagraph(title, desc)
-                        -- Paragraph references are intentionally kept in the existing UI updater.
+                    ElitePara:SetDesc(ek)
+                    local swords = 0
+                    local bp = LocalPlayer:FindFirstChildOfClass("Backpack"); local c = LocalPlayer.Character
+                    for _, name in ipairs({"Shisui", "Saddi", "Wando"}) do
+                        if (bp and bp:FindFirstChild(name)) or (c and c:FindFirstChild(name)) then swords += 1 end
                     end
-                    -- Update visible status paragraphs when the library exposes them through the parent UI.
-                    for _, container in ipairs({RaceTab, SeaTab}) do
-                        -- no-op; actual paragraph references are managed by the library.
-                    end
-                    if mirage then
-                        getgenv().Haroon_MirageStatus = "🟢 Spawned"
-                    else
-                        getgenv().Haroon_MirageStatus = "🔴 Not Spawned"
-                    end
-                    if kitsune then
-                        getgenv().Haroon_KitsuneStatus = "🟢 Spawned"
-                    else
-                        getgenv().Haroon_KitsuneStatus = "🔴 Not Spawned"
-                    end
-                    getgenv().Haroon_SeaEventStatus = seaEvent and ("🟢 "..seaEvent.Name) or "🔴 No Sea Event"
-                    MirageStatusPara:SetDesc(getgenv().Haroon_MirageStatus)
-                    KitsuneStatusPara:SetDesc(getgenv().Haroon_KitsuneStatus)
-                    SeaEventStatusPara:SetDesc(getgenv().Haroon_SeaEventStatus)
+                    SwordPara:SetDesc(swords .. " / 3")
+                    local fps = math.floor(1 / math.max(0.001, RunService.RenderStepped:Wait()))
+                    local ping = 0
+                    pcall(function() ping = math.floor(game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue()) end)
+                    NetworkPara:SetDesc("FPS: " .. tostring(fps) .. " | Ping: " .. tostring(ping) .. " ms")
                 end)
             end
         end)
@@ -2273,10 +2019,6 @@ task.spawn(function()
                 local char, hrp, hum = GetCharacter()
                 if not char or not hrp or not hum or hum.Health <= 0 then return end
 
-                if BFSubmergedStep() then
-                    AutoHaki()
-                    return
-                end
                 CheckQuest()
                 AutoHaki()
 
@@ -2420,206 +2162,33 @@ task.spawn(function()
 end)
 
 --------------------------------------------------------------------------------
--- 10. ADVANCED RAID ENGINE: Auto Next Island (Checks 5 Islands & Enemy Clearance)
+-- 10. ADVANCED RAID ENGINE
 --------------------------------------------------------------------------------
-local RaidNextIslandIndex = 1
-local RaidLastTargetPosition = nil
-local RaidLastTargetTime = 0
-local RAID_ISLAND_RADIUS = 260
-
-local function GetRaidIslands()
-    local islands = {}
-    local folders = {
-        workspace:FindFirstChild("_WorldOrigin") and workspace._WorldOrigin:FindFirstChild("Locations"),
-        workspace:FindFirstChild("Locations"),
-        workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Locations"),
-        workspace:FindFirstChild("Map"),
-        workspace:FindFirstChild("_WorldOrigin")
-    }
-
-    local function getCF(obj)
-        if obj:IsA("BasePart") then return obj.CFrame end
-        if obj:IsA("Model") then
-            local ok, cf = pcall(function() return obj:GetPivot() end)
-            if ok then return cf end
-        end
-        return nil
-    end
-
-    for _, folder in ipairs(folders) do
-        if folder then
-            for _, child in ipairs(folder:GetChildren()) do
-                local name = child.Name
-                local num = string.match(name, "[Ii]sland%s*<?%s*(%d+)")
-                    or string.match(name, "<%s*[Ii]sland%s*(%d+)%s*>")
-                    or string.match(name, "[Rr]aid%s*[Ii]sland%s*(%d+)")
-                local index = tonumber(num)
-                if index and index >= 1 and index <= 5 and not islands[index] then
-                    local cf = getCF(child)
-                    if cf then islands[index] = cf end
-                end
-            end
-        end
-    end
-    return islands
-end
-
-local function GetAliveRaidEnemiesNear(position, radius)
-    local result = {}
-    local enemies = workspace:FindFirstChild("Enemies")
-    if not enemies then return result end
-
-    for _, enemy in ipairs(enemies:GetChildren()) do
-        local hum = enemy:FindFirstChildOfClass("Humanoid")
-        local root = enemy:FindFirstChild("HumanoidRootPart")
-        if hum and root and hum.Health > 0 and (root.Position - position).Magnitude <= radius then
-            table.insert(result, enemy)
-        end
-    end
-    return result
-end
-
-local function GetClosestAliveRaidEnemy(position, radius)
-    local closest, closestDistance
-    for _, enemy in ipairs(GetAliveRaidEnemiesNear(position, radius)) do
-        local root = enemy:FindFirstChild("HumanoidRootPart")
-        if root then
-            local d = (position - root.Position).Magnitude
-            if not closestDistance or d < closestDistance then
-                closest, closestDistance = enemy, d
-            end
-        end
-    end
-    return closest
-end
-
-local function ResetRaidNavigation()
-    RaidNextIslandIndex = 1
-    RaidLastTargetPosition = nil
-    RaidLastTargetTime = 0
-end
-
-local function GetAutoNextRaidTarget()
-    local _, hrp = GetCharacter()
-    if not hrp then return nil, nil end
-
-    local islands = GetRaidIslands()
-    local available = {}
-    for i = 1, 5 do
-        if islands[i] then table.insert(available, i) end
-    end
-    if #available == 0 then
-        return nil, nil
-    end
-
-    -- Re-sync to the island nearest to the player, then only move forward.
-    local nearestIndex, nearestDistance
-    for _, i in ipairs(available) do
-        local d = (hrp.Position - islands[i].Position).Magnitude
-        if not nearestDistance or d < nearestDistance then
-            nearestIndex, nearestDistance = i, d
-        end
-    end
-    if nearestIndex and nearestDistance <= RAID_ISLAND_RADIUS then
-        if nearestIndex >= RaidNextIslandIndex then
-            RaidNextIslandIndex = math.min(nearestIndex + 1, 5)
-        end
-
-        local currentEnemy = GetClosestAliveRaidEnemy(islands[nearestIndex].Position, RAID_ISLAND_RADIUS)
-        if currentEnemy then
-            return currentEnemy.HumanoidRootPart.CFrame * CFrame.new(0, _G.Settings.Main["Farm Distance"] or 28, 0), "enemy"
-        end
-    end
-
-    -- Only advance when the current island's area is actually clear.
-    local targetIndex = RaidNextIslandIndex
-    while targetIndex <= 5 and not islands[targetIndex] do
-        targetIndex += 1
-    end
-
-    if targetIndex > 5 then
-        return nil, "done"
-    end
-
-    local target = islands[targetIndex]
-    local targetDistance = (hrp.Position - target.Position).Magnitude
-
-    -- Already there: mark it complete and continue on the next loop.
-    if targetDistance <= RAID_ISLAND_RADIUS then
-        local enemy = GetClosestAliveRaidEnemy(target.Position, RAID_ISLAND_RADIUS)
-        if enemy then
-            return enemy.HumanoidRootPart.CFrame * CFrame.new(0, _G.Settings.Main["Farm Distance"] or 28, 0), "enemy"
-        end
-        RaidNextIslandIndex = targetIndex + 1
-        return nil, "advance"
-    end
-
-    return target * CFrame.new(0, 35, 0), "island"
-end
-
 task.spawn(function()
-    while task.wait(0.15) do
-        local S = _G.Settings.Raid
-        if S["Auto Dungeon / Raid"] or S["Auto Buy Chip & Start"] or S["Auto Clear Dungeon Waves"] or S["Auto Next Island"] then
+    while task.wait(0.2) do
+        if _G.Settings.Raid["Auto Dungeon / Raid"] or _G.Settings.Raid["Auto Buy Chip & Start"] or _G.Settings.Raid["Auto Clear Dungeon Waves"] or _G.Settings.Raid["Auto Next Island"] then
             pcall(function()
-                local _, hrp, hum = GetCharacter()
-                if not hrp or not hum or hum.Health <= 0 then return end
-
-                if not S["Auto Next Island"] then
-                    ResetRaidNavigation()
+                if _G.Settings.Raid["Auto Buy Chip & Start"] and CommF_ then
+                    CommF_:InvokeServer("RaidsNpc","Select",_G.Settings.Raid["Selected Chip"])
+                    task.wait(0.35)
+                    CommF_:InvokeServer("RaidsNpc","Start")
                 end
-
-                if S["Auto Buy Chip & Start"] and CommF_ then
-                    -- Prevent repeated Start calls every 0.15s.
-                    if not _G.__HaroonRaidStartCooldown or os.clock() >= _G.__HaroonRaidStartCooldown then
-                        _G.__HaroonRaidStartCooldown = os.clock() + 2
-                        CommF_:InvokeServer("RaidsNpc", "Select", S["Selected Chip"])
-                        task.wait(0.35)
-                        CommF_:InvokeServer("RaidsNpc", "Start")
-                    end
-                end
-
-                local hasMonsters = false
-                if S["Auto Clear Dungeon Waves"] then
-                    local enemies = workspace:FindFirstChild("Enemies")
+                if _G.Settings.Raid["Auto Next Island"] then
+                    autoNextIslandFixed()
+                elseif _G.Settings.Raid["Auto Clear Dungeon Waves"] then
+                    local enemies=workspace:FindFirstChild("Enemies")
                     if enemies then
-                        for _, mob in ipairs(enemies:GetChildren()) do
-                            local mobHum = mob:FindFirstChildOfClass("Humanoid")
-                            local root = mob:FindFirstChild("HumanoidRootPart")
-                            if mobHum and root and mobHum.Health > 0 then
-                                hasMonsters = true
-                                AutoHaki()
-                                TweenPlayer(root.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0), "RaidClear")
-                                SmartAttackMob(mob)
-                                break
+                        for _,mob in ipairs(enemies:GetChildren()) do
+                            local h=mob:FindFirstChildOfClass("Humanoid")
+                            local r=mob:FindFirstChild("HumanoidRootPart")
+                            if h and h.Health>0 and r then
+                                AutoHaki(); TweenPlayer(r.CFrame,Vector3.new(0,_G.Settings.Main["Farm Distance"],0),"Raid"); SmartAttackMob(mob); break
                             end
                         end
                     end
                 end
-
-                if S["Auto Next Island"] and not hasMonsters then
-                    local targetCF, kind = GetAutoNextRaidTarget()
-                    if targetCF then
-                        AutoHaki()
-                        local targetPos = targetCF.Position
-                        if not RaidLastTargetPosition
-                            or (RaidLastTargetPosition - targetPos).Magnitude > 8
-                            or os.clock() - RaidLastTargetTime > 3 then
-                            RaidLastTargetPosition = targetPos
-                            RaidLastTargetTime = os.clock()
-                            TweenPlayer(targetCF, nil, "RaidNextIsland")
-                        end
-                    elseif kind == "done" then
-                        ResetRaidNavigation()
-                    end
-                end
-
-                if S["Auto Awaken"] and CommF_ then
-                    CommF_:InvokeServer("AwakeningExpert", "Awaken")
-                end
+                if _G.Settings.Raid["Auto Awaken"] and CommF_ then pcall(function() CommF_:InvokeServer("AwakeningExpert","Awaken") end) end
             end)
-        else
-            ResetRaidNavigation()
         end
     end
 end)
@@ -2744,112 +2313,339 @@ task.spawn(function()
 end)
 
 --------------------------------------------------------------------------------
--- 13. Sea Events, Sailing & Prehistoric Engine
+-- 13. Sea Events, Sailing & Prehistoric Engine (Integrated)
 --------------------------------------------------------------------------------
-local function GetMyBoat(boatName: string): Model?
-    if workspace:FindFirstChild("Boats") then
-        for _, b in pairs(workspace.Boats:GetChildren()) do
-            if b.Name == boatName and b:FindFirstChild("VehicleSeat") then
-                return b
-            end
-        end
+local SeaEventNames = {
+    "Shark", "Piranha", "Fish Crew Member", "Ghost Ship", "FishBoat",
+    "PirateBrigade", "PirateGrandBrigade", "MarineBrigade", "MarineGrandBrigade",
+    "Terrorshark", "Sea Beast", "SeaBeast1", "Sea Beast 1", "Leviathan",
+    "LeviathanGate", "Prehistoric Island", "Frozen Dimension"
+}
+
+local function getLocationsFolder()
+    local origin = workspace:FindFirstChild("_WorldOrigin")
+    return origin and origin:FindFirstChild("Locations")
+end
+
+local function recursiveFindByNames(rootObj, names)
+    if not rootObj then return nil end
+    for _, name in ipairs(names) do
+        local exact = rootObj:FindFirstChild(name, true)
+        if exact then return exact end
     end
     return nil
 end
 
-task.spawn(function()
-    while task.wait(0.2) do
-        if World3 then
-            pcall(function()
-                local char, hrp, hum = GetCharacter()
-                if not char or not hrp or not hum then return end
+function GetMirageIsland()
+    if not World3 then return nil end
+    local map = workspace:FindFirstChild("Map")
+    local locations = getLocationsFolder()
+    return (map and (map:FindFirstChild("MysticIsland") or map:FindFirstChild("Mirage Island", true)))
+        or (locations and (locations:FindFirstChild("Mirage Island") or locations:FindFirstChild("MysticIsland")))
+        or workspace:FindFirstChild("MysticIsland")
+end
 
-                -- Prehistoric Island Automation
-                if _G.Settings.Sea["Auto Prehistoric Island"] or _G.Settings.Sea["Auto Complete Prehistoric Island"] or _G.Settings.Sea["Auto Draco Trail"] then
-                    local targetPreMob = nil
-                    for _, mName in pairs({"Isle Outlaw", "Island Boy", "Sun-kissed Warrior", "Terrorshark"}) do
-                        local mob = workspace.Enemies:FindFirstChild(mName)
-                        if mob and mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChildOfClass("Humanoid") and mob.Humanoid.Health > 0 then
-                            targetPreMob = mob
-                            break
-                        end
-                    end
+function GetKitsuneIsland()
+    if not World3 then return nil end
+    local map = workspace:FindFirstChild("Map")
+    local locations = getLocationsFolder()
+    return (map and (map:FindFirstChild("KitsuneIsland") or map:FindFirstChild("Kitsune Island", true)))
+        or (locations and (locations:FindFirstChild("Kitsune Island") or locations:FindFirstChild("KitsuneIsland")))
+        or workspace:FindFirstChild("KitsuneIsland")
+end
 
-                    if targetPreMob then
-                        AutoHaki()
-                        TweenPlayer(targetPreMob.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
-                        SmartAttackMob(targetPreMob)
-                        return
-                    else
-                        TweenPlayer(MobSpecificTeleports["Prehistoric Island"], Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
-                    end
+function GetModelCFrame(obj)
+    if not obj then return nil end
+    if obj:IsA("BasePart") then return obj.CFrame end
+    if obj:IsA("Model") then
+        if obj.PrimaryPart then return obj.PrimaryPart.CFrame end
+        local p = obj:FindFirstChildWhichIsA("BasePart", true)
+        if p then return p.CFrame end
+    end
+    return nil
+end
+
+local function getBoatOwnerName(boat)
+    local attr = boat:GetAttribute("Owner") or boat:GetAttribute("OwnerName") or boat:GetAttribute("Player")
+    if attr ~= nil then return tostring(attr) end
+    local owner = boat:FindFirstChild("Owner") or boat:FindFirstChild("OwnerValue")
+    if owner and owner:IsA("ValueBase") then return tostring(owner.Value) end
+    return nil
+end
+
+local function GetMyBoatIntegrated()
+    local boats = workspace:FindFirstChild("Boats")
+    local char = LocalPlayer.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if not boats then return nil end
+    for _, boat in ipairs(boats:GetChildren()) do
+        if boat:IsA("Model") and boat:FindFirstChild("VehicleSeat", true) then
+            local owner = getBoatOwnerName(boat)
+            if owner and (owner == LocalPlayer.Name or owner == tostring(LocalPlayer.UserId)) then
+                return boat
+            end
+        end
+    end
+    -- Fallback: if the local humanoid is sitting in a boat seat, use that boat.
+    if hum and hum.SeatPart then
+        local seat = hum.SeatPart
+        local boat = seat:FindFirstAncestorOfClass("Model")
+        if boat and boat.Parent == boats then return boat end
+    end
+    return nil
+end
+
+local function getBoatSeat(boat)
+    return boat and (boat:FindFirstChild("VehicleSeat", true) or boat:FindFirstChildWhichIsA("VehicleSeat", true))
+end
+
+local function boatPivot(boat, position, lookAt)
+    if not boat then return end
+    local y = math.max(20, position.Y)
+    local pos = Vector3.new(position.X, y, position.Z)
+    local look = Vector3.new(lookAt.X, y, lookAt.Z)
+    local cf = CFrame.lookAt(pos, look)
+    pcall(function()
+        boat:PivotTo(cf)
+    end)
+end
+
+local function ensureBoat()
+    local boat = GetMyBoatIntegrated()
+    if boat then return boat end
+    local _, hrp = GetCharacter()
+    if CommF_ and World3 then
+        -- Buy from the current dock/dealer when close, otherwise move to a stable Third Sea dealer area.
+        local buyCF = CFrame.new(-16927.451, 14, 433.864)
+        if hrp and (hrp.Position - buyCF.Position).Magnitude > 80 then
+            TweenPlayer(buyCF, nil, "BoatBuy")
+        else
+            pcall(function() CommF_:InvokeServer("BuyBoat", _G.Settings.Sea["Selected Boat"] or "Guardian") end)
+        end
+    end
+    return GetMyBoatIntegrated()
+end
+
+local MirageSearchRoute = {
+    CFrame.new(-34054, 31, -2560),
+    CFrame.new(-38888, 31, -2163),
+    CFrame.new(-31172, 31, -2257),
+    CFrame.new(-26780, 31, -823),
+}
+
+local KitsuneHoldingPoint = CFrame.new(-42700, 31, 37000)
+local MirageRouteIndex = 1
+local KitsuneRouteIndex = 1
+
+local function moveBoatOverSea(boat, targetCF, aggressive)
+    local seat = getBoatSeat(boat)
+    if not seat then return false end
+    local char, hrp, hum = GetCharacter()
+    if hum and not hum.Sit then
+        pcall(function() hrp.CFrame = seat.CFrame * CFrame.new(0, 2.5, 0) end)
+        return false
+    end
+    local target = targetCF.Position
+    local current = seat.Position
+    if (current - target).Magnitude < 80 then return true end
+    local dt = math.max(0.1, (current - target).Magnitude / math.max(100, _G.Settings.Sea["Boat Tween Speed"] or 200))
+    local boatCF = CFrame.lookAt(Vector3.new(target.X, math.max(25, target.Y), target.Z), Vector3.new(target.X + 50, math.max(25, target.Y), target.Z))
+    local ok = pcall(function()
+        if boat.PrimaryPart then
+            local t = TweenService:Create(boat.PrimaryPart, TweenInfo.new(dt, Enum.EasingStyle.Linear), {CFrame = boatCF})
+            t:Play()
+        else
+            boatPivot(boat, target, target + Vector3.new(50, 0, 0))
+        end
+    end)
+    if not ok or aggressive then
+        boatPivot(boat, target, target + Vector3.new(50, 0, 0))
+    end
+    return false
+end
+
+local function teleportToDetectedIsland(island, owner)
+    local cf = GetModelCFrame(island)
+    if cf then
+        TweenPlayer(cf, Vector3.new(0, 85, 0), owner)
+        return true
+    end
+    return false
+end
+
+local function mirageStep()
+    if not World3 then return end
+    local island = GetMirageIsland()
+    if island then
+        if _G.Settings.Race["Teleport To Mirage"] then teleportToDetectedIsland(island, "MirageTP") end
+        return
+    end
+    if not _G.Settings.Race["Auto Find Mirage"] then return end
+    local boat = ensureBoat()
+    if not boat then return end
+    local route = MirageSearchRoute[MirageRouteIndex]
+    if route then
+        local reached = moveBoatOverSea(boat, route, false)
+        if reached then MirageRouteIndex = MirageRouteIndex % #MirageSearchRoute + 1 end
+    end
+end
+
+local function kitsuneStep()
+    if not World3 then return end
+    local island = GetKitsuneIsland()
+    if island then
+        if _G.Settings.Sea["Teleport To Kitsune Island"] then teleportToDetectedIsland(island, "KitsuneTP") end
+        return
+    end
+    if not _G.Settings.Sea["Auto Find Kitsune Island"] then return end
+    local boat = ensureBoat()
+    if not boat then return end
+    -- Stay over water around Danger 5/6; do not move under the sea.
+    local reached = moveBoatOverSea(boat, KitsuneHoldingPoint, false)
+    if reached then
+        local seat = getBoatSeat(boat)
+        if seat then
+            local p = seat.Position
+            boatPivot(boat, Vector3.new(p.X + 450, 30, p.Z + 350), Vector3.new(p.X + 500, 30, p.Z + 350))
+        end
+    end
+end
+
+local function getSeaEventCounts()
+    local counts = {}
+    local roots = {workspace:FindFirstChild("Enemies"), workspace:FindFirstChild("SeaBeasts")}
+    for _, rootFolder in ipairs(roots) do
+        if rootFolder then
+            for _, obj in ipairs(rootFolder:GetChildren()) do
+                if table.find(SeaEventNames, obj.Name) then
+                    counts[obj.Name] = (counts[obj.Name] or 0) + 1
                 end
+            end
+        end
+    end
+    local locations = getLocationsFolder()
+    if locations then
+        for _, name in ipairs({"Mirage Island", "Kitsune Island", "Prehistoric Island", "Frozen Dimension", "Treasure Island", "Rough Sea"}) do
+            if locations:FindFirstChild(name) then counts[name] = (counts[name] or 0) + 1 end
+        end
+    end
+    return counts
+end
 
-                -- Sea Mobs Combat
-                local targetSeaEnemy = nil
-                local allowedEnemies = {}
-                if _G.Settings.Sea["Auto Farm Shark"] then table.insert(allowedEnemies, "Shark") end
-                if _G.Settings.Sea["Auto Farm Piranha"] then table.insert(allowedEnemies, "Piranha") end
-                if _G.Settings.Sea["Auto Farm Fish Crew Member"] then table.insert(allowedEnemies, "Fish Crew Member") end
-                if _G.Settings.Sea["Auto Farm Ghost Ship"] then table.insert(allowedEnemies, "Ghost Ship") table.insert(allowedEnemies, "FishBoat") end
-                if _G.Settings.Sea["Auto Farm Terrorshark"] then table.insert(allowedEnemies, "Terrorshark") end
+local function findSeaCombatTarget()
+    local allowed = {}
+    local S = _G.Settings.Sea
+    if S["Auto Farm Shark"] then allowed["Shark"] = true end
+    if S["Auto Farm Piranha"] then allowed["Piranha"] = true end
+    if S["Auto Farm Fish Crew Member"] then allowed["Fish Crew Member"] = true end
+    if S["Auto Farm Ghost Ship"] then allowed["Ghost Ship"] = true; allowed["FishBoat"] = true end
+    if S["Auto Farm Terrorshark"] then allowed["Terrorshark"] = true end
+    local enemies = workspace:FindFirstChild("Enemies")
+    if not enemies then return nil end
+    local _, hrp = GetCharacter()
+    local best, bestD = nil, math.huge
+    for _, enemy in ipairs(enemies:GetChildren()) do
+        if allowed[enemy.Name] then
+            local hum = enemy:FindFirstChildOfClass("Humanoid")
+            local r = enemy:FindFirstChild("HumanoidRootPart")
+            if hum and hum.Health > 0 and r then
+                local d = hrp and (hrp.Position - r.Position).Magnitude or 0
+                if d < bestD then best, bestD = enemy, d end
+            end
+        end
+    end
+    return best
+end
 
-                if #allowedEnemies > 0 and workspace:FindFirstChild("Enemies") then
-                    for _, enemy in pairs(workspace.Enemies:GetChildren()) do
-                        if table.find(allowedEnemies, enemy.Name) and enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChildOfClass("Humanoid") and enemy.Humanoid.Health > 0 then
-                            targetSeaEnemy = enemy
-                            break
-                        end
-                    end
+local function integratedSeaStep()
+    if not World3 then return end
+    local char, hrp, hum = GetCharacter()
+    if not char or not hrp or not hum then return end
+
+    -- Prehistoric automation stays separate from sea-event navigation.
+    if _G.Settings.Sea["Auto Prehistoric Island"] or _G.Settings.Sea["Auto Complete Prehistoric Island"] or _G.Settings.Sea["Auto Draco Trail"] then
+        local pre = recursiveFindByNames(getLocationsFolder(), {"Prehistoric Island"})
+        if pre then
+            teleportToDetectedIsland(pre, "Prehistoric")
+        else
+            local mob = nil
+            local enemies = workspace:FindFirstChild("Enemies")
+            if enemies then
+                for _, name in ipairs({"Isle Outlaw", "Island Boy", "Sun-kissed Warrior", "Terrorshark"}) do
+                    local m = enemies:FindFirstChild(name)
+                    local h = m and m:FindFirstChildOfClass("Humanoid")
+                    local r = m and m:FindFirstChild("HumanoidRootPart")
+                    if h and h.Health > 0 and r then mob = m break end
                 end
+            end
+            if mob then
+                AutoHaki(); TweenPlayer(mob.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0), "Prehistoric")
+                SmartAttackMob(mob)
+            else
+                TweenPlayer(MobSpecificTeleports["Prehistoric Island"], Vector3.new(0, _G.Settings.Main["Farm Distance"], 0), "Prehistoric")
+            end
+        end
+        return
+    end
 
-                if targetSeaEnemy then
+    local target = findSeaCombatTarget()
+    if target and _G.Settings.Sea["Auto Attack Sea Events"] then
+        if hum.Sit then hum.Sit = false end
+        AutoHaki()
+        TweenPlayer(target.HumanoidRootPart.CFrame, Vector3.new(0, 25, 0), "SeaCombat")
+        SmartAttackMob(target)
+        return
+    end
+
+    if _G.Settings.Sea["Auto Farm Seabeasts"] then
+        local beasts = workspace:FindFirstChild("SeaBeasts")
+        if beasts then
+            for _, sb in ipairs(beasts:GetChildren()) do
+                local sh = sb:FindFirstChildOfClass("Humanoid")
+                local sr = sb:FindFirstChild("HumanoidRootPart") or sb.PrimaryPart
+                if sh and sh.Health > 0 and sr then
                     if hum.Sit then hum.Sit = false end
                     AutoHaki()
-                    TweenPlayer(targetSeaEnemy.HumanoidRootPart.CFrame, Vector3.new(0, 25, 0))
-                    SmartAttackMob(targetSeaEnemy)
+                    TweenPlayer(sr.CFrame, Vector3.new(0, 55, 0), "SeaBeast")
+                    FastAttackTarget(sb)
                     return
                 end
-
-                -- Seabeast Combat
-                if _G.Settings.Sea["Auto Farm Seabeasts"] and workspace:FindFirstChild("SeaBeasts") then
-                    for _, sb in pairs(workspace.SeaBeasts:GetChildren()) do
-                        if sb:FindFirstChild("HumanoidRootPart") and sb:FindFirstChildOfClass("Humanoid") and sb.Humanoid.Health > 0 then
-                            if hum.Sit then hum.Sit = false end
-                            AutoHaki()
-                            local dodgeOffset = _G.Settings.Sea["Dodge Seabeasts Attack"] and Vector3.new(math.random(-50, 50), 55, math.random(-50, 50)) or Vector3.new(0, 55, 0)
-                            TweenPlayer(sb.HumanoidRootPart.CFrame, dodgeOffset)
-                            FastAttackTarget(sb)
-                            return
-                        end
-                    end
-                end
-
-                -- Boat Sailing
-                if _G.Settings.Sea["Sail Boat"] or _G.Settings.Race["Auto Find Mirage"] or _G.Settings.Sea["Auto Find Kitsune Island"] then
-                    local boat = GetMyBoat(_G.Settings.Sea["Selected Boat"])
-                    if not boat then
-                        local buyPos = MobSpecificTeleports["Kitsune Island"]
-                        if (hrp.Position - buyPos.Position).Magnitude > 30 then
-                            TweenPlayer(buyPos)
-                        else
-                            if CommF_ then CommF_:InvokeServer("BuyBoat", _G.Settings.Sea["Selected Boat"]) end
-                        end
-                    else
-                        if not hum.Sit then
-                            hrp.CFrame = boat.VehicleSeat.CFrame * CFrame.new(0, 1.5, 0)
-                        else
-                            local targetZone = ZoneCFrames[_G.Settings.Sea["Selected Zone"]] or ZoneCFrames["Zone 5"]
-                            local dist = (boat.VehicleSeat.Position - targetZone.Position).Magnitude
-                            if dist > 100 then
-                                local tween = TweenService:Create(boat.VehicleSeat, TweenInfo.new(dist / _G.Settings.Sea["Boat Tween Speed"], Enum.EasingStyle.Linear), {CFrame = targetZone})
-                                tween:Play()
-                            end
-                        end
-                    end
-                end
-            end)
+            end
         end
+    end
+
+    if _G.Settings.Race["Auto Find Mirage"] then mirageStep() end
+    if _G.Settings.Sea["Auto Find Kitsune Island"] then kitsuneStep() end
+
+    if _G.Settings.Sea["Sail Boat"] then
+        local boat = ensureBoat()
+        local seat = getBoatSeat(boat)
+        local targetZone = ZoneCFrames[_G.Settings.Sea["Selected Zone"]] or ZoneCFrames["Zone 5"]
+        if boat and seat then
+            if not hum.Sit then
+                pcall(function() hrp.CFrame = seat.CFrame * CFrame.new(0, 2.5, 0) end)
+            else
+                moveBoatOverSea(boat, targetZone, false)
+            end
+        end
+    end
+end
+
+task.spawn(function()
+    while task.wait(0.25) do
+        pcall(integratedSeaStep)
+    end
+end)
+
+task.spawn(function()
+    while task.wait(0.25) do
+        if _G.Settings.Sea["Auto Frozen Dimension"] then pcall(integratedFrozenStep) end
+    end
+end)
+
+task.spawn(function()
+    while task.wait(0.25) do
+        if _G.Settings.Sea["Auto Drive Hydra"] then pcall(integratedHydraStep) end
     end
 end)
 
@@ -2897,282 +2693,209 @@ task.spawn(function()
 end)
 
 --------------------------------------------------------------------------------
--- 15. Advanced Dynamic ESP Engine
+-- 15. Advanced Dynamic ESP Engine (All Categories)
 --------------------------------------------------------------------------------
 local ESPCache = {}
-local ESPFolderName = "HaroonHub_ESP"
 
-local function GetESPContainer()
-    local gui = CoreGui:FindFirstChild(ESPFolderName)
-    if not gui then
-        gui = Instance.new("Folder")
-        gui.Name = ESPFolderName
-        gui.Parent = CoreGui
-    end
-    return gui
+local function RemoveESP(key)
+    local obj = ESPCache[key]
+    if obj and obj.Gui then pcall(function() obj.Gui:Destroy() end) end
+    ESPCache[key] = nil
 end
 
-local function RemoveESP(obj)
-    local entry = ESPCache[obj]
-    if entry then
-        if entry.bill then entry.bill:Destroy() end
-        ESPCache[obj] = nil
-    end
+local function RemoveAllESP()
+    for key in pairs(ESPCache) do RemoveESP(key) end
 end
 
-local function ClearESPCategory(category)
-    for obj, entry in pairs(ESPCache) do
-        if entry.category == category then
-            RemoveESP(obj)
-        end
-    end
-end
-
-local function GetESPPart(obj)
-    if not obj or not obj.Parent then return nil end
+local function getEspPart(obj)
+    if not obj then return nil end
     if obj:IsA("BasePart") then return obj end
     if obj:IsA("Model") then
-        return obj:FindFirstChild("HumanoidRootPart")
-            or obj:FindFirstChild("RootPart")
-            or obj.PrimaryPart
-            or obj:FindFirstChildWhichIsA("BasePart", true)
+        return obj:FindFirstChild("HumanoidRootPart") or obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart", true)
     end
-    if obj:IsA("Tool") then
-        return obj:FindFirstChild("Handle") or obj:FindFirstChildWhichIsA("BasePart", true)
-    end
-    return nil
+    if obj:IsA("Tool") then return obj:FindFirstChild("Handle") or obj:FindFirstChildWhichIsA("BasePart", true) end
 end
 
-local function CreateOrUpdateESP(obj, part, title, color, category, hum)
-    if not obj or not part then return end
-
-    local entry = ESPCache[obj]
-    if not entry or not entry.bill or not entry.bill.Parent or entry.bill.Adornee ~= part then
-        RemoveESP(obj)
-
+local function EnsureESP(key, part, title, color, showHP, maxHP, hp)
+    if not part or not part.Parent then return end
+    local entry = ESPCache[key]
+    if not entry or not entry.Gui or not entry.Gui.Parent or entry.Part ~= part then
+        if entry and entry.Gui then pcall(function() entry.Gui:Destroy() end) end
         local bill = Instance.new("BillboardGui")
         bill.Name = "HaroonESP"
         bill.Adornee = part
-        bill.Size = UDim2.fromOffset(175, hum and 52 or 34)
-        bill.StudsOffset = Vector3.new(0, 2.5, 0)
+        bill.Size = UDim2.new(0, 180, 0, showHP and 52 or 30)
+        bill.StudsOffset = Vector3.new(0, 2.8, 0)
         bill.AlwaysOnTop = true
         bill.MaxDistance = 10000
-        bill.ResetOnSpawn = false
-        bill.Parent = part
 
         local frame = Instance.new("Frame")
-        frame.Name = "Frame"
         frame.Size = UDim2.fromScale(1, 1)
-        frame.BackgroundTransparency = 1
+        frame.BackgroundColor3 = Color3.fromRGB(12,12,16)
+        frame.BackgroundTransparency = 0.22
         frame.Parent = bill
-
-        local stroke = Instance.new("UIStroke")
-        stroke.Thickness = 1
-        stroke.Transparency = 0.15
-        stroke.Color = color
-        stroke.Parent = frame
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 6)
+        corner.Parent = frame
 
         local titleLabel = Instance.new("TextLabel")
-        titleLabel.Name = "ESPTitle"
-        titleLabel.Size = UDim2.new(1, 0, 0, 18)
+        titleLabel.Name = "Title"
+        titleLabel.Size = UDim2.new(1, -8, 0, 16)
+        titleLabel.Position = UDim2.new(0,4,0,1)
         titleLabel.BackgroundTransparency = 1
-        titleLabel.TextStrokeTransparency = 0.35
         titleLabel.Font = Enum.Font.GothamBold
-        titleLabel.TextSize = 12
+        titleLabel.TextSize = 11
+        titleLabel.TextXAlignment = Enum.TextXAlignment.Center
         titleLabel.Parent = frame
 
         local distLabel = Instance.new("TextLabel")
-        distLabel.Name = "ESPDist"
-        distLabel.Size = UDim2.new(1, 0, 0, 15)
-        distLabel.Position = UDim2.new(0, 0, 0, 18)
+        distLabel.Name = "Distance"
+        distLabel.Size = UDim2.new(1, -8, 0, 14)
+        distLabel.Position = UDim2.new(0,4,0,17)
         distLabel.BackgroundTransparency = 1
-        distLabel.TextColor3 = Color3.fromRGB(235,235,235)
-        distLabel.TextStrokeTransparency = 0.4
         distLabel.Font = Enum.Font.Gotham
-        distLabel.TextSize = 10
+        distLabel.TextSize = 9
+        distLabel.TextColor3 = Color3.fromRGB(220,220,220)
         distLabel.Parent = frame
 
-        local hpFill
-        if hum then
-            local hpBg = Instance.new("Frame")
-            hpBg.Name = "HPBackground"
-            hpBg.Size = UDim2.new(1, -10, 0, 5)
-            hpBg.Position = UDim2.new(0, 5, 0, 38)
-            hpBg.BackgroundColor3 = Color3.fromRGB(45,45,45)
-            hpBg.BorderSizePixel = 0
+        local hpBg, hpFill
+        if showHP then
+            hpBg = Instance.new("Frame")
+            hpBg.Name = "HP"
+            hpBg.Size = UDim2.new(1, -12, 0, 5)
+            hpBg.Position = UDim2.new(0,6,0,33)
+            hpBg.BackgroundColor3 = Color3.fromRGB(45,45,48)
             hpBg.Parent = frame
-
             hpFill = Instance.new("Frame")
-            hpFill.Name = "HPFill"
+            hpFill.Name = "Fill"
             hpFill.Size = UDim2.new(1,0,1,0)
-            hpFill.BorderSizePixel = 0
+            hpFill.BackgroundColor3 = Color3.fromRGB(50,220,120)
             hpFill.Parent = hpBg
         end
-
-        entry = {bill = bill, category = category, title = titleLabel, dist = distLabel, hp = hpFill}
-        ESPCache[obj] = entry
+        bill.Parent = part
+        entry = {Gui=bill, Part=part, Title=titleLabel, Distance=distLabel, HPFill=hpFill}
+        ESPCache[key] = entry
     end
-
-    entry.category = category
-    entry.title.Text = title
-    entry.title.TextColor3 = color
     local _, hrp = GetCharacter()
-    if hrp then
-        entry.dist.Text = "Dist: " .. math.floor((hrp.Position - part.Position).Magnitude) .. " Studs"
-    end
-
-    if hum and entry.hp then
-        local maxHP = math.max(hum.MaxHealth, 1)
-        entry.hp.Size = UDim2.new(math.clamp(hum.Health / maxHP, 0, 1), 0, 1, 0)
+    local dist = hrp and math.floor((hrp.Position - part.Position).Magnitude) or 0
+    entry.Title.Text = title
+    entry.Title.TextColor3 = color
+    entry.Distance.Text = "" .. dist .. " studs"
+    if entry.HPFill and showHP and maxHP and maxHP > 0 then
+        entry.HPFill.Size = UDim2.new(math.clamp((hp or 0)/maxHP, 0, 1), 0, 1, 0)
     end
 end
 
-local function CollectESPModels()
-    local out = {}
-    local enemies = workspace:FindFirstChild("Enemies")
-    if enemies then
-        for _, v in ipairs(enemies:GetChildren()) do
-            if v:IsA("Model") then table.insert(out, v) end
+local function isBossModel(obj)
+    if not obj:IsA("Model") then return false end
+    local name = obj.Name:lower()
+    return name:find("king") or name:find("prince") or name:find("boss") or name:find("reaper") or name:find("leviathan") or name:find("terror") or name:find("god")
+end
+
+local function espTick()
+    local _, hrp = GetCharacter()
+    if not hrp then return end
+    local seen = {}
+    local S = _G.Settings.Visuals
+    if _G.Settings.Fruits["Fruit ESP"] then S["ESP Fruits"] = true end
+    if _G.Settings.Fruits["Player ESP"] then S["ESP Players"] = true end
+    if _G.Settings.Fruits["Chest ESP"] then S["ESP Chests"] = true end
+
+    if S["ESP Players"] then
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character then
+                local part = getEspPart(p.Character)
+                local h = p.Character:FindFirstChildOfClass("Humanoid")
+                if part then
+                    local key = "P:" .. p.UserId
+                    seen[key] = true
+                    EnsureESP(key, part, "👤 " .. p.Name, Color3.fromRGB(255,90,90), true, h and h.MaxHealth or 100, h and h.Health or 0)
+                end
+            end
         end
     end
-    return out
-end
 
-local function FindIslandESP(namePatterns)
-    local found = {}
-    local roots = {
-        workspace:FindFirstChild("_WorldOrigin"),
-        workspace:FindFirstChild("Map"),
-        workspace:FindFirstChild("Locations")
-    }
-    for _, root in ipairs(roots) do
-        if root then
-            for _, obj in ipairs(root:GetDescendants()) do
-                if (obj:IsA("Model") or obj:IsA("BasePart")) then
-                    local lower = obj.Name:lower()
-                    for _, pattern in ipairs(namePatterns) do
-                        if lower:find(pattern) then
-                            table.insert(found, obj)
-                            break
+    if S["ESP Enemies"] or S["ESP Bosses"] then
+        local enemies = workspace:FindFirstChild("Enemies")
+        if enemies then
+            for _, mob in ipairs(enemies:GetChildren()) do
+                if mob:IsA("Model") then
+                    local boss = isBossModel(mob)
+                    if (S["ESP Bosses"] and boss) or (S["ESP Enemies"] and not boss) then
+                        local part = getEspPart(mob)
+                        local h = mob:FindFirstChildOfClass("Humanoid")
+                        if part and h then
+                            local key = "E:" .. mob:GetDebugId()
+                            seen[key] = true
+                            EnsureESP(key, part, (boss and "👑 " or "⚔️ ") .. mob.Name, boss and Color3.fromRGB(255,170,40) or Color3.fromRGB(255,210,90), true, h.MaxHealth, h.Health)
                         end
                     end
                 end
             end
         end
     end
-    return found
+
+    if S["ESP Fruits"] then
+        for _, obj in ipairs(workspace:GetChildren()) do
+            if obj:IsA("Tool") then
+                local n = obj.Name:lower()
+                if n:find("fruit") or n:find("blox") then
+                    local part = getEspPart(obj)
+                    if part then
+                        local key = "F:" .. obj:GetDebugId()
+                        seen[key] = true
+                        EnsureESP(key, part, "🍎 " .. obj.Name, Color3.fromRGB(255,180,40), false)
+                    end
+                end
+            end
+        end
+    end
+
+    if S["ESP Chests"] then
+        local chests = workspace:FindFirstChild("ChestModels")
+        if chests then
+            for _, chest in ipairs(chests:GetChildren()) do
+                local part = getEspPart(chest)
+                if part then
+                    local key = "C:" .. chest:GetDebugId()
+                    seen[key] = true
+                    EnsureESP(key, part, "📦 " .. chest.Name, Color3.fromRGB(255,255,80), false)
+                end
+            end
+        end
+    end
+
+    if S["ESP Mirage Island"] then
+        local island = GetMirageIsland()
+        local part = getEspPart(island)
+        if part then
+            local key = "I:Mirage"
+            seen[key] = true
+            EnsureESP(key, part, "🌙 Mirage Island", Color3.fromRGB(150,220,255), false)
+        end
+    end
+
+    if S["ESP Kitsune Island"] then
+        local island = GetKitsuneIsland()
+        local part = getEspPart(island)
+        if part then
+            local key = "I:Kitsune"
+            seen[key] = true
+            EnsureESP(key, part, "🦊 Kitsune Island", Color3.fromRGB(255,150,255), false)
+        end
+    end
+
+    for key in pairs(ESPCache) do
+        if not seen[key] then RemoveESP(key) end
+    end
+
+    if not (S["ESP Players"] or S["ESP Enemies"] or S["ESP Bosses"] or S["ESP Fruits"] or S["ESP Chests"] or S["ESP Mirage Island"] or S["ESP Kitsune Island"]) then
+        RemoveAllESP()
+    end
 end
 
 task.spawn(function()
-    while task.wait(0.25) do
-        pcall(function()
-            local _, hrp = GetCharacter()
-            if not hrp then return end
-
-            local V = _G.Settings.Visuals
-            local F = _G.Settings.Fruits
-
-            if V["ESP Players"] or F["Player ESP"] then
-                for _, p in ipairs(Players:GetPlayers()) do
-                    if p ~= LocalPlayer and p.Character then
-                        local root = p.Character:FindFirstChild("HumanoidRootPart")
-                        local hum = p.Character:FindFirstChildOfClass("Humanoid")
-                        if root and hum and hum.Health > 0 then
-                            CreateOrUpdateESP(p, root, "PLAYER • " .. p.Name, Color3.fromRGB(255,85,85), "Players", hum)
-                        end
-                    end
-                end
-            else
-                ClearESPCategory("Players")
-            end
-
-            if V["ESP Enemies"] then
-                for _, mob in ipairs(CollectESPModels()) do
-                    local hum = mob:FindFirstChildOfClass("Humanoid")
-                    local root = mob:FindFirstChild("HumanoidRootPart")
-                    if hum and root and hum.Health > 0 then
-                        CreateOrUpdateESP(mob, root, "ENEMY • " .. mob.Name, Color3.fromRGB(255,120,80), "Enemies", hum)
-                    end
-                end
-            else
-                ClearESPCategory("Enemies")
-            end
-
-            if V["ESP Bosses"] then
-                for _, mob in ipairs(CollectESPModels()) do
-                    local hum = mob:FindFirstChildOfClass("Humanoid")
-                    local root = mob:FindFirstChild("HumanoidRootPart")
-                    local lower = mob.Name:lower()
-                    local isBoss = lower:find("boss") or lower:find("king") or lower:find("lord")
-                        or lower:find("rip_") or lower:find("beautiful") or lower:find("don swan")
-                    if isBoss and hum and root and hum.Health > 0 then
-                        CreateOrUpdateESP(mob, root, "BOSS • " .. mob.Name, Color3.fromRGB(190,85,255), "Bosses", hum)
-                    end
-                end
-            else
-                ClearESPCategory("Bosses")
-            end
-
-            if V["ESP Fruits"] or F["Fruit ESP"] then
-                for _, v in ipairs(workspace:GetDescendants()) do
-                    if v:IsA("Tool") then
-                        local n = v.Name:lower()
-                        if n:find("fruit") or n:find("blox") then
-                            local part = GetESPPart(v)
-                            if part then
-                                CreateOrUpdateESP(v, part, "FRUIT • " .. v.Name, Color3.fromRGB(255,170,0), "Fruits")
-                            end
-                        end
-                    end
-                end
-            else
-                ClearESPCategory("Fruits")
-            end
-
-            if V["ESP Chests"] or F["Chest ESP"] then
-                local folder = workspace:FindFirstChild("ChestModels")
-                if folder then
-                    for _, chest in ipairs(folder:GetChildren()) do
-                        local part = GetESPPart(chest)
-                        if part then
-                            CreateOrUpdateESP(chest, part, "CHEST • " .. chest.Name, Color3.fromRGB(255,235,70), "Chests")
-                        end
-                    end
-                end
-            else
-                ClearESPCategory("Chests")
-            end
-
-            if V["ESP Mirage Island"] then
-                for _, obj in ipairs(FindIslandESP({"mirage"})) do
-                    local part = GetESPPart(obj)
-                    if part then
-                        CreateOrUpdateESP(obj, part, "ISLAND • MIRAGE", Color3.fromRGB(120,180,255), "Mirage")
-                    end
-                end
-            else
-                ClearESPCategory("Mirage")
-            end
-
-            if V["ESP Kitsune Island"] then
-                for _, obj in ipairs(FindIslandESP({"kitsune"})) do
-                    local part = GetESPPart(obj)
-                    if part then
-                        CreateOrUpdateESP(obj, part, "ISLAND • KITSUNE", Color3.fromRGB(255,120,210), "Kitsune")
-                    end
-                end
-            else
-                ClearESPCategory("Kitsune")
-            end
-
-            -- Remove stale objects (destroyed enemies/chests/players).
-            for obj in pairs(ESPCache) do
-                if not obj or not obj.Parent then
-                    RemoveESP(obj)
-                end
-            end
-        end)
-    end
+    while task.wait(0.25) do pcall(espTick) end
 end)
 
 --------------------------------------------------------------------------------
@@ -3201,10 +2924,9 @@ task.spawn(function()
 
                 if closestChest then
                     if _G.Settings.SubFarm["Auto Chest Instant"] then
-                        StopTween("AutoChestInstant")
                         hrp.CFrame = closestChest.RootPart.CFrame
-                    elseif _G.Settings.SubFarm["Auto Chest Tween"] then
-                        TweenPlayer(closestChest.RootPart.CFrame, Vector3.new(0, 3, 0), "AutoChestTween")
+                    else
+                        TweenPlayer(closestChest.RootPart.CFrame, Vector3.new(0, 3, 0))
                     end
                 end
             end)
