@@ -3,7 +3,7 @@ repeat task.wait() until game:IsLoaded()
 task.wait(1)
 
 --------------------------------------------------------------------------------
--- 1. الخدمات والريموتات الأساسية (Services & Net Modules)
+-- 1. Core Services & Network Remotes
 --------------------------------------------------------------------------------
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -11,13 +11,15 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CollectionService = game:GetService("CollectionService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
+local VirtualUser = game:GetService("VirtualUser")
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local Lighting = game:GetService("Lighting")
+local CoreGui = game:GetService("CoreGui")
 
 local LocalPlayer = Players.LocalPlayer
+repeat task.wait() until LocalPlayer:FindFirstChild("PlayerGui")
 
--- استخراج الريموتات الرسمية بأمان
 local Remotes = ReplicatedStorage:FindFirstChild("Remotes")
 if not Remotes then
     warn("Haroon Hub: Remotes folder not found in ReplicatedStorage!")
@@ -27,15 +29,12 @@ end
 local CommF_ = Remotes:FindFirstChild("CommF_")
 local CommE = Remotes:FindFirstChild("CommE")
 
-if not CommF_ then warn("Haroon Hub: CommF_ remote not found!") end
-if not CommE then warn("Haroon Hub: CommE remote not found!") end
-
 local Net = ReplicatedStorage:FindFirstChild("Modules") and ReplicatedStorage.Modules:FindFirstChild("Net")
 local RegisterAttack = Net and Net:FindFirstChild("RE/RegisterAttack")
 local ShootGunEvent = Net and Net:FindFirstChild("RE/ShootGunEvent")
 
 local RegisterHit = nil
-local success_getupvalue, result_getupvalue = pcall(function()
+pcall(function()
     if getrenv and getrenv()._G and getrenv()._G.SendHitsToServer then
         RegisterHit = debug.getupvalue(getrenv()._G.SendHitsToServer, 1)
     end
@@ -45,13 +44,13 @@ if not RegisterHit and Net and Net:FindFirstChild("RE/RegisterHit") then
     RegisterHit = Net:FindFirstChild("RE/RegisterHit")
 end
 
--- تحديد العالم الحالي
+-- World Detection
 local World1, World2, World3 = false, false, false
 if game.PlaceId == 2753915549 or game.PlaceId == 85211729168715 then World1 = true
 elseif game.PlaceId == 4442272183 or game.PlaceId == 79091703265657 then World2 = true
 elseif game.PlaceId == 7449423635 or game.PlaceId == 100117331123089 then World3 = true end
 
--- إعدادات الإضاءة
+-- Lighting Optimizations
 Lighting.Ambient = Color3.new(0.695, 0.695, 0.695)
 Lighting.ColorShift_Bottom = Color3.new(0.695, 0.695, 0.695)
 Lighting.ColorShift_Top = Color3.new(0.695, 0.695, 0.695)
@@ -59,7 +58,7 @@ Lighting.Brightness = 2
 Lighting.FogEnd = 1e10
 
 --------------------------------------------------------------------------------
--- 2. مصفوفة الإعدادات العامة (جميع الـ Toggles تبدأ بحالة false / OFF)
+-- 2. Global Settings Structure (All Default to False)
 --------------------------------------------------------------------------------
 _G.Settings = {
     Main = {
@@ -83,27 +82,42 @@ _G.Settings = {
         ["Auto PvP Escape"] = false,
         ["Escape HP %"] = 30,
         ["Return HP %"] = 70,
+        ["Kill Aura"] = false,
+        ["Kill Aura Range"] = 25,
+        ["Attack Speed"] = 1,
+        ["Auto Enable Haki"] = false,
     },
     Fruits = {
         ["Fruit ESP"] = false,
+        ["Player ESP"] = false,
+        ["Chest ESP"] = false,
+        ["Island ESP"] = false,
         ["Fruit Sniper"] = false,
         ["Auto Store Fruit"] = false,
-        ["Show All Fruits"] = false,
+        ["Auto Drop Fruit"] = false,
+        ["Auto Roll Fruit"] = false,
     },
     SubFarm = {
         ["Auto Elite Hunter"] = false,
         ["Auto Elite Hunter Hop"] = false,
         ["Auto Farm Bone"] = false,
+        ["Auto Accept Bone Quest"] = false,
+        ["Auto Random Surprise"] = false,
         ["Auto Chest Tween"] = false,
         ["Auto Chest Instant"] = false,
         ["Auto Stop Items"] = false,
         ["Auto Farm Leviathan"] = false,
         ["Auto Buy Leviathan Bait"] = false,
         ["Auto Spawn Leviathan Boat"] = false,
-        ["Auto Mastery Melee"] = false,
+        ["Auto Mastery Melee (Tiki)"] = false,
         ["Auto Mastery Swords"] = false,
         ["Auto Mastery Blox Fruits"] = false,
         ["Auto Mastery Guns"] = false,
+        ["Mastery Target HP %"] = 25,
+    },
+    DragonDojo = {
+        ["Auto Farm Blaze Ember"] = false,
+        ["Auto Collect Blaze Ember"] = false,
     },
     Cake = {
         ["Auto Katakuri"] = false,
@@ -123,13 +137,18 @@ _G.Settings = {
         ["Auto Race V3 Ability"] = false,
         ["Auto Train"] = false,
         ["Auto Trial"] = false,
-        ["Auto Buy Gear"] = false
+        ["Auto Buy Gear"] = false,
+        ["Auto Collect Flowers"] = false,
+        ["Auto Race V1-V4"] = false,
     },
     Sea = {
         ["Selected Boat"] = "Guardian",
         ["Selected Zone"] = "Zone 5",
         ["Boat Tween Speed"] = 200,
         ["Sail Boat"] = false,
+        ["Ship Noclip"] = false,
+        ["Auto Attack Sea Events"] = false,
+        ["Sea Event Attack Range"] = 50,
         ["Auto Farm Shark"] = false,
         ["Auto Farm Piranha"] = false,
         ["Auto Farm Fish Crew Member"] = false,
@@ -155,40 +174,13 @@ _G.Settings = {
         ["Auto Stats"] = false,
         ["Selected Stat"] = "Melee",
         ["Points Per Tick"] = 1,
+        ["Auto Melee"] = false,
+        ["Auto Defense"] = false,
+        ["Auto Sword"] = false,
+        ["Auto Gun"] = false,
+        ["Auto Blox Fruit"] = false,
     },
-    Teleports = {
-        ["TP_Windmill"] = false,
-        ["TP_Jungle"] = false,
-        ["TP_Pirate Village"] = false,
-        ["TP_Desert"] = false,
-        ["TP_Snow Island"] = false,
-        ["TP_Marineford"] = false,
-        ["TP_Colosseum"] = false,
-        ["TP_Sky Island"] = false,
-        ["TP_Prison"] = false,
-        ["TP_Magma Village"] = false,
-        ["TP_Fountain City"] = false,
-        ["TP_Cafe"] = false,
-        ["TP_Green Zone"] = false,
-        ["TP_Cursed Ship"] = false,
-        ["TP_Ice Castle"] = false,
-        ["TP_Hot & Cold"] = false,
-        ["TP_Snow Mountain"] = false,
-        ["TP_Graveyard"] = false,
-        ["TP_Factory"] = false,
-        ["TP_Colosseum Sea 2"] = false,
-        ["TP_Dark Arena"] = false,
-        ["TP_Mansion"] = false,
-        ["TP_Port Town"] = false,
-        ["TP_Hydra Island"] = false,
-        ["TP_Floating Turtle"] = false,
-        ["TP_Haunted Castle"] = false,
-        ["TP_Tiki Outpost"] = false,
-        ["TP_Great Tree"] = false,
-        ["TP_Castle on the Sea"] = false,
-        ["TP_Cake Land"] = false,
-        ["TP_Peanut Island"] = false,
-    },
+    Teleports = {},
     Visuals = {
         ["ESP Players"] = false,
         ["ESP Bosses"] = false,
@@ -198,26 +190,78 @@ _G.Settings = {
         ["ESP Mirage Island"] = false,
         ["ESP Kitsune Island"] = false,
     },
-    FarmingQuests = {
+    ItemsQuests = {
         ["Auto Sword Quest"] = false,
         ["Selected Sword Quest"] = "Saber V2",
         ["Auto Farm CDK"] = false,
         ["Auto Farm TTK"] = false,
+        ["Auto Soul Guitar"] = false,
+        ["Auto Godhuman"] = false,
+        ["CDK Trial Type"] = "Quest Yama",
+        ["Auto Buy Legendary Swords"] = false,
+        ["Auto Buy Fighting Styles"] = false,
+    },
+    Quests = {
+        ["Auto Citizen Quest"] = false,
+        ["Auto Yama Puzzle"] = false,
+        ["Auto Tushita Puzzle"] = false,
+        ["Auto Colosseum Puzzle"] = false,
+        ["Auto Dough Challenges"] = false,
+        ["Auto Soul Guitar Puzzle"] = false,
+    },
+    Crafting = {
+        ["SharkToothNecklace"] = false,
+        ["TerrorJaw"] = false,
+        ["MonsterMagnet"] = false,
+        ["SharkAnchor"] = false,
+        ["LeviathanShield"] = false,
+        ["LeviathanBoat"] = false,
+        ["LeviathanCrown"] = false,
+        ["LegendaryScroll"] = false,
+        ["MythicalScroll"] = false,
     },
     Misc = {
+        ["Anti AFK"] = false,
         ["Auto Ken (Buso Haki)"] = false,
         ["Set Team to Marines"] = false,
         ["Set Team to Pirates"] = false,
+        ["Walk On Water"] = false,
+        ["Auto Server Hop VIP"] = false,
+        ["Bypass Anticheat"] = false,
+        ["Show Ping"] = false,
+        ["Show FPS"] = false,
     }
 }
 
-_G.MobHeight = _G.MobHeight or 20
+--------------------------------------------------------------------------------
+-- 3. Promo Codes Master Engine
+--------------------------------------------------------------------------------
+local GameCodes = {
+    "LIGHTNINGABUSE", "1LOSTADMIN", "ADMINFIGHT", "NOMOREHACK", "BANEXPLOIT",
+    "krazydares", "TRIPLEABUSE", "24NOADMIN", "REWARDFUN", "Chandler",
+    "NEWTROLL", "KITT_RESET", "Magicbus", "Starcodeheo", "fudd10_v2",
+    "Sub2UncleKizaru", "Fudd10", "Bignews", "SECRET_ADMIN", "SUB2GAMERROBOT_RESET1",
+    "SUB2OFFICIALNOOBIE", "AXIORE", "BIGNEWS", "BLUXXY", "CHANDLER",
+    "ENYU_IS_PRO", "FUDD10", "FUDD10_V2", "KITTGAMING", "MAGICBUS",
+    "STARCODEHEO", "STRAWHATMAINE", "SUB2CAPTAINMAUI", "SUB2DAIGROCK", "SUB2FER999",
+    "SUB2NOOBMASTER123", "TANTAIGAMING", "THEGREATACE", "WildDares", "BossBuild",
+    "GetPranked", "FIGHT4FRUIT", "EARN_FRUITS"
+}
+
+local function RedeemAllCodes()
+    task.spawn(function()
+        for _, codeName in ipairs(GameCodes) do
+            pcall(function()
+                ReplicatedStorage.Remotes.Redeem:InvokeServer(codeName)
+            end)
+            task.wait(0.3)
+        end
+    end)
+end
 
 --------------------------------------------------------------------------------
--- 3. محرك الحماية والتثبيت الرأسي وإيقاف الحركة الآمن
+-- 4. Anti-Fall & Vertical Safety Engine
 --------------------------------------------------------------------------------
-local currentTween = nil
-
 local function GetCharacter(): (Model?, BasePart?, Humanoid?)
     local char = LocalPlayer.Character
     if not char then char = LocalPlayer.CharacterAdded:Wait() end
@@ -232,9 +276,9 @@ RunService.Stepped:Connect(function()
                    _G.Settings.SubFarm["Auto Farm Bone"] or _G.Settings.Cake["Auto Katakuri"] or
                    _G.Settings.Sea["Sail Boat"] or _G.Settings.SubFarm["Auto Chest Tween"] or
                    _G.Settings.Race["Auto Train"] or _G.Settings.SubFarm["Auto Farm Leviathan"] or
-                   _G.Settings.FarmingQuests["Auto Sword Quest"] or _G.Settings.Race["Auto Race V2 Quest"] or 
-                   _G.Settings.Race["Auto Race V3 Quest"] or _G.Settings.FarmingQuests["Auto Farm CDK"] or 
-                   _G.Settings.FarmingQuests["Auto Farm TTK"] or _G.Settings.SubFarm["Auto Mastery Melee"] or 
+                   _G.Settings.ItemsQuests["Auto Sword Quest"] or _G.Settings.Race["Auto Race V2 Quest"] or 
+                   _G.Settings.Race["Auto Race V3 Quest"] or _G.Settings.ItemsQuests["Auto Farm CDK"] or 
+                   _G.Settings.ItemsQuests["Auto Farm TTK"] or _G.Settings.SubFarm["Auto Mastery Melee (Tiki)"] or 
                    _G.Settings.SubFarm["Auto Mastery Swords"] or _G.Settings.SubFarm["Auto Mastery Blox Fruits"] or 
                    _G.Settings.SubFarm["Auto Mastery Guns"] or _G.Settings.Race["Auto Find Mirage"] or 
                    _G.Settings.Sea["Auto Find Kitsune Island"] or _G.Settings.Raid["Auto Dungeon / Raid"] or 
@@ -243,7 +287,9 @@ RunService.Stepped:Connect(function()
                    _G.Settings.Sea["Auto Farm Fish Crew Member"] or _G.Settings.Sea["Auto Farm Ghost Ship"] or
                    _G.Settings.Sea["Auto Farm Terrorshark"] or _G.Settings.Sea["Auto Farm Seabeasts"] or
                    _G.Settings.Sea["Auto Prehistoric Island"] or _G.Settings.Sea["Auto Complete Prehistoric Island"] or
-                   _G.Settings.Sea["Auto Draco Trail"] or _G.Settings.Raid["Auto Next Island"]
+                   _G.Settings.Sea["Auto Draco Trail"] or _G.Settings.Raid["Auto Next Island"] or
+                   _G.Settings.DragonDojo["Auto Farm Blaze Ember"] or _G.Settings.SubFarm["Auto Elite Hunter"] or
+                   _G.Settings.Quests["Auto Citizen Quest"]
 
     local char, hrp, hum = GetCharacter()
     if not char or not hrp or not hum then return end
@@ -270,5787 +316,132 @@ RunService.Stepped:Connect(function()
     end
 end)
 
-local function TweenPlayer(pos: CFrame | Vector3 | BasePart, offset: Vector3?): Tween?
-    local char, hrp, hum = GetCharacter()
-    if not char or not hrp or not hum then return nil end
-    if hum.Sit then hum.Sit = false end
-
-    local targetCFrame: CFrame
-    if typeof(pos) == "CFrame" then targetCFrame = pos
-    elseif typeof(pos) == "Vector3" then targetCFrame = CFrame.new(pos)
-    elseif pos:IsA("BasePart") then targetCFrame = pos.CFrame
-    else return nil end
-
-    if offset then targetCFrame = targetCFrame * CFrame.new(offset) end
-
-    local distance = (hrp.Position - targetCFrame.Position).Magnitude
-    local uprightCFrame = CFrame.new(targetCFrame.Position, targetCFrame.Position + Vector3.new(targetCFrame.LookVector.X, 0, targetCFrame.LookVector.Z))
-
-    if distance <= 25 then
-        hrp.CFrame = uprightCFrame
-        if currentTween then currentTween:Cancel() end
-        return nil
-    end
-
-    local speed = _G.Settings.Main["Player Tween Speed"] or 180
-    local tweenInfo = TweenInfo.new(distance / speed, Enum.EasingStyle.Linear)
-
-    if currentTween then currentTween:Cancel() end
-    currentTween = TweenService:Create(hrp, tweenInfo, {CFrame = uprightCFrame})
-    currentTween:Play()
-    return currentTween
-end
-
-local function StopTween()
-    if currentTween then
-        currentTween:Cancel()
-        currentTween = nil
-    end
-    local _, hrp = GetCharacter()
-    if hrp and hrp:FindFirstChild("HaroonBV") then
-        hrp.HaroonBV:Destroy()
-    end
-end
-
-local function AutoHaki()
-    local char = LocalPlayer.Character
-    if char and not CollectionService:HasTag(char, "Ken") then
-        if CommE then pcall(function() CommE:FireServer("Ken", true) end) end
-    end
-end
-
-local function EquipWeapon(weaponType: string)
-    pcall(function()
-        local char, _, hum = GetCharacter()
-        local backpack = LocalPlayer:FindFirstChild("Backpack")
-        if not backpack or not hum or not char then return end
-
-        for _, tool in pairs(char:GetChildren()) do
-            if tool:IsA("Tool") and (tool.ToolTip == weaponType or (weaponType == "Melee" and tool.ToolTip == "Melee") or (weaponType == "Blox Fruit" and tool.ToolTip == "Blox Fruit") or (weaponType == "Gun" and tool.ToolTip == "Gun") or (weaponType == "Sword" and tool.ToolTip == "Sword")) then
-                return
-            end
-        end
-
-        for _, tool in pairs(backpack:GetChildren()) do
-            if tool:IsA("Tool") and (tool.ToolTip == weaponType or (weaponType == "Melee" and tool.ToolTip == "Melee") or (weaponType == "Blox Fruit" and tool.ToolTip == "Blox Fruit") or (weaponType == "Gun" and tool.ToolTip == "Gun") or (weaponType == "Sword" and tool.ToolTip == "Sword")) then
-                hum:EquipTool(tool)
-                break
-            end
-        end
-    end)
-end
-
---------------------------------------------------------------------------------
--- 4. المحرك الذكي للهجوم والـ Aimbot والـ 80% Damage Mechanic
---------------------------------------------------------------------------------
-local function AimAtTarget(targetPosition: Vector3)
-    pcall(function()
-        local cam = workspace.CurrentCamera
-        if cam then
-            cam.CFrame = CFrame.lookAt(cam.CFrame.Position, targetPosition)
-        end
-    end)
-end
-
-local function FastAttackTarget(targetEnemy: Model)
-    if not targetEnemy or not targetEnemy:FindFirstChild("HumanoidRootPart") then return end
-    local head = targetEnemy:FindFirstChild("Head") or targetEnemy.HumanoidRootPart
-
-    if RegisterAttack then
-        pcall(function()
-            RegisterAttack:FireServer(0)
-            RegisterAttack:FireServer(1)
-            RegisterAttack:FireServer(2)
-            RegisterAttack:FireServer(3)
-        end)
-    end
-
-    if RegisterHit then
-        pcall(function()
-            if typeof(RegisterHit) == "thread" or typeof(RegisterHit) == "function" then
-                coroutine.resume(RegisterHit, head, {})
-            elseif typeof(RegisterHit) == "Instance" then
-                RegisterHit:FireServer(head, {})
-            end
-        end)
-    end
-end
-
-local function SmartAttackMob(targetMob: Model, weaponOverride: string?): boolean
-    local selectedWep = weaponOverride or _G.Settings.Main["Select Weapon"]
-    local mobHum = targetMob:FindFirstChildOfClass("Humanoid")
-    local mobRoot = targetMob:FindFirstChild("HumanoidRootPart") or targetMob:FindFirstChild("Head")
-    if not mobHum or mobHum.Health <= 0 or not mobRoot then return false end
-
-    local hpPercent = mobHum.Health / mobHum.MaxHealth
-
-    if selectedWep == "Blox Fruit" or selectedWep == "Gun" then
-        if hpPercent > 0.20 then
-            EquipWeapon("Melee")
-            FastAttackTarget(targetMob)
-        else
-            EquipWeapon(selectedWep)
-            AimAtTarget(mobRoot.Position)
-
-            if selectedWep == "Blox Fruit" then
-                for _, key in pairs({Enum.KeyCode.Z, Enum.KeyCode.X, Enum.KeyCode.C, Enum.KeyCode.V, Enum.KeyCode.F}) do
-                    VirtualInputManager:SendKeyEvent(true, key, false, game)
-                    task.wait(0.02)
-                    VirtualInputManager:SendKeyEvent(false, key, false, game)
-                end
-            elseif selectedWep == "Gun" then
-                for _, key in pairs({Enum.KeyCode.Z, Enum.KeyCode.X}) do
-                    VirtualInputManager:SendKeyEvent(true, key, false, game)
-                    task.wait(0.02)
-                    VirtualInputManager:SendKeyEvent(false, key, false, game)
-                end
-                if ShootGunEvent then
-                    pcall(function() ShootGunEvent:FireServer(mobRoot.Position, {mobRoot}) end)
-                end
-            end
-
-            VirtualInputManager:SendMouseButtonEvent(mobRoot.Position.X, mobRoot.Position.Y, 0, true, game, 0)
-            VirtualInputManager:SendMouseButtonEvent(mobRoot.Position.X, mobRoot.Position.Y, 0, false, game, 0)
-            FastAttackTarget(targetMob)
-        end
-    else
-        EquipWeapon(selectedWep)
-        FastAttackTarget(targetMob)
-    end
-
-    return true
-end
-
---------------------------------------------------------------------------------
--- 5. قواعد البيانات الشاملة للمهمات والجزر (Quests & Islands Database)
---------------------------------------------------------------------------------
-local CurrentQuest = {
-    Mon = "Bandit",
-    LevelQuest = 1,
-    NameQuest = "BanditQuest1",
-    NameMon = "Bandit",
-    CFrameQuest = CFrame.new(1059.37, 15.44, 1550.42),
-    CFrameMon = CFrame.new(1045.96, 27.00, 1560.82)
-}
-
-local function CheckQuest()
-    local MyLevel = (LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Level")) and LocalPlayer.Data.Level.Value or 1
-    if World1 then
-        if MyLevel <= 9 then
-            CurrentQuest = {Mon = "Bandit", LevelQuest = 1, NameQuest = "BanditQuest1", NameMon = "Bandit", CFrameQuest = CFrame.new(1059.37, 15.44, 1550.42), CFrameMon = CFrame.new(1045.96, 27.00, 1560.82)}
-        elseif MyLevel <= 14 then
-            CurrentQuest = {Mon = "Monkey", LevelQuest = 1, NameQuest = "JungleQuest", NameMon = "Monkey", CFrameQuest = CFrame.new(-1598.08, 35.55, 153.37), CFrameMon = CFrame.new(-1448.51, 67.85, 11.46)}
-        elseif MyLevel <= 29 then
-            if _G.Settings.Main["Include Boss Quests"] and MyLevel >= 20 then
-                CurrentQuest = {Mon = "The Gorilla King", LevelQuest = 3, NameQuest = "JungleQuest", NameMon = "The Gorilla King", CFrameQuest = CFrame.new(-1598.08, 35.55, 153.37), CFrameMon = CFrame.new(-1129.88, 40.46, -525.42)}
-            else
-                CurrentQuest = {Mon = "Gorilla", LevelQuest = 2, NameQuest = "JungleQuest", NameMon = "Gorilla", CFrameQuest = CFrame.new(-1598.08, 35.55, 153.37), CFrameMon = CFrame.new(-1129.88, 40.46, -525.42)}
-            end
-        elseif MyLevel <= 39 then
-            CurrentQuest = {Mon = "Pirate", LevelQuest = 1, NameQuest = "BuggyQuest1", NameMon = "Pirate", CFrameQuest = CFrame.new(-1141.07, 4.10, 3831.54), CFrameMon = CFrame.new(-1103.51, 13.75, 3896.09)}
-        elseif MyLevel <= 59 then
-            if _G.Settings.Main["Include Boss Quests"] and MyLevel >= 55 then
-                CurrentQuest = {Mon = "Bobby", LevelQuest = 3, NameQuest = "BuggyQuest1", NameMon = "Bobby", CFrameQuest = CFrame.new(-1141.07, 4.10, 3831.54), CFrameMon = CFrame.new(-1140.08, 14.80, 4322.92)}
-            else
-                CurrentQuest = {Mon = "Brute", LevelQuest = 2, NameQuest = "BuggyQuest1", NameMon = "Brute", CFrameQuest = CFrame.new(-1141.07, 4.10, 3831.54), CFrameMon = CFrame.new(-1140.08, 14.80, 4322.92)}
-            end
-        elseif MyLevel <= 74 then
-            CurrentQuest = {Mon = "Desert Bandit", LevelQuest = 1, NameQuest = "DesertQuest", NameMon = "Desert Bandit", CFrameQuest = CFrame.new(894.48, 5.14, 4392.43), CFrameMon = CFrame.new(924.79, 6.44, 4481.58)}
-        elseif MyLevel <= 89 then
-            CurrentQuest = {Mon = "Desert Officer", LevelQuest = 2, NameQuest = "DesertQuest", NameMon = "Desert Officer", CFrameQuest = CFrame.new(894.48, 5.14, 4392.43), CFrameMon = CFrame.new(1608.28, 8.61, 4371.00)}
-        elseif MyLevel <= 99 then
-            CurrentQuest = {Mon = "Snow Bandit", LevelQuest = 1, NameQuest = "SnowQuest", NameMon = "Snow Bandit", CFrameQuest = CFrame.new(1389.74, 88.15, -1298.90), CFrameMon = CFrame.new(1354.34, 87.27, -1393.94)}
-        elseif MyLevel <= 119 then
-            CurrentQuest = {Mon = "Snowman", LevelQuest = 2, NameQuest = "SnowQuest", NameMon = "Snowman", CFrameQuest = CFrame.new(1389.74, 88.15, -1298.90), CFrameMon = CFrame.new(1201.64, 144.57, -1550.06)}
-        elseif MyLevel <= 149 then
-            CurrentQuest = {Mon = "Chief Petty Officer", LevelQuest = 1, NameQuest = "MarineQuest2", NameMon = "Chief Petty Officer", CFrameQuest = CFrame.new(-5039.58, 27.35, 4324.68), CFrameMon = CFrame.new(-4881.23, 22.65, 4273.75)}
-        elseif MyLevel <= 174 then
-            CurrentQuest = {Mon = "Sky Bandit", LevelQuest = 1, NameQuest = "SkyQuest", NameMon = "Sky Bandit", CFrameQuest = CFrame.new(-4839.53, 716.36, -2619.44), CFrameMon = CFrame.new(-4953.20, 295.74, -2899.22)}
-        elseif MyLevel <= 189 then
-            CurrentQuest = {Mon = "Dark Master", LevelQuest = 2, NameQuest = "SkyQuest", NameMon = "Dark Master", CFrameQuest = CFrame.new(-4839.53, 716.36, -2619.44), CFrameMon = CFrame.new(-5259.84, 391.39, -2229.03)}
-        elseif MyLevel <= 209 then
-            CurrentQuest = {Mon = "Prisoner", LevelQuest = 1, NameQuest = "PrisonerQuest", NameMon = "Prisoner", CFrameQuest = CFrame.new(5308.93, 1.65, 475.12), CFrameMon = CFrame.new(5098.97, -0.32, 474.23)}
-        elseif MyLevel <= 249 then
-            CurrentQuest = {Mon = "Dangerous Prisoner", LevelQuest = 2, NameQuest = "PrisonerQuest", NameMon = "Dangerous Prisoner", CFrameQuest = CFrame.new(5308.93, 1.65, 475.12), CFrameMon = CFrame.new(5654.56, 15.63, 866.29)}
-        elseif MyLevel <= 274 then
-            CurrentQuest = {Mon = "Toga Warrior", LevelQuest = 1, NameQuest = "ColosseumQuest", NameMon = "Toga Warrior", CFrameQuest = CFrame.new(-1580.04, 6.35, -2986.47), CFrameMon = CFrame.new(-1820.21, 51.68, -2740.66)}
-        elseif MyLevel <= 299 then
-            CurrentQuest = {Mon = "Gladiator", LevelQuest = 2, NameQuest = "ColosseumQuest", NameMon = "Gladiator", CFrameQuest = CFrame.new(-1580.04, 6.35, -2986.47), CFrameMon = CFrame.new(-1292.83, 56.38, -3339.03)}
-        elseif MyLevel <= 324 then
-            CurrentQuest = {Mon = "Military Soldier", LevelQuest = 1, NameQuest = "MagmaQuest", NameMon = "Military Soldier", CFrameQuest = CFrame.new(-5313.37, 10.95, 8515.29), CFrameMon = CFrame.new(-5411.16, 11.08, 8454.29)}
-        elseif MyLevel <= 374 then
-            CurrentQuest = {Mon = "Military Spy", LevelQuest = 2, NameQuest = "MagmaQuest", NameMon = "Military Spy", CFrameQuest = CFrame.new(-5313.37, 10.95, 8515.29), CFrameMon = CFrame.new(-5802.86, 86.26, 8828.85)}
-        elseif MyLevel <= 399 then
-            CurrentQuest = {Mon = "Fishman Warrior", LevelQuest = 1, NameQuest = "FishmanQuest", NameMon = "Fishman Warrior", CFrameQuest = CFrame.new(61122.65, 18.49, 1569.39), CFrameMon = CFrame.new(60878.30, 18.48, 1543.75)}
-        elseif MyLevel <= 449 then
-            CurrentQuest = {Mon = "Fishman Commando", LevelQuest = 2, NameQuest = "FishmanQuest", NameMon = "Fishman Commando", CFrameQuest = CFrame.new(61122.65, 18.49, 1569.39), CFrameMon = CFrame.new(61922.63, 18.48, 1493.93)}
-        elseif MyLevel <= 474 then
-            CurrentQuest = {Mon = "God's Guard", LevelQuest = 1, NameQuest = "SkyExp1Quest", NameMon = "God's Guard", CFrameQuest = CFrame.new(-4721.88, 843.87, -1949.96), CFrameMon = CFrame.new(-4710.04, 845.27, -1927.30)}
-        elseif MyLevel <= 524 then
-            CurrentQuest = {Mon = "Shanda", LevelQuest = 2, NameQuest = "SkyExp1Quest", NameMon = "Shanda", CFrameQuest = CFrame.new(-7859.09, 5544.19, -381.47), CFrameMon = CFrame.new(-7678.48, 5566.40, -497.21)}
-        elseif MyLevel <= 549 then
-            CurrentQuest = {Mon = "Royal Squad", LevelQuest = 1, NameQuest = "SkyExp2Quest", NameMon = "Royal Squad", CFrameQuest = CFrame.new(-7906.81, 5634.66, -1411.99), CFrameMon = CFrame.new(-7624.25, 5658.13, -1467.35)}
-        elseif MyLevel <= 624 then
-            CurrentQuest = {Mon = "Royal Soldier", LevelQuest = 2, NameQuest = "SkyExp2Quest", NameMon = "Royal Soldier", CFrameQuest = CFrame.new(-7906.81, 5634.66, -1411.99), CFrameMon = CFrame.new(-7836.75, 5645.66, -1790.62)}
-        elseif MyLevel <= 649 then
-            CurrentQuest = {Mon = "Galley Pirate", LevelQuest = 1, NameQuest = "FountainQuest", NameMon = "Galley Pirate", CFrameQuest = CFrame.new(5259.81, 37.35, 4050.02), CFrameMon = CFrame.new(5551.02, 78.90, 3930.41)}
-        else
-            CurrentQuest = {Mon = "Galley Captain", LevelQuest = 2, NameQuest = "FountainQuest", NameMon = "Galley Captain", CFrameQuest = CFrame.new(5259.81, 37.35, 4050.02), CFrameMon = CFrame.new(5441.95, 42.50, 4950.09)}
-        end
-    elseif World2 then
-        if MyLevel <= 724 then
-            CurrentQuest = {Mon = "Raider", LevelQuest = 1, NameQuest = "Area1Quest", NameMon = "Raider", CFrameQuest = CFrame.new(-429.54, 71.76, 1836.18), CFrameMon = CFrame.new(-728.32, 52.77, 2345.77)}
-        elseif MyLevel <= 774 then
-            CurrentQuest = {Mon = "Mercenary", LevelQuest = 2, NameQuest = "Area1Quest", NameMon = "Mercenary", CFrameQuest = CFrame.new(-429.54, 71.76, 1836.18), CFrameMon = CFrame.new(-1004.32, 80.15, 1424.61)}
-        elseif MyLevel <= 799 then
-            CurrentQuest = {Mon = "Swan Pirate", LevelQuest = 1, NameQuest = "Area2Quest", NameMon = "Swan Pirate", CFrameQuest = CFrame.new(638.43, 71.76, 918.28), CFrameMon = CFrame.new(1068.66, 137.61, 1322.10)}
-        elseif MyLevel <= 874 then
-            CurrentQuest = {Mon = "Factory Staff", LevelQuest = 2, NameQuest = "Area2Quest", NameMon = "Factory Staff", CFrameQuest = CFrame.new(632.69, 73.10, 918.66), CFrameMon = CFrame.new(73.07, 81.86, -27.47)}
-        elseif MyLevel <= 899 then
-            CurrentQuest = {Mon = "Marine Lieutenant", LevelQuest = 1, NameQuest = "MarineQuest3", NameMon = "Marine Lieutenant", CFrameQuest = CFrame.new(-2440.79, 71.71, -3216.06), CFrameMon = CFrame.new(-2821.37, 75.89, -3070.08)}
-        elseif MyLevel <= 949 then
-            CurrentQuest = {Mon = "Marine Captain", LevelQuest = 2, NameQuest = "MarineQuest3", NameMon = "Marine Captain", CFrameQuest = CFrame.new(-2440.79, 71.71, -3216.06), CFrameMon = CFrame.new(-1861.23, 80.17, -3254.69)}
-        elseif MyLevel <= 974 then
-            CurrentQuest = {Mon = "Zombie", LevelQuest = 1, NameQuest = "ZombieQuest", NameMon = "Zombie", CFrameQuest = CFrame.new(-5497.06, 47.59, -795.23), CFrameMon = CFrame.new(-5657.77, 78.96, -928.68)}
-        elseif MyLevel <= 999 then
-            CurrentQuest = {Mon = "Vampire", LevelQuest = 2, NameQuest = "ZombieQuest", NameMon = "Vampire", CFrameQuest = CFrame.new(-5497.06, 47.59, -795.23), CFrameMon = CFrame.new(-6037.66, 32.18, -1340.65)}
-        elseif MyLevel <= 1049 then
-            CurrentQuest = {Mon = "Snow Trooper", LevelQuest = 1, NameQuest = "SnowMountainQuest", NameMon = "Snow Trooper", CFrameQuest = CFrame.new(609.85, 400.11, -5372.25), CFrameMon = CFrame.new(549.14, 427.38, -5563.69)}
-        elseif MyLevel <= 1099 then
-            CurrentQuest = {Mon = "Winter Warrior", LevelQuest = 2, NameQuest = "SnowMountainQuest", NameMon = "Winter Warrior", CFrameQuest = CFrame.new(609.85, 400.11, -5372.25), CFrameMon = CFrame.new(1142.74, 475.63, -5199.41)}
-        elseif MyLevel <= 1124 then
-            CurrentQuest = {Mon = "Lab Subordinate", LevelQuest = 1, NameQuest = "IceSideQuest", NameMon = "Lab Subordinate", CFrameQuest = CFrame.new(-6064.06, 15.24, -4902.97), CFrameMon = CFrame.new(-5707.47, 15.95, -4513.39)}
-        elseif MyLevel <= 1174 then
-            CurrentQuest = {Mon = "Horned Warrior", LevelQuest = 2, NameQuest = "IceSideQuest", NameMon = "Horned Warrior", CFrameQuest = CFrame.new(-6064.06, 15.24, -4902.97), CFrameMon = CFrame.new(-6341.36, 15.95, -5723.16)}
-        elseif MyLevel <= 1199 then
-            CurrentQuest = {Mon = "Magma Ninja", LevelQuest = 1, NameQuest = "FireSideQuest", NameMon = "Magma Ninja", CFrameQuest = CFrame.new(-5428.03, 15.06, -5299.43), CFrameMon = CFrame.new(-5449.67, 76.65, -5808.20)}
-        elseif MyLevel <= 1249 then
-            CurrentQuest = {Mon = "Lava Pirate", LevelQuest = 2, NameQuest = "FireSideQuest", NameMon = "Lava Pirate", CFrameQuest = CFrame.new(-5428.03, 15.06, -5299.43), CFrameMon = CFrame.new(-5213.33, 49.73, -4701.45)}
-        elseif MyLevel <= 1274 then
-            CurrentQuest = {Mon = "Ship Deckhand", LevelQuest = 1, NameQuest = "ShipQuest1", NameMon = "Ship Deckhand", CFrameQuest = CFrame.new(1037.80, 125.09, 32911.60), CFrameMon = CFrame.new(1212.01, 150.79, 33059.24)}
-        elseif MyLevel <= 1299 then
-            CurrentQuest = {Mon = "Ship Engineer", LevelQuest = 2, NameQuest = "ShipQuest1", NameMon = "Ship Engineer", CFrameQuest = CFrame.new(1037.80, 125.09, 32911.60), CFrameMon = CFrame.new(919.47, 43.54, 32779.96)}
-        elseif MyLevel <= 1324 then
-            CurrentQuest = {Mon = "Ship Steward", LevelQuest = 1, NameQuest = "ShipQuest2", NameMon = "Ship Steward", CFrameQuest = CFrame.new(968.80, 125.09, 33244.12), CFrameMon = CFrame.new(919.43, 129.55, 33436.03)}
-        elseif MyLevel <= 1349 then
-            CurrentQuest = {Mon = "Ship Officer", LevelQuest = 2, NameQuest = "ShipQuest2", NameMon = "Ship Officer", CFrameQuest = CFrame.new(968.80, 125.09, 33244.12), CFrameMon = CFrame.new(1036.01, 181.43, 33315.72)}
-        elseif MyLevel <= 1374 then
-            CurrentQuest = {Mon = "Arctic Warrior", LevelQuest = 1, NameQuest = "FrostQuest", NameMon = "Arctic Warrior", CFrameQuest = CFrame.new(5667.65, 26.79, -6486.08), CFrameMon = CFrame.new(5966.24, 62.97, -6179.38)}
-        elseif MyLevel <= 1424 then
-            CurrentQuest = {Mon = "Snow Lurker", LevelQuest = 2, NameQuest = "FrostQuest", NameMon = "Snow Lurker", CFrameQuest = CFrame.new(5667.65, 26.79, -6486.08), CFrameMon = CFrame.new(5407.07, 69.19, -6880.88)}
-        elseif MyLevel <= 1449 then
-            CurrentQuest = {Mon = "Sea Soldier", LevelQuest = 1, NameQuest = "ForgottenQuest", NameMon = "Sea Soldier", CFrameQuest = CFrame.new(-3054.44, 235.54, -10142.81), CFrameMon = CFrame.new(-3028.22, 64.67, -9775.42)}
-        else
-            CurrentQuest = {Mon = "Water Fighter", LevelQuest = 2, NameQuest = "ForgottenQuest", NameMon = "Water Fighter", CFrameQuest = CFrame.new(-3054.44, 235.54, -10142.81), CFrameMon = CFrame.new(-3352.90, 285.01, -10534.84)}
-        end
-    elseif World3 then
-        if MyLevel <= 1524 then
-            CurrentQuest = {Mon = "Pirate Millionaire", LevelQuest = 1, NameQuest = "PiratePortQuest", NameMon = "Pirate Millionaire", CFrameQuest = CFrame.new(-290.07, 42.90, 5581.58), CFrameMon = CFrame.new(-245.99, 47.30, 5584.10)}
-        elseif MyLevel <= 1574 then
-            CurrentQuest = {Mon = "Pistol Billionaire", LevelQuest = 2, NameQuest = "PiratePortQuest", NameMon = "Pistol Billionaire", CFrameQuest = CFrame.new(-290.07, 42.90, 5581.58), CFrameMon = CFrame.new(-187.33, 86.23, 6013.51)}
-        elseif MyLevel <= 1599 then
-            CurrentQuest = {Mon = "Dragon Crew Warrior", LevelQuest = 1, NameQuest = "AmazonQuest", NameMon = "Dragon Crew Warrior", CFrameQuest = CFrame.new(5832.83, 51.68, -1101.51), CFrameMon = CFrame.new(6141.14, 51.35, -1340.73)}
-        elseif MyLevel <= 1624 then
-            CurrentQuest = {Mon = "Dragon Crew Archer", LevelQuest = 2, NameQuest = "AmazonQuest", NameMon = "Dragon Crew Archer", CFrameQuest = CFrame.new(5833.11, 51.60, -1103.06), CFrameMon = CFrame.new(6616.41, 441.76, 446.04)}
-        elseif MyLevel <= 1649 then
-            CurrentQuest = {Mon = "Female Islander", LevelQuest = 1, NameQuest = "AmazonQuest2", NameMon = "Female Islander", CFrameQuest = CFrame.new(5446.87, 601.62, 749.45), CFrameMon = CFrame.new(4685.25, 735.80, 815.34)}
-        elseif MyLevel <= 1699 then
-            CurrentQuest = {Mon = "Giant Islander", LevelQuest = 2, NameQuest = "AmazonQuest2", NameMon = "Giant Islander", CFrameQuest = CFrame.new(5446.87, 601.62, 749.45), CFrameMon = CFrame.new(4729.09, 590.43, -36.97)}
-        elseif MyLevel <= 1724 then
-            CurrentQuest = {Mon = "Marine Commodore", LevelQuest = 1, NameQuest = "MarineTreeIsland", NameMon = "Marine Commodore", CFrameQuest = CFrame.new(2180.54, 27.81, -6741.54), CFrameMon = CFrame.new(2286.00, 73.13, -7159.80)}
-        elseif MyLevel <= 1774 then
-            CurrentQuest = {Mon = "Marine Rear Admiral", LevelQuest = 2, NameQuest = "MarineTreeIsland", NameMon = "Marine Rear Admiral", CFrameQuest = CFrame.new(2179.98, 28.73, -6740.05), CFrameMon = CFrame.new(3656.77, 160.52, -7001.59)}
-        elseif MyLevel <= 1799 then
-            CurrentQuest = {Mon = "Fishman Raider", LevelQuest = 1, NameQuest = "DeepForestIsland3", NameMon = "Fishman Raider", CFrameQuest = CFrame.new(-10581.65, 330.87, -8761.18), CFrameMon = CFrame.new(-10407.52, 331.76, -8368.51)}
-        elseif MyLevel <= 1824 then
-            CurrentQuest = {Mon = "Fishman Captain", LevelQuest = 2, NameQuest = "DeepForestIsland3", NameMon = "Fishman Captain", CFrameQuest = CFrame.new(-10581.65, 330.87, -8761.18), CFrameMon = CFrame.new(-10994.70, 352.38, -9002.11)}
-        elseif MyLevel <= 1849 then
-            CurrentQuest = {Mon = "Forest Pirate", LevelQuest = 1, NameQuest = "DeepForestIsland", NameMon = "Forest Pirate", CFrameQuest = CFrame.new(-13234.04, 331.48, -7625.40), CFrameMon = CFrame.new(-13274.47, 332.37, -7769.58)}
-        elseif MyLevel <= 1899 then
-            CurrentQuest = {Mon = "Mythological Pirate", LevelQuest = 2, NameQuest = "DeepForestIsland", NameMon = "Mythological Pirate", CFrameQuest = CFrame.new(-13234.04, 331.48, -7625.40), CFrameMon = CFrame.new(-13680.60, 501.08, -6991.18)}
-        elseif MyLevel <= 1924 then
-            CurrentQuest = {Mon = "Jungle Pirate", LevelQuest = 1, NameQuest = "DeepForestIsland2", NameMon = "Jungle Pirate", CFrameQuest = CFrame.new(-12680.38, 389.97, -9902.01), CFrameMon = CFrame.new(-12256.16, 331.73, -10485.83)}
-        elseif MyLevel <= 1974 then
-            CurrentQuest = {Mon = "Musketeer Pirate", LevelQuest = 2, NameQuest = "DeepForestIsland2", NameMon = "Musketeer Pirate", CFrameQuest = CFrame.new(-12680.38, 389.97, -9902.01), CFrameMon = CFrame.new(-13457.90, 391.54, -9859.17)}
-        elseif MyLevel <= 1999 then
-            CurrentQuest = {Mon = "Reborn Skeleton", LevelQuest = 1, NameQuest = "HauntedQuest1", NameMon = "Reborn Skeleton", CFrameQuest = CFrame.new(-9479.21, 141.21, 5566.09), CFrameMon = CFrame.new(-8763.72, 165.72, 6159.86)}
-        elseif MyLevel <= 2024 then
-            CurrentQuest = {Mon = "Living Zombie", LevelQuest = 2, NameQuest = "HauntedQuest1", NameMon = "Living Zombie", CFrameQuest = CFrame.new(-9479.21, 141.21, 5566.09), CFrameMon = CFrame.new(-10144.13, 138.62, 5838.08)}
-        elseif MyLevel <= 2049 then
-            CurrentQuest = {Mon = "Demonic Soul", LevelQuest = 1, NameQuest = "HauntedQuest2", NameMon = "Demonic Soul", CFrameQuest = CFrame.new(-9516.99, 172.01, 6078.46), CFrameMon = CFrame.new(-9505.87, 172.10, 6158.99)}
-        elseif MyLevel <= 2074 then
-            CurrentQuest = {Mon = "Posessed Mummy", LevelQuest = 2, NameQuest = "HauntedQuest2", NameMon = "Posessed Mummy", CFrameQuest = CFrame.new(-9516.99, 172.01, 6078.46), CFrameMon = CFrame.new(-9582.02, 6.25, 6205.47)}
-        elseif MyLevel <= 2099 then
-            CurrentQuest = {Mon = "Peanut Scout", LevelQuest = 1, NameQuest = "NutsIslandQuest", NameMon = "Peanut Scout", CFrameQuest = CFrame.new(-2104.39, 38.10, -10194.21), CFrameMon = CFrame.new(-2143.24, 47.72, -10029.99)}
-        elseif MyLevel <= 2124 then
-            CurrentQuest = {Mon = "Peanut President", LevelQuest = 2, NameQuest = "NutsIslandQuest", NameMon = "Peanut President", CFrameQuest = CFrame.new(-2104.39, 38.10, -10194.21), CFrameMon = CFrame.new(-1859.35, 38.10, -10422.42)}
-        elseif MyLevel <= 2149 then
-            CurrentQuest = {Mon = "Ice Cream Chef", LevelQuest = 1, NameQuest = "IceCreamIslandQuest", NameMon = "Ice Cream Chef", CFrameQuest = CFrame.new(-820.64, 65.81, -10965.79), CFrameMon = CFrame.new(-872.24, 65.81, -10919.95)}
-        elseif MyLevel <= 2199 then
-            CurrentQuest = {Mon = "Ice Cream Commander", LevelQuest = 2, NameQuest = "IceCreamIslandQuest", NameMon = "Ice Cream Commander", CFrameQuest = CFrame.new(-820.64, 65.81, -10965.79), CFrameMon = CFrame.new(-558.06, 112.04, -11290.77)}
-        elseif MyLevel <= 2224 then
-            CurrentQuest = {Mon = "Cookie Crafter", LevelQuest = 1, NameQuest = "CakeQuest1", NameMon = "Cookie Crafter", CFrameQuest = CFrame.new(-2021.32, 37.79, -12028.72), CFrameMon = CFrame.new(-2374.13, 37.79, -12125.30)}
-        elseif MyLevel <= 2249 then
-            CurrentQuest = {Mon = "Cake Guard", LevelQuest = 2, NameQuest = "CakeQuest1", NameMon = "Cake Guard", CFrameQuest = CFrame.new(-2021.32, 37.79, -12028.72), CFrameMon = CFrame.new(-1598.30, 43.77, -12244.58)}
-        elseif MyLevel <= 2274 then
-            CurrentQuest = {Mon = "Baking Staff", LevelQuest = 1, NameQuest = "CakeQuest2", NameMon = "Baking Staff", CFrameQuest = CFrame.new(-1927.91, 37.79, -12842.53), CFrameMon = CFrame.new(-1887.80, 77.61, -12998.35)}
-        elseif MyLevel <= 2299 then
-            CurrentQuest = {Mon = "Head Baker", LevelQuest = 2, NameQuest = "CakeQuest2", NameMon = "Head Baker", CFrameQuest = CFrame.new(-1927.91, 37.79, -12842.53), CFrameMon = CFrame.new(-2216.18, 82.88, -12869.29)}
-        elseif MyLevel <= 2324 then
-            CurrentQuest = {Mon = "Cocoa Warrior", LevelQuest = 1, NameQuest = "ChocQuest1", NameMon = "Cocoa Warrior", CFrameQuest = CFrame.new(233.22, 29.87, -12201.23), CFrameMon = CFrame.new(-21.55, 80.57, -12352.38)}
-        elseif MyLevel <= 2349 then
-            CurrentQuest = {Mon = "Chocolate Bar Battler", LevelQuest = 2, NameQuest = "ChocQuest1", NameMon = "Chocolate Bar Battler", CFrameQuest = CFrame.new(233.22, 29.87, -12201.23), CFrameMon = CFrame.new(582.59, 77.18, -12463.16)}
-        elseif MyLevel <= 2374 then
-            CurrentQuest = {Mon = "Sweet Thief", LevelQuest = 1, NameQuest = "ChocQuest2", NameMon = "Sweet Thief", CFrameQuest = CFrame.new(150.50, 30.69, -12774.50), CFrameMon = CFrame.new(165.18, 76.05, -12600.83)}
-        elseif MyLevel <= 2399 then
-            CurrentQuest = {Mon = "Candy Rebel", LevelQuest = 2, NameQuest = "ChocQuest2", NameMon = "Candy Rebel", CFrameQuest = CFrame.new(150.50, 30.69, -12774.50), CFrameMon = CFrame.new(134.86, 77.24, -12876.54)}
-        elseif MyLevel <= 2424 then
-            CurrentQuest = {Mon = "Candy Pirate", LevelQuest = 1, NameQuest = "CandyQuest1", NameMon = "Candy Pirate", CFrameQuest = CFrame.new(-1150.04, 20.37, -14446.33), CFrameMon = CFrame.new(-1310.50, 26.01, -14562.40)}
-        elseif MyLevel <= 2449 then
-            CurrentQuest = {Mon = "Snow Demon", LevelQuest = 2, NameQuest = "CandyQuest1", NameMon = "Snow Demon", CFrameQuest = CFrame.new(-1150.04, 20.37, -14446.33), CFrameMon = CFrame.new(-880.20, 71.24, -14538.60)}
-        elseif MyLevel <= 2474 then
-            CurrentQuest = {Mon = "Isle Outlaw", LevelQuest = 1, NameQuest = "TikiQuest1", NameMon = "Isle Outlaw", CFrameQuest = CFrame.new(-16547.74, 61.13, -173.41), CFrameMon = CFrame.new(-16442.81, 116.13, -264.46)}
-        elseif MyLevel <= 2524 then
-            CurrentQuest = {Mon = "Island Boy", LevelQuest = 2, NameQuest = "TikiQuest1", NameMon = "Island Boy", CFrameQuest = CFrame.new(-16547.74, 61.13, -173.41), CFrameMon = CFrame.new(-16901.26, 84.06, -192.88)}
-        else
-            CurrentQuest = {Mon = "Skull Slayer", LevelQuest = 2, NameQuest = "TikiQuest3", NameMon = "Skull Slayer", CFrameQuest = CFrame.new(-16661.89, 105.28, 1576.69), CFrameMon = CFrame.new(-16885.20, 114.12, 1627.94)}
-        end
-    end
-end
-
-local FullIslandLocations = {
-    Sea1 = {
-        ["Windmill"] = CFrame.new(979.79, 16.51, 1429.04),
-        ["Jungle"] = CFrame.new(-1612.79, 36.85, 149.12),
-        ["Pirate Village"] = CFrame.new(-1181.30, 4.75, 3803.54),
-        ["Desert"] = CFrame.new(944.15, 20.91, 4373.30),
-        ["Snow Island"] = CFrame.new(1347.80, 104.66, -1319.73),
-        ["Marineford"] = CFrame.new(-4914.82, 50.96, 4281.02),
-        ["Colosseum"] = CFrame.new(-1427.62, 7.28, -2792.77),
-        ["Sky Island"] = CFrame.new(-4869.10, 733.46, -2667.01),
-        ["Prison"] = CFrame.new(4875.33, 5.65, 734.85),
-        ["Magma Village"] = CFrame.new(-5247.71, 12.88, 8504.96),
-        ["Fountain City"] = CFrame.new(5259.81, 37.35, 4050.02),
-    },
-    Sea2 = {
-        ["Cafe"] = CFrame.new(-380.47, 77.22, 255.82),
-        ["Green Zone"] = CFrame.new(-2448.53, 73.01, -3210.63),
-        ["Cursed Ship"] = CFrame.new(923.40, 125.05, 32885.87),
-        ["Ice Castle"] = CFrame.new(6148.41, 294.38, -6741.11),
-        ["Hot & Cold"] = CFrame.new(-5428.03, 15.06, -5299.43),
-        ["Snow Mountain"] = CFrame.new(609.85, 400.11, -5372.25),
-        ["Graveyard"] = CFrame.new(-5497.06, 47.59, -795.23),
-        ["Factory"] = CFrame.new(632.69, 73.10, 918.66),
-        ["Colosseum Sea 2"] = CFrame.new(-1580.04, 6.35, -2986.47),
-        ["Dark Arena"] = CFrame.new(1000, 100, 1000),
-    },
-    Sea3 = {
-        ["Mansion"] = CFrame.new(-12471.16, 374.94, -7551.67),
-        ["Port Town"] = CFrame.new(-290.73, 6.72, 5343.55),
-        ["Hydra Island"] = CFrame.new(5291.24, 1005.44, 393.76),
-        ["Floating Turtle"] = CFrame.new(-13274.52, 531.82, -7579.22),
-        ["Haunted Castle"] = CFrame.new(-9515.37, 164.00, 5786.06),
-        ["Tiki Outpost"] = CFrame.new(-16218.68, 9.08, 445.61),
-        ["Great Tree"] = CFrame.new(2180.54, 27.81, -6741.54),
-        ["Castle on the Sea"] = CFrame.new(-5039.58, 27.35, 4324.68),
-        ["Cake Land"] = CFrame.new(-2021.32, 37.79, -12028.72),
-        ["Peanut Island"] = CFrame.new(-2104.39, 38.10, -10194.21),
-    }
-}
-
-local DungeonChips = {
-    "Flame", "Ice", "Quake", "Light", "Dark", "Spider", "Rumble", "Magma", "Buddha", "Dough"
-}
-
-local BossList = (World1 and {
-    "The Gorilla King", "Bobby", "The Saw", "Yeti", "Mob Leader", "Vice Admiral",
-    "Saber Expert", "Warden", "Chief Warden", "Swan", "Magma Admiral", "Fishman Lord",
-    "Wysper", "Thunder God", "Cyborg", "Ice Admiral", "Greybeard", "Darkbeard"
-}) or (World2 and {
-    "Diamond", "Jeremy", "Fajita", "Don Swan", "Smoke Admiral", "Awakened Ice Admiral",
-    "Tide Keeper", "Darkbeard", "Cursed Captain", "Order"
-}) or (World3 and {
-    "Stone", "Hydra Leader", "Kilo Admiral", "Captain Elephant", "Beautiful Pirate",
-    "Cake Queen", "Longma", "Soul Reaper", "Dough King", "Katakuri", "Island Boy"
-})
-
-local MaterialList = (World1 and {
-    "Leather + Scrap Metal", "Angel Wings", "Magma Ore", "Fish Tail", "Wood Planks"
-}) or (World2 and {
-    "Leather + Scrap Metal", "Radioactive Material", "Ectoplasm", "Mystic Droplet",
-    "Magma Ore", "Vampire Fang"
-}) or (World3 and {
-    "Scrap Metal", "Demonic Wisp", "Conjured Cocoa", "Dragon Scale", "Gunpowder",
-    "Fish Tail", "Mini Tusk", "Azure Ember"
-})
-
-local MobSpecificTeleports = {
-    ["Darkbeard"] = CFrame.new(1000, 100, 1000),
-    ["Longma"] = CFrame.new(-13510, 584, -6987),
-    ["Terrorshark"] = CFrame.new(-40000, 30, -2000),
-    ["Leviathan"] = CFrame.new(-148073.35, 9.00, 7721.05),
-    ["Tide Keeper"] = CFrame.new(6148.41, 294.38, -6741.11),
-    ["Thunder God"] = CFrame.new(-4869.10, 733.46, -2667.01),
-    ["Don Swan"] = CFrame.new(638.43, 71.76, 918.28),
-    ["Cursed Captain"] = CFrame.new(923.40, 125.05, 32885.87),
-    ["Order"] = CFrame.new(-408.09, 16.04, 247.43),
-    ["Indra"] = CFrame.new(-12471.16, 374.94, -7551.67),
-    ["Kitsune Island"] = CFrame.new(-16526, 108, 752),
-    ["Mirage Island"] = CFrame.new(29221.82, 14890.97, -205.99),
-    ["Prehistoric Island"] = CFrame.new(-16471, 528, 539),
-    ["Island Boy"] = CFrame.new(-16901.26, 84.06, -192.88),
-}
-
-local ZoneCFrames = {
-    ["Zone 1"] = CFrame.new(-21998.37, 30.00, -682.30),
-    ["Zone 2"] = CFrame.new(-26779.52, 30.00, -822.85),
-    ["Zone 3"] = CFrame.new(-31171.95, 30.00, -2256.93),
-    ["Zone 4"] = CFrame.new(-34054.68, 30.21, -2560.12),
-    ["Zone 5"] = CFrame.new(-38887.55, 30.00, -2162.99),
-    ["Zone 6"] = CFrame.new(-44541.76, 30.00, -1244.85),
-    ["Infinite"] = CFrame.new(-148073.35, 9.00, 7721.05)
-}
-
-local function GetMaterialConfig(mat: string): ({string}, CFrame)
-    if mat == "Radioactive Material" and World2 then return {"Factory Staff"}, CFrame.new(-507.78, 72.99, -126.45)
-    elseif mat == "Mystic Droplet" and World2 then return {"Water Fighter"}, CFrame.new(-3352.90, 285.01, -10534.84)
-    elseif mat == "Magma Ore" and World1 then return {"Military Spy"}, CFrame.new(-5850.28, 77.28, 8848.67)
-    elseif mat == "Magma Ore" and World2 then return {"Lava Pirate"}, CFrame.new(-5234.60, 51.95, -4732.27)
-    elseif mat == "Angel Wings" and World1 then return {"Royal Soldier"}, CFrame.new(-7827.15, 5606.91, -1705.58)
-    elseif mat == "Leather + Scrap Metal" and World1 then return {"Pirate", "Brute"}, CFrame.new(-1211.87, 4.78, 3916.83)
-    elseif mat == "Leather + Scrap Metal" and World2 then return {"Marine Captain", "Mercenary"}, CFrame.new(-2010.50, 73.00, -3326.62)
-    elseif mat == "Scrap Metal" and World3 then return {"Pirate Millionaire"}, CFrame.new(-289.63, 43.82, 5583.66)
-    elseif mat == "Ectoplasm" and World2 then return {"Ship Deckhand", "Ship Engineer", "Ship Steward", "Ship Officer"}, CFrame.new(911.35, 125.95, 33159.53)
-    elseif mat == "Conjured Cocoa" and World3 then return {"Chocolate Bar Battler"}, CFrame.new(744.79, 24.76, -12637.72)
-    elseif mat == "Dragon Scale" and World3 then return {"Dragon Crew Warrior"}, CFrame.new(5824.06, 51.38, -1106.69)
-    elseif mat == "Gunpowder" and World3 then return {"Pistol Billionaire"}, CFrame.new(-379.61, 73.84, 5928.52)
-    elseif mat == "Fish Tail" and World3 then return {"Fishman Captain"}, CFrame.new(-10961.01, 331.79, -8914.29)
-    elseif mat == "Mini Tusk" and World3 then return {"Mythological Pirate"}, CFrame.new(-13516.04, 469.81, -6899.16)
-    elseif mat == "Vampire Fang" and World2 then return {"Vampire"}, CFrame.new(-6037.66, 32.18, -1340.65)
-    elseif mat == "Demonic Wisp" and World3 then return {"Demonic Soul"}, CFrame.new(-9579, 6, 6194)
-    elseif mat == "Wood Planks" and World3 then return {"Tree"}, CFrame.new(-16471, 528, 539)
-    elseif mat == "Azure Ember" and World3 then return {"Kitsune Shrine"}, CFrame.new(-16526, 108, 752)
-    end
-    return {}, CFrame.new(0,0,0)
-end
-
---------------------------------------------------------------------------------
--- 6. دمج واجهة AetherUI والتابات الكاملة
---------------------------------------------------------------------------------
-local AetherUI = nil
-local success_ui, err_ui = pcall(function()
-    AetherUI = loadstring(game:HttpGet("https://pastebin.com/raw/yeULgMe0"))()
-end)
-
-if not success_ui or not AetherUI then
-    warn("Haroon Hub: Failed to load AetherUI library. Error:", err_ui)
-    return
-end
-
-AetherUI:InitLoadingScreen("Haroon Hub V12 Ultimate Master Edition", "Initializing Fruits, Raids & Safe Motors...", function()
-    AetherUI:InitKeySystem({"HAROON-2025-VIP", "HAROON-KEY-100"}, function()
-        AetherUI:Notify({Title = "🔥 Haroon Hub V12 Active", Content = "تم دمج مكتبتك بالنظام الجديد بنجاح 100%!", Duration = 4})
-
-        local Window = AetherUI:CreateWindow({
-            Title = "Haroon Hub | Blox Fruits Master",
-            Subtitle = "by: 3amek4222",
-            ToggleKey = Enum.KeyCode.RightControl
-        })
-
-        local MainTab = Window:CreateTab("Main", "rbxassetid://6034287594")
-        local CombatTab = Window:CreateTab("Combat", "rbxassetid://6034834832")
-        local FruitsTab = Window:CreateTab("Fruits Tab", "rbxassetid://6034453535")
-        local RaidTab = Window:CreateTab("Dungeon / Raid", "rbxassetid://6034834832")
-        local FarmingQuestsTab = Window:CreateTab("Farming Quests", "rbxassetid://6034453535")
-        local RaceTab = Window:CreateTab("Race V4 & Mirage", "rbxassetid://6034453535")
-        local SubFarmTab = Window:CreateTab("Sub Farming", "rbxassetid://6034834832")
-        local CakeTab = Window:CreateTab("Cake & Dough", "rbxassetid://6034453535")
-        local SeaTab = Window:CreateTab("Sea Farming", "rbxassetid://6034453535")
-        local AutoQuestsTab = Window:CreateTab("Auto Quests", "rbxassetid://6034453535")
-        local TeleportsTab = Window:CreateTab("Teleports", "rbxassetid://6034453535")
-        local VisualTab = Window:CreateTab("Visuals & ESP", "rbxassetid://6034453535")
-        local MiscTab = Window:CreateTab("Misc", "rbxassetid://6031280882")
-        local SettingsTab = Window:CreateTab("Settings", "rbxassetid://6031280882")
-
-        ---------------------------------------------------------
-        -- 📌 1. TAB: MAIN
-        ---------------------------------------------------------
-        MainTab:CreateSection("خيارات التلفيل الأساسية (Level Farm)")
-
-        MainTab:CreateToggle("تفعيل التجميع التلقائي (Auto Farm Level)", "AutoFarmFlag", false, function(state)
-            _G.Settings.Main["Auto Farm Level"] = state
-            if not state then StopTween() end
-        end)
-
-        MainTab:CreateToggle("تضمين مهمات الزعماء بالتلفيل (Include Bosses)", "IncludeBossQuestFlag", false, function(state)
-            _G.Settings.Main["Include Boss Quests"] = state
-        end)
-
-        MainTab:CreateDropdown("اختر السلاح الفعال (Weapon)", "WeaponFlag", {"Melee", "Sword", "Blox Fruit", "Gun"}, "Melee", function(selected)
-            _G.Settings.Main["Select Weapon"] = selected
-        end)
-
-        MainTab:CreateSlider("ارتفاع الطيران فوق العدو (Farm Distance)", "FarmDistFlag", 10, 50, 28, function(val)
-            _G.Settings.Main["Farm Distance"] = val
-        end)
-
-        MainTab:CreateSlider("سرعة الانتقال الآمنة (Safe Tween Speed)", "TweenSpeedFlag", 100, 300, 180, function(val)
-            _G.Settings.Main["Player Tween Speed"] = val
-        end)
-
-        MainTab:CreateToggle("الضرب السريع الخارق (Fast Attack)", "FastAttackFlag", false, function(state)
-            _G.Settings.Main["Fast Attack"] = state
-        end)
-
-        MainTab:CreateSection("تجميع الماتيريال (Auto Farm Materials)")
-
-        MainTab:CreateDropdown("اختر الماتيريال (Select Material)", "MatDropdownFlag", MaterialList, MaterialList[1], function(selected)
-            _G.Settings.Main["Selected Material"] = selected
-        end)
-
-        MainTab:CreateToggle("تفعيل تجميع الماتيريال (Farm Material)", "FarmMatFlag", false, function(state)
-            _G.Settings.Main["Auto Farm Material"] = state
-            if not state then StopTween() end
-        end)
-
-        MainTab:CreateSection("قتل الزعماء (Auto Farm Bosses)")
-
-        MainTab:CreateDropdown("اختر البوس (Select Boss)", "BossDropdownFlag", BossList, BossList[1], function(selected)
-            _G.Settings.Main["Selected Boss"] = selected
-        end)
-
-        MainTab:CreateToggle("تفعيل قتل البوس المحدد (Auto Farm Boss)", "FarmBossFlag", false, function(state)
-            _G.Settings.Main["Auto Farm Boss"] = state
-            if not state then StopTween() end
-        end)
-
-        MainTab:CreateToggle("تفعيل قتل جميع البوسات المتوفرة (Farm All Bosses)", "FarmAllBossFlag", false, function(state)
-            _G.Settings.Main["Auto Farm All Boss"] = state
-            if not state then StopTween() end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 2. TAB: COMBAT (PVP)
-        ---------------------------------------------------------
-        CombatTab:CreateSection("قتال اللاعبين والـ PVP")
-
-        local playerList = {}
-        for _, p in pairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer then table.insert(playerList, p.Name) end
-        end
-
-        CombatTab:CreateDropdown("اختر اللاعب المستهدف", "PVPPlayerDropdown", playerList, playerList[1] or "None", function(selected)
-            _G.Settings.Combat["Selected Player"] = selected
-        end)
-
-        CombatTab:CreateToggle("مراقبة اللاعب (Spectate Player)", "SpectateFlag", false, function(state)
-            _G.Settings.Combat["Spectate Player"] = state
-            if state and _G.Settings.Combat["Selected Player"] then
-                local target = Players:FindFirstChild(_G.Settings.Combat["Selected Player"])
-                if target and target.Character and target.Character:FindFirstChild("Humanoid") then
-                    workspace.CurrentCamera.CameraSubject = target.Character.Humanoid
-                end
-            else
-                local char, hum = GetCharacter()
-                if char and hum then
-                    workspace.CurrentCamera.CameraSubject = hum
-                end
-            end
-        end)
-
-        CombatTab:CreateToggle("الانتقال إلى اللاعب (Teleport To Player)", "TPPlayerFlag", false, function(state)
-            _G.Settings.Combat["Teleport To Player"] = state
-            if not state then StopTween() end
-            task.spawn(function()
-                while _G.Settings.Combat["Teleport To Player"] do
-                    task.wait()
-                    pcall(function()
-                        local target = Players:FindFirstChild(_G.Settings.Combat["Selected Player"])
-                        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-                            TweenPlayer(target.Character.HumanoidRootPart.CFrame)
-                        end
-                    end)
-                end
-            end)
-        end)
-
-        CombatTab:CreateToggle("تصويب المسدسات التلقائي (Aimbot Gun)", "AimbotGunFlag", false, function(state)
-            _G.Settings.Combat["Aimbot Gun"] = state
-        end)
-
-        CombatTab:CreateSection("خيارات الهروب والعودة في الـ PVP")
-        CombatTab:CreateToggle("تفعيل الهروب والعودة التلقائي (Auto PvP Escape)", "AutoPvPEscapeFlag", false, function(state)
-            _G.Settings.Combat["Auto PvP Escape"] = state
-            if not state then StopTween() end
-        end)
-        CombatTab:CreateSlider("نسبة HP للهروب (Escape HP %)", "EscapeHPSlider", 10, 90, 30, function(val)
-            _G.Settings.Combat["Escape HP %"] = val
-        end)
-        CombatTab:CreateSlider("نسبة HP للعودة (Return HP %)", "ReturnHPSlider", 20, 100, 70, function(val)
-            _G.Settings.Combat["Return HP %"] = val
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 3. TAB: FRUITS TAB
-        ---------------------------------------------------------
-        FruitsTab:CreateSection("نظام الفواكه والتخزين (Blox Fruits Engine)")
-        
-        FruitsTab:CreateToggle("🍎 Fruit Notifier (ESP)", "FruitESPFlag", false, function(state)
-            _G.Settings.Fruits["Fruit ESP"] = state
-            _G.Settings.Visuals["ESP Fruits"] = state
-        end)
-
-        FruitsTab:CreateToggle("🏃 Fruit Sniper (Auto-Collect)", "FruitSniperFlag", false, function(state)
-            _G.Settings.Fruits["Fruit Sniper"] = state
-            if not state then StopTween() end
-        end)
-
-        FruitsTab:CreateToggle("🔄 Auto-Store Fruit", "AutoStoreFruitFlag", false, function(state)
-            _G.Settings.Fruits["Auto Store Fruit"] = state
-        end)
-
-        FruitsTab:CreateButton("🗺️ Show All Fruit Locations", function()
-            _G.Settings.Fruits["Show All Fruits"] = true
-            AetherUI:Notify({Title = "Fruits Scanner", Content = "جاري مسح كافة الفواكه على الخريطة...", Duration = 3})
-            task.wait(5)
-            _G.Settings.Fruits["Show All Fruits"] = false
-        end)
-
-        FruitsTab:CreateButton("🛒 Buy Random Fruit (Cousin)", function()
-            if CommF_ then
-                local res = CommF_:InvokeServer("Cousin", "Buy")
-                AetherUI:Notify({Title = "Fruit Dealer", Content = tostring(res), Duration = 4})
-            end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 4. TAB: DUNGEON / RAID (Auto Next Island المستخرج)
-        ---------------------------------------------------------
-        RaidTab:CreateSection("نظام الـ Dungeon و غارات الفواكه (Dungeon System)")
-
-        RaidTab:CreateDropdown("Select Raid Chip (اختر شريحة الريد)", "DungeonChipDropdown", DungeonChips, DungeonChips[1], function(selected)
-            _G.Settings.Raid["Selected Chip"] = selected
-        end)
-
-        RaidTab:CreateToggle("⚡ Auto Dungeon / Fruits Raid (تفعيل الريد)", "AutoDungeonFlag", false, function(state)
-            _G.Settings.Raid["Auto Dungeon / Raid"] = state
-            if not state then StopTween() end
-        end)
-
-        RaidTab:CreateToggle("🛒 Buy Chip & Start Raid (شراء وبدء تلقائي)", "AutoBuyStartRaidFlag", false, function(state)
-            _G.Settings.Raid["Auto Buy Chip & Start"] = state
-        end)
-
-        RaidTab:CreateToggle("⚔️ Auto Clear Dungeon Waves (مسح وحوش الريد)", "AutoClearDungeonFlag", false, function(state)
-            _G.Settings.Raid["Auto Clear Dungeon Waves"] = state
-            if not state then StopTween() end
-        end)
-
-        RaidTab:CreateToggle("🏝️ Auto Next Island (الانتقال للجزيرة التالية تلقائياً)", "AutoNextIslandFlag", false, function(state)
-            _G.Settings.Raid["Auto Next Island"] = state
-            if not state then StopTween() end
-        end)
-
-        RaidTab:CreateToggle("✨ Auto Awaken Skills (إيقاظ المهارات التلقائي)", "AutoAwakenSkillsFlag", false, function(state)
-            _G.Settings.Raid["Auto Awaken"] = state
-        end)
-
-        RaidTab:CreateToggle("⚡ Law Raid (ريد لاو التلقائي)", "LawRaidFlag", false, function(state)
-            _G.Settings.Raid["Law Raid"] = state
-            if not state then StopTween() end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 5. TAB: FARMING QUESTS (CDK & TTK المستخرج بالكامل)
-        ---------------------------------------------------------
-        FarmingQuestsTab:CreateSection("مهمات السيوف الأسطورية (Legendary Swords)")
-
-        FarmingQuestsTab:CreateDropdown("اختر مهمة السيف", "SwordQuestDropdown", {"Saber V2", "Yama", "Tushita"}, "Saber V2", function(selected)
-            _G.Settings.FarmingQuests["Selected Sword Quest"] = selected
-        end)
-
-        FarmingQuestsTab:CreateToggle("تفعيل أتمتة مهمة السيف", "AutoSwordQuestFlag", false, function(state)
-            _G.Settings.FarmingQuests["Auto Sword Quest"] = state
-            if not state then StopTween() end
-        end)
-
-        FarmingQuestsTab:CreateSection("مهمات السيوف المدمجة الأسطورية (CDK & TTK Engine)")
-
-        FarmingQuestsTab:CreateToggle("⚔️ أتمتة Cursed Dual Katana بالكامل (Auto CDK)", "AutoFarmCDKFlag", false, function(state)
-            _G.Settings.FarmingQuests["Auto Farm CDK"] = state
-            if not state then StopTween() end
-        end)
-
-        FarmingQuestsTab:CreateToggle("⚔️ أتمتة True Triple Katana بالكامل (Auto TTK)", "AutoFarmTTKFlag", false, function(state)
-            _G.Settings.FarmingQuests["Auto Farm TTK"] = state
-            if not state then StopTween() end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 6. TAB: RACE V2, V3, V4 & MIRAGE (النظام المستخرج الكامل)
-        ---------------------------------------------------------
-        RaceTab:CreateSection("ترقية الأجناس (Race V2 & V3 Quests)")
-
-        RaceTab:CreateToggle("🧬 أتمتة مهمة Race V2 (Auto Race V2 Quest)", "AutoRaceV2QuestFlag", false, function(state)
-            _G.Settings.Race["Auto Race V2 Quest"] = state
-            if not state then StopTween() end
-        end)
-
-        RaceTab:CreateDropdown("اختر مهمة Race V3", "RaceV3QuestDropdown", {"Human", "Fishman", "Skypian", "Mink", "Ghoul", "Cyborg"}, "Human", function(selected)
-            _G.Settings.Race["Selected Race V3"] = selected
-        end)
-
-        RaceTab:CreateToggle("🧬 أتمتة مهمة Race V3 (Auto Race V3 Quest)", "AutoRaceV3QuestFlag", false, function(state)
-            _G.Settings.Race["Auto Race V3 Quest"] = state
-            if not state then StopTween() end
-        end)
-
-        RaceTab:CreateToggle("تفعيل مهارة V3 تلقائياً (Auto Race V3 Ability)", "AutoV3AbilityFlag", false, function(state)
-            _G.Settings.Race["Auto Race V3 Ability"] = state
-            task.spawn(function()
-                while _G.Settings.Race["Auto Race V3 Ability"] do
-                    task.wait(1)
-                    if CommE then pcall(function() CommE:FireServer("ActivateAbility") end) end
-                end
-            end)
-        end)
-
-        RaceTab:CreateSection("حزمة الميراج و الترس الأزرق (Mirage Island Suite)")
-
-        RaceTab:CreateToggle("🏝️ البحث التلقائي عن Mirage Island والإبحار لها", "AutoFindMirageFlag", false, function(state)
-            _G.Settings.Race["Auto Find Mirage"] = state
-            if not state then StopTween() end
-        end)
-
-        RaceTab:CreateToggle("🏔️ الانتقال لقمة الميراج (Tween To Highest Mirage)", "TweenMirageFlag", false, function(state)
-            _G.Settings.Race["Tween To Highest Mirage"] = state
-            if not state then StopTween() end
-            task.spawn(function()
-                while _G.Settings.Race["Tween To Highest Mirage"] do
-                    task.wait()
-                    pcall(function()
-                        if workspace.Map:FindFirstChild("MysticIsland") then
-                            for _, v in pairs(workspace.Map.MysticIsland:GetDescendants()) do
-                                if v:IsA("MeshPart") and v.MeshId == "rbxassetid://6745037796" then
-                                    TweenPlayer(v.CFrame, Vector3.new(0, 212, 0))
-                                end
-                            end
-                        end
-                    end)
-                end
-            end)
-        end)
-
-        RaceTab:CreateToggle("⚙️ الانتقال وأخذ الترس الأزرق (Teleport to Gear)", "TeleportToGearFlag", false, function(state)
-            _G.Settings.Race["Teleport To Blue Gear"] = state
-            if not state then StopTween() end
-            task.spawn(function()
-                while _G.Settings.Race["Teleport To Blue Gear"] do
-                    task.wait(0.2)
-                    pcall(function()
-                        if workspace.Map:FindFirstChild("MysticIsland") then
-                            for _, v in pairs(workspace.Map.MysticIsland:GetChildren()) do
-                                if v:IsA("MeshPart") and (v.Material == Enum.Material.Neon or string.find(v.Name:lower(), "gear")) then
-                                    TweenPlayer(v.CFrame)
-                                    if (LocalPlayer.Character.HumanoidRootPart.Position - v.Position).Magnitude < 15 then
-                                        if CommF_ then CommF_:InvokeServer("InteractGear", v) end
-                                    end
-                                end
-                            end
-                        end
-                    end)
-                end
-            end)
-        end)
-
-        RaceTab:CreateToggle("🌕 النظر للقمر وتفعيل المهارة (Look Moon)", "LookMoonFlag", false, function(state)
-            _G.Settings.Race["Look Moon Ability"] = state
-            task.spawn(function()
-                while _G.Settings.Race["Look Moon Ability"] do
-                    task.wait()
-                    pcall(function()
-                        local moonDir = game.Lighting:GetMoonDirection()
-                        local lookAtPos = workspace.CurrentCamera.CFrame.p + moonDir * 100
-                        workspace.CurrentCamera.CFrame = CFrame.lookAt(workspace.CurrentCamera.CFrame.p, lookAtPos)
-                    end)
-                end
-            end)
-        end)
-
-        RaceTab:CreateToggle("🚪 الانتقال لباب الترايل تلقائياً (Teleport To Race Door)", "TPDoorFlag", false, function(state)
-            _G.Settings.Race["Teleport To Race Door"] = state
-            if not state then StopTween() end
-            if state then
-                local myRace = (LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Race")) and LocalPlayer.Data.Race.Value or "Human"
-                local raceDoors = {
-                    ["Human"] = CFrame.new(29221.82, 14890.97, -205.99),
-                    ["Skypian"] = CFrame.new(28960.15, 14919.62, 235.03),
-                    ["Fishman"] = CFrame.new(28231.17, 14890.97, -211.64),
-                    ["Cyborg"] = CFrame.new(28502.68, 14895.97, -423.72),
-                    ["Ghoul"] = CFrame.new(28674.24, 14890.67, 445.43),
-                    ["Mink"] = CFrame.new(29012.34, 14890.97, -380.14)
-                }
-                local char, hrp = GetCharacter()
-                if char and hrp then
-                    hrp.CFrame = CFrame.new(28286.35, 14895.30, 102.62)
-                    task.wait(0.3)
-                    if raceDoors[myRace] then TweenPlayer(raceDoors[myRace]) end
-                end
-            end
-        end)
-
-        RaceTab:CreateSection("التدريب واجتياز الترايل (Race V4 Train & Trial)")
-
-        RaceTab:CreateToggle("التدريب التلقائي للـ V4 (Auto Train)", "AutoTrainFlag", false, function(state)
-            _G.Settings.Race["Auto Train"] = state
-            if not state then StopTween() end
-        end)
-
-        RaceTab:CreateToggle("اجتياز الترايل تلقائياً (Auto Trial)", "AutoTrialFlag", false, function(state)
-            _G.Settings.Race["Auto Trial"] = state
-            if not state then StopTween() end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 7. TAB: SUB FARMING
-        ---------------------------------------------------------
-        SubFarmTab:CreateSection("صياد النخبة والعظام (Elite & Bones)")
-
-        SubFarmTab:CreateToggle("صياد النخبة التلقائي (Auto Elite Hunter)", "EliteFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Elite Hunter"] = state
-            if not state then StopTween() end
-        end)
-
-        SubFarmTab:CreateToggle("صياد النخبة مع السيرفر هوب (Elite Hop)", "EliteHopFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Elite Hunter Hop"] = state
-            if not state then StopTween() end
-        end)
-
-        SubFarmTab:CreateToggle("تجميع العظام التلقائي (Auto Farm Bones)", "BoneFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Farm Bone"] = state
-            if not state then StopTween() end
-        end)
-
-        SubFarmTab:CreateSection("تجميع الصناديق التلقائي (Auto Chests)")
-
-        SubFarmTab:CreateToggle("جمع الصناديق بالطيران (Chest Tween)", "ChestTweenFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Chest Tween"] = state
-            if not state then StopTween() end
-        end)
-
-        SubFarmTab:CreateToggle("جمع الصناديق الفوري (Chest Instant)", "ChestInstantFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Chest Instant"] = state
-            if not state then StopTween() end
-        end)
-
-        SubFarmTab:CreateToggle("توقف عند الحصول على دروب نادر (Stop on Items)", "StopItemsFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Stop Items"] = state
-        end)
-
-        SubFarmTab:CreateSection("تلفيل الماستري التلقائي (Auto Mastery)")
-
-        SubFarmTab:CreateToggle("تلفيل ماستري Melee (لـ 400)", "AutoMasteryMeleeFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Mastery Melee"] = state
-            if not state then StopTween() end
-        end)
-        SubFarmTab:CreateToggle("تلفيل ماستري Swords (لـ 400)", "AutoMasterySwordsFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Mastery Swords"] = state
-            if not state then StopTween() end
-        end)
-        SubFarmTab:CreateToggle("تلفيل ماستري Blox Fruits (لـ 400)", "AutoMasteryBloxFruitsFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Mastery Blox Fruits"] = state
-            if not state then StopTween() end
-        end)
-        SubFarmTab:CreateToggle("تلفيل ماستري Guns (لـ 400)", "AutoMasteryGunsFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Mastery Guns"] = state
-            if not state then StopTween() end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 8. TAB: CAKE PRINCE & DOUGH KING
-        ---------------------------------------------------------
-        CakeTab:CreateSection("الكيك برنس و دو كينغ")
-
-        CakeTab:CreateToggle("تلفيل وقتل الكاتكوري بالكامل (Auto Katakuri)", "KatakuriFlag", false, function(state)
-            _G.Settings.Cake["Auto Katakuri"] = state
-            if not state then StopTween() end
-        end)
-
-        CakeTab:CreateToggle("استدعاء الكيك برنس التلقائي (Auto Spawn Prince)", "SpawnPrinceFlag", false, function(state)
-            _G.Settings.Cake["Auto Spawn Cake Prince"] = state
-        end)
-
-        CakeTab:CreateToggle("قتل الكيك برنس فور ظهوره (Auto Kill Cake Prince)", "KillPrinceFlag", false, function(state)
-            _G.Settings.Cake["Auto Kill Cake Prince"] = state
-            if not state then StopTween() end
-        end)
-
-        CakeTab:CreateToggle("قتل دو كينغ فور ظهوره (Auto Kill Dough King)", "KillDoughFlag", false, function(state)
-            _G.Settings.Cake["Auto Kill Dough King"] = state
-            if not state then StopTween() end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 9. TAB: SEA FARMING (Prehistoric & Draco Trail)
-        ---------------------------------------------------------
-        SeaTab:CreateSection("الجزيرة القديمة وما قبل التاريخ (Prehistoric Engine)")
-
-        SeaTab:CreateButton("🏝️ Teleport Prehistoric Island (انتقال فوري)", function()
-            TweenPlayer(MobSpecificTeleports["Prehistoric Island"])
-            AetherUI:Notify({Title = "Teleport", Content = "جاري الانتقال إلى الجزيرة القديمة...", Duration = 2})
-        end)
-
-        SeaTab:CreateToggle("🦖 أتمتة الجزيرة القديمة (Auto Prehistoric Island)", "AutoPrehistoricFlag", false, function(state)
-            _G.Settings.Sea["Auto Prehistoric Island"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("🔥 إنهاء الجزيرة والشعلات (Auto Complete Prehistoric Island)", "AutoCompletePrehistoricFlag", false, function(state)
-            _G.Settings.Sea["Auto Complete Prehistoric Island"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("🐉 تدريب دراكو وقهر الوحوش (Auto Draco Trail)", "AutoDracoTrailFlag", false, function(state)
-            _G.Settings.Sea["Auto Draco Trail"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateSection("إبحار وأحداث البحر والبحث عن الجزر")
-
-        SeaTab:CreateDropdown("اختر القارب (Select Boat)", "BoatDropdownFlag", {"Guardian", "Beast Hunter", "PirateGrandBrigade", "MarineGrandBrigade"}, "Guardian", function(selected)
-            _G.Settings.Sea["Selected Boat"] = selected
-        end)
-
-        SeaTab:CreateDropdown("اختر منطقة الإبحار (Select Zone)", "ZoneDropdownFlag", {"Zone 1", "Zone 2", "Zone 3", "Zone 4", "Zone 5", "Zone 6", "Infinite"}, "Zone 5", function(selected)
-            _G.Settings.Sea["Selected Zone"] = selected
-        end)
-
-        SeaTab:CreateToggle("تفعيل الإبحار التلقائي (Sail Boat)", "SailBoatFlag", false, function(state)
-            _G.Settings.Sea["Sail Boat"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateSection("قتال مخلوقات وحوش البحر (Sea Mobs Farming)")
-
-        SeaTab:CreateToggle("🦈 قتل أسماك القرش (Auto Farm Shark)", "SharkFlag", false, function(state)
-            _G.Settings.Sea["Auto Farm Shark"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("🐟 قتل البيرانا (Auto Farm Piranha)", "PiranhaFlag", false, function(state)
-            _G.Settings.Sea["Auto Farm Piranha"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("🧜‍♂️ قتل طاقم الأسماك (Fish Crew Member)", "CrewFlag", false, function(state)
-            _G.Settings.Sea["Auto Farm Fish Crew Member"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("👻 قتل السفن الشبحية (Ghost Ship)", "GhostShipFlag", false, function(state)
-            _G.Settings.Sea["Auto Farm Ghost Ship"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("🦖 قتل التيرور شارك (Terrorshark)", "TerrorFlag", false, function(state)
-            _G.Settings.Sea["Auto Farm Terrorshark"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("🌊 قتل السي بيست (Seabeasts)", "SeabeastFlag", false, function(state)
-            _G.Settings.Sea["Auto Farm Seabeasts"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("🛡️ تفادي هجمات السي بيست (Dodge Seabeasts)", "DodgeSBFlag", true, function(state)
-            _G.Settings.Sea["Dodge Seabeasts Attack"] = state
-        end)
-
-        SeaTab:CreateToggle("🦊 البحث التلقائي عن Kitsune Island والإبحار لها", "AutoFindKitsuneIslandFlag", false, function(state)
-            _G.Settings.Sea["Auto Find Kitsune Island"] = state
-            if not state then StopTween() end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 10. TAB: AUTO QUESTS
-        ---------------------------------------------------------
-        AutoQuestsTab:CreateSection("أخذ وإنهاء المهمات المباشرة")
-
-        AutoQuestsTab:CreateButton("أخذ مهمة القرود (Jungle Quest 1)", function()
-            if CommF_ then CommF_:InvokeServer("StartQuest", "JungleQuest", 1) end
-        end)
-        AutoQuestsTab:CreateButton("أخذ مهمة القراصنة (Buggy Quest 1)", function()
-            if CommF_ then CommF_:InvokeServer("StartQuest", "BuggyQuest1", 1) end
-        end)
-        AutoQuestsTab:CreateButton("إلغاء المهمة الحالية (Abandon Quest)", function()
-            if CommF_ then CommF_:InvokeServer("AbandonQuest") end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 11. TAB: TELEPORTS (أزرار للبحار وتوغلات للجزر)
-        ---------------------------------------------------------
-        TeleportsTab:CreateSection("الانتقال بين البحار (Sea Travel Buttons)")
-
-        TeleportsTab:CreateButton("🌊 الانتقال إلى Sea 1 (World 1)", function()
-            if CommF_ then CommF_:InvokeServer("TravelMain") end
-        end)
-
-        TeleportsTab:CreateButton("🌊 الانتقال إلى Sea 2 (World 2)", function()
-            if CommF_ then CommF_:InvokeServer("TravelDressrosa") end
-        end)
-
-        TeleportsTab:CreateButton("🌊 الانتقال إلى Sea 3 (World 3)", function()
-            if CommF_ then CommF_:InvokeServer("TravelZou") end
-        end)
-
-        TeleportsTab:CreateSection("انتقالات جزر العالم الأول (Sea 1 Toggles)")
-        for islandName, cf in pairs(FullIslandLocations.Sea1) do
-            local key = "TP_" .. islandName
-            TeleportsTab:CreateToggle("📍 انتقال إلى " .. islandName, key, false, function(state)
-                _G.Settings.Teleports[key] = state
-                if state then
-                    TweenPlayer(cf)
-                    task.wait(1)
-                    _G.Settings.Teleports[key] = false
-                end
-            end)
-        end
-
-        TeleportsTab:CreateSection("انتقالات جزر العالم الثاني (Sea 2 Toggles)")
-        for islandName, cf in pairs(FullIslandLocations.Sea2) do
-            local key = "TP_" .. islandName
-            TeleportsTab:CreateToggle("📍 انتقال إلى " .. islandName, key, false, function(state)
-                _G.Settings.Teleports[key] = state
-                if state then
-                    TweenPlayer(cf)
-                    task.wait(1)
-                    _G.Settings.Teleports[key] = false
-                end
-            end)
-        end
-
-        TeleportsTab:CreateSection("انتقالات جزر العالم الثالث (Sea 3 Toggles)")
-        for islandName, cf in pairs(FullIslandLocations.Sea3) do
-            local key = "TP_" .. islandName
-            TeleportsTab:CreateToggle("📍 انتقال إلى " .. islandName, key, false, function(state)
-                _G.Settings.Teleports[key] = state
-                if state then
-                    TweenPlayer(cf)
-                    task.wait(1)
-                    _G.Settings.Teleports[key] = false
-                end
-            end)
-        end
-
-        ---------------------------------------------------------
-        -- 📌 12. TAB: VISUALS & ESP (جميع التوغلات Off افتراضياً)
-        ---------------------------------------------------------
-        VisualTab:CreateSection("كاشفات العناصر ورادار المسافات (All Toggles Off)")
-
-        VisualTab:CreateToggle("👤 ESP Players (كاشف اللاعبين)", "ESPPlayersFlag", false, function(state)
-            _G.Settings.Visuals["ESP Players"] = state
-        end)
-
-        VisualTab:CreateToggle("💀 ESP Bosses (كاشف الزعماء)", "ESPBossesFlag", false, function(state)
-            _G.Settings.Visuals["ESP Bosses"] = state
-        end)
-
-        VisualTab:CreateToggle("🍎 ESP Fruits (كاشف الفواكه)", "ESPFruitsFlag", false, function(state)
-            _G.Settings.Visuals["ESP Fruits"] = state
-        end)
-
-        VisualTab:CreateToggle("📦 ESP Chests (كاشف الصناديق)", "ESPChestsFlag", false, function(state)
-            _G.Settings.Visuals["ESP Chests"] = state
-        end)
-
-        VisualTab:CreateToggle("👾 ESP Enemies (كاشف الوحوش والأعداء)", "ESPEnemiesFlag", false, function(state)
-            _G.Settings.Visuals["ESP Enemies"] = state
-        end)
-
-        VisualTab:CreateToggle("🏝️ ESP Mirage Island", "ESPMirageFlag", false, function(state)
-            _G.Settings.Visuals["ESP Mirage Island"] = state
-        end)
-
-        VisualTab:CreateToggle("🦊 ESP Kitsune Island", "ESPKitsuneFlag", false, function(state)
-            _G.Settings.Visuals["ESP Kitsune Island"] = state
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 13. TAB: MISC (Auto Stats وحالة السيرفر)
-        ---------------------------------------------------------
-        MiscTab:CreateSection("توزيع النقاط التلقائي (Auto Stats Engine)")
-
-        MiscTab:CreateDropdown("اختر الخاصية (Select Stat)", "SelectStatDropdown", {"Melee", "Defense", "Sword", "Gun", "Demon Fruit"}, "Melee", function(selected)
-            _G.Settings.Stats["Selected Stat"] = selected
-        end)
-
-        MiscTab:CreateSlider("عدد النقاط لكل دورة (Points Per Tick)", "StatPointsSlider", 1, 100, 1, function(val)
-            _G.Settings.Stats["Points Per Tick"] = val
-        end)
-
-        MiscTab:CreateToggle("⚡ تفعيل توزيع النقاط التلقائي (Auto Stats)", "AutoStatsToggleFlag", false, function(state)
-            _G.Settings.Stats["Auto Stats"] = state
-        end)
-
-        MiscTab:CreateSection("حالة السيرفر والعدادات المباشرة (Server Status)")
-
-        local serverClockParagraph = MiscTab:CreateParagraph({
-            Title = "⏰ Server Clock Time (ساعة السيرفر)",
-            Desc = "جارٍ التحميل...",
-            Image = "rbxassetid://6034287594",
-            ImageSize = 20
-        })
-
-        local playerTimeParagraph = MiscTab:CreateParagraph({
-            Title = "⏱️ Time Connected In Server (مدة بقائك بالسيرفر)",
-            Desc = "0 Hours 0 Minutes 0 Seconds",
-            Image = "rbxassetid://6034287594",
-            ImageSize = 20
-        })
-
-        local cakePrinceCountParagraph = MiscTab:CreateParagraph({
-            Title = "👑 Cake Prince Status (عداد الأعداء المتبقي)",
-            Desc = "جارٍ جلب البيانات الحية...",
-            Image = "rbxassetid://6034834832",
-            ImageSize = 20
-        })
-
-        local mirageStatusParagraph = MiscTab:CreateParagraph({
-            Title = "🏝️ Mirage Island Status",
-            Desc = "جارٍ الفحص...",
-            Image = "rbxassetid://6034453535",
-            ImageSize = 20
-        })
-
-        local kitsuneStatusParagraph = MiscTab:CreateParagraph({
-            Title = "🦊 Kitsune Island Status",
-            Desc = "جارٍ الفحص...",
-            Image = "rbxassetid://6034453535",
-            ImageSize = 20
-        })
-
-        task.spawn(function()
-            while task.wait(1) do
-                pcall(function()
-                    local clockTime = game.Lighting.ClockTime
-                    local hours = math.floor(clockTime)
-                    local minutes = math.floor((clockTime - hours) * 60)
-                    serverClockParagraph:SetDesc(string.format("%02d:%02d", hours, minutes))
-
-                    local gameTime = math.floor(workspace.DistributedGameTime + 0.5)
-                    local sH = math.floor(gameTime / 3600) % 24
-                    local sM = math.floor(gameTime / 60) % 60
-                    local sS = math.floor(gameTime) % 60
-                    playerTimeParagraph:SetDesc(sH .. " Hours " .. sM .. " Minutes " .. sS .. " Seconds")
-
-                    if World3 and CommF_ then
-                        local princeData = CommF_:InvokeServer("CakePrinceSpawner")
-                        if typeof(princeData) == "string" then
-                            if string.find(princeData, "spawned") or string.find(princeData, "ready") then
-                                cakePrinceCountParagraph:SetDesc("👑 Cake Prince Is Spawned! (تم استدعاء الكيك برنس!)")
-                            else
-                                local rem = string.match(princeData, "%d+")
-                                cakePrinceCountParagraph:SetDesc(rem and ("⚔️ متبقي " .. rem .. " بوت/عدو لاستدعاء Cake Prince") or princeData)
-                            end
-                        end
-                    else
-                        cakePrinceCountParagraph:SetDesc("متوفر في العالم الثالث فقط (Sea 3 Only)")
-                    end
-
-                    local mirageIsland = workspace.Map:FindFirstChild("MysticIsland")
-                    if mirageIsland then
-                        local char, hrp = GetCharacter()
-                        local dist = hrp and math.floor((hrp.Position - mirageIsland.WorldPivot.Position).Magnitude) or 0
-                        mirageStatusParagraph:SetDesc("✅ ظهرت بالفعل! | المسافة: " .. dist .. "m")
-                    else
-                        mirageStatusParagraph:SetDesc("❌ لم تظهر بعد")
-                    end
-
-                    local kitsuneIsland = workspace.Map:FindFirstChild("KitsuneIsland")
-                    if kitsuneIsland then
-                        local char, hrp = GetCharacter()
-                        local dist = hrp and math.floor((hrp.Position - kitsuneIsland.WorldPivot.Position).Magnitude) or 0
-                        kitsuneStatusParagraph:SetDesc("✅ ظهرت بالفعل! | المسافة: " .. dist .. "m")
-                    else
-                        kitsuneStatusParagraph:SetDesc("❌ لم تظهر بعد")
-                    end
-                end)
-            end
-        end)
-
-        MiscTab:CreateSection("إعدادات الفريق والـ Haki")
-
-        MiscTab:CreateToggle("تفعيل الـ Ken (Buso Haki) تلقائياً", "AutoKenFlag", false, function(state)
-            _G.Settings.Misc["Auto Ken (Buso Haki)"] = state
-        end)
-
-        MiscTab:CreateToggle("الانضمام إلى فريق المارينز", "SetTeamMarinesFlag", false, function(state)
-            _G.Settings.Misc["Set Team to Marines"] = state
-            if state and CommF_ then CommF_:InvokeServer("SetTeam", "Marines") end
-        end)
-
-        MiscTab:CreateToggle("الانضمام إلى فريق القراصنة", "SetTeamPiratesFlag", false, function(state)
-            _G.Settings.Misc["Set Team to Pirates"] = state
-            if state and CommF_ then CommF_:InvokeServer("SetTeam", "Pirates") end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 14. TAB: SETTINGS
-        ---------------------------------------------------------
-        SettingsTab:CreateSection("إعدادات وتحكم السكربت")
-
-        SettingsTab:CreateButton("إعادة دخول السيرفر (Rejoin)", function()
-            TeleportService:Teleport(game.PlaceId, LocalPlayer)
-        end)
-
-        SettingsTab:CreateButton("إغلاق السكربت بالكامل (Destroy Hub)", function()
-            local master = game:GetService("CoreGui"):FindFirstChild("HaroonHub_Master") or game:GetService("Players").LocalPlayer.PlayerGui:FindFirstChild("HaroonHub_Master")
-            if master then master:Destroy() end
-        end)
-    end)
-end)
-
---------------------------------------------------------------------------------
--- 7. حلقة التلفيل الفردي والانتقال المباشر (Single-Target Master Loop)
---------------------------------------------------------------------------------
-task.spawn(function()
-    while task.wait(0.08) do
-        if _G.Settings.Main["Auto Farm Level"] then
-            pcall(function()
-                local char, hrp, hum = GetCharacter()
-                if not char or not hrp or not hum or hum.Health <= 0 then return end
-
-                CheckQuest()
-                AutoHaki()
-
-                local questGui = LocalPlayer.PlayerGui:FindFirstChild("Main") and LocalPlayer.PlayerGui.Main:FindFirstChild("Quest")
-
-                if not questGui or not questGui.Visible or not string.find(questGui.Container.QuestTitle.Title.Text, CurrentQuest.NameMon) then
-                    if CommF_ then CommF_:InvokeServer("AbandonQuest") end
-                    TweenPlayer(CurrentQuest.CFrameQuest, Vector3.new(0, 5, 0))
-
-                    if (hrp.Position - CurrentQuest.CFrameQuest.Position).Magnitude <= 20 then
-                        if CommF_ then CommF_:InvokeServer("StartQuest", CurrentQuest.NameQuest, CurrentQuest.LevelQuest) end
-                    end
-                else
-                    local targetMob = nil
-                    local closestDistance = math.huge
-
-                    for _, v in pairs(workspace.Enemies:GetChildren()) do
-                        if v:IsA("Model") and v.Name == CurrentQuest.Mon then
-                            local root = v:FindFirstChild("HumanoidRootPart")
-                            local mobHum = v:FindFirstChildOfClass("Humanoid")
-                            if root and mobHum and mobHum.Health > 0 then
-                                local dist = (hrp.Position - root.Position).Magnitude
-                                if dist < closestDistance then
-                                    closestDistance = dist
-                                    targetMob = v
-                                end
-                            end
-                        end
-                    end
-
-                    if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
-                        TweenPlayer(targetMob.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
-                        SmartAttackMob(targetMob)
-                    else
-                        TweenPlayer(CurrentQuest.CFrameMon, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
-                    end
-                end
-            end)
-        end
-    end
-end)
-
---------------------------------------------------------------------------------
--- 8. محرك الإبحار والقتال البحري والجزيرة القديمة (Sea & Prehistoric Engine)
---------------------------------------------------------------------------------
-local function GetMyBoat(boatName: string): Model?
-    if workspace:FindFirstChild("Boats") then
-        for _, b in pairs(workspace.Boats:GetChildren()) do
-            if b.Name == boatName and b:FindFirstChild("VehicleSeat") then
-                return b
-            end
-        end
-    end
-    return nil
-end
-
-task.spawn(function()
-    while task.wait(0.2) do
-        if World3 then
-            pcall(function()
-                local char, hrp, hum = GetCharacter()
-                if not char or not hrp or not hum then return end
-
-                -- 1. أتمتة الجزيرة القديمة وما قبل التاريخ Prehistoric Engine
-                if _G.Settings.Sea["Auto Prehistoric Island"] or _G.Settings.Sea["Auto Complete Prehistoric Island"] or _G.Settings.Sea["Auto Draco Trail"] then
-                    local targetPreMob = nil
-                    for _, mName in pairs({"Isle Outlaw", "Island Boy", "Sun-kissed Warrior", "Terrorshark"}) do
-                        local mob = workspace.Enemies:FindFirstChild(mName)
-                        if mob and mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChildOfClass("Humanoid") and mob.Humanoid.Health > 0 then
-                            targetPreMob = mob
-                            break
-                        end
-                    end
-
-                    if targetPreMob then
-                        AutoHaki()
-                        TweenPlayer(targetPreMob.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
-                        SmartAttackMob(targetPreMob)
-                        return
-                    else
-                        TweenPlayer(MobSpecificTeleports["Prehistoric Island"], Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
-                    end
-                end
-
-                -- 2. فحص وهجوم أعداء ومخلوقات البحر
-                local targetSeaEnemy = nil
-                local allowedEnemies = {}
-                if _G.Settings.Sea["Auto Farm Shark"] then table.insert(allowedEnemies, "Shark") end
-                if _G.Settings.Sea["Auto Farm Piranha"] then table.insert(allowedEnemies, "Piranha") end
-                if _G.Settings.Sea["Auto Farm Fish Crew Member"] then table.insert(allowedEnemies, "Fish Crew Member") end
-                if _G.Settings.Sea["Auto Farm Ghost Ship"] then table.insert(allowedEnemies, "Ghost Ship") table.insert(allowedEnemies, "FishBoat") end
-                if _G.Settings.Sea["Auto Farm Terrorshark"] then table.insert(allowedEnemies, "Terrorshark") end
-
-                if #allowedEnemies > 0 and workspace:FindFirstChild("Enemies") then
-                    for _, enemy in pairs(workspace.Enemies:GetChildren()) do
-                        if table.find(allowedEnemies, enemy.Name) and enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChildOfClass("Humanoid") and enemy.Humanoid.Health > 0 then
-                            targetSeaEnemy = enemy
-                            break
-                        end
-                    end
-                end
-
-                if targetSeaEnemy then
-                    if hum.Sit then hum.Sit = false end
-                    AutoHaki()
-                    TweenPlayer(targetSeaEnemy.HumanoidRootPart.CFrame, Vector3.new(0, 25, 0))
-                    SmartAttackMob(targetSeaEnemy)
-                    return
-                end
-
-                -- قتال السي بيست (SeaBeasts)
-                if _G.Settings.Sea["Auto Farm Seabeasts"] and workspace:FindFirstChild("SeaBeasts") then
-                    for _, sb in pairs(workspace.SeaBeasts:GetChildren()) do
-                        if sb:FindFirstChild("HumanoidRootPart") and sb:FindFirstChildOfClass("Humanoid") and sb.Humanoid.Health > 0 then
-                            if hum.Sit then hum.Sit = false end
-                            AutoHaki()
-                            local dodgeOffset = _G.Settings.Sea["Dodge Seabeasts Attack"] and Vector3.new(math.random(-50, 50), 55, math.random(-50, 50)) or Vector3.new(0, 55, 0)
-                            TweenPlayer(sb.HumanoidRootPart.CFrame, dodgeOffset)
-                            FastAttackTarget(sb)
-                            return
-                        end
-                    end
-                end
-
-                -- الفحص الفوري عن Mirage أو Kitsune Island
-                local mirage = workspace.Map:FindFirstChild("MysticIsland")
-                local kitsune = workspace.Map:FindFirstChild("KitsuneIsland")
-
-                if _G.Settings.Race["Auto Find Mirage"] and mirage then
-                    TweenPlayer(mirage.WorldPivot)
-                    return
-                end
-
-                if _G.Settings.Sea["Auto Find Kitsune Island"] and kitsune then
-                    TweenPlayer(kitsune.WorldPivot)
-                    return
-                end
-
-                -- الإبحار التلقائي بالقارب
-                if _G.Settings.Sea["Sail Boat"] or _G.Settings.Race["Auto Find Mirage"] or _G.Settings.Sea["Auto Find Kitsune Island"] then
-                    local boat = GetMyBoat(_G.Settings.Sea["Selected Boat"])
-                    if not boat then
-                        local buyPos = MobSpecificTeleports["Kitsune Island"]
-                        if (hrp.Position - buyPos.Position).Magnitude > 30 then
-                            TweenPlayer(buyPos)
-                        else
-                            if CommF_ then CommF_:InvokeServer("BuyBoat", _G.Settings.Sea["Selected Boat"]) end
-                        end
-                    else
-                        if not hum.Sit then
-                            hrp.CFrame = boat.VehicleSeat.CFrame * CFrame.new(0, 1.5, 0)
-                        else
-                            local targetZone = ZoneCFrames[_G.Settings.Sea["Selected Zone"]] or ZoneCFrames["Zone 5"]
-                            local dist = (boat.VehicleSeat.Position - targetZone.Position).Magnitude
-                            if dist > 100 then
-                                local tween = TweenService:Create(boat.VehicleSeat, TweenInfo.new(dist / _G.Settings.Sea["Boat Tween Speed"], Enum.EasingStyle.Linear), {CFrame = targetZone})
-                                tween:Play()
-                            end
-                        end
-                    end
-                end
-            end)
-        end
-    end
-end)
-
---------------------------------------------------------------------------------
--- 9. محرك تجميع وسرقة وتخزين الفواكه (Fruits Automation Loop)
---------------------------------------------------------------------------------
-task.spawn(function()
-    while task.wait(0.5) do
-        if _G.Settings.Fruits["Auto Store Fruit"] then
-            pcall(function()
-                local char = LocalPlayer.Character
-                if char then
-                    for _, tool in pairs(char:GetChildren()) do
-                        if tool:IsA("Tool") and (string.find(tool.Name, "Fruit") or tool.ToolTip == "Blox Fruit") then
-                            if CommF_ then CommF_:InvokeServer("StoreFruit", tool.Name, tool) end
-                        end
-                    end
-                end
-                for _, tool in pairs(LocalPlayer.Backpack:GetChildren()) do
-                    if tool:IsA("Tool") and (string.find(tool.Name, "Fruit") or tool.ToolTip == "Blox Fruit") then
-                        if CommF_ then CommF_:InvokeServer("StoreFruit", tool.Name, tool) end
-                    end
-                end
-            end)
-        end
-
-        if _G.Settings.Fruits["Fruit Sniper"] then
-            pcall(function()
-                local char, hrp = GetCharacter()
-                if not char or not hrp then return end
-
-                for _, obj in pairs(workspace:GetChildren()) do
-                    if obj:IsA("Tool") and (string.find(obj.Name, "Fruit") or string.find(obj.Name, "Blox")) then
-                        local handle = obj:FindFirstChild("Handle") or obj.PrimaryPart
-                        if handle then
-                            TweenPlayer(handle.CFrame)
-                            break
-                        end
-                    end
-                end
-            end)
-        end
-    end
-end)
-
---------------------------------------------------------------------------------
--- 10. محرك الـ Dungeon / Fruits Raid (مع Auto Next Island)
---------------------------------------------------------------------------------
-task.spawn(function()
-    while task.wait(0.5) do
-        if _G.Settings.Raid["Auto Dungeon / Raid"] or _G.Settings.Raid["Auto Buy Chip & Start"] or _G.Settings.Raid["Auto Clear Dungeon Waves"] or _G.Settings.Raid["Auto Next Island"] then
-            pcall(function()
-                local char, hrp, hum = GetCharacter()
-                if not char or not hrp or not hum then return end
-
-                -- شراء الشريحة وبدء الريد
-                if _G.Settings.Raid["Auto Buy Chip & Start"] then
-                    if CommF_ then
-                        CommF_:InvokeServer("RaidsNpc", "Select", _G.Settings.Raid["Selected Chip"])
-                        task.wait(0.5)
-                        CommF_:InvokeServer("RaidsNpc", "Start")
-                    end
-                end
-
-                -- تنظيف وتصفية وحوش الريد
-                if _G.Settings.Raid["Auto Clear Dungeon Waves"] and workspace:FindFirstChild("Enemies") then
-                    for _, mob in pairs(workspace.Enemies:GetChildren()) do
-                        if mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChildOfClass("Humanoid") and mob.Humanoid.Health > 0 then
-                            AutoHaki()
-                            TweenPlayer(mob.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
-                            SmartAttackMob(mob)
-                            break
-                        end
-                    end
-                end
-
-                -- الانتقال التلقائي للجزيرة التالية في الريد فور انتهاء الموجة
-                if _G.Settings.Raid["Auto Next Island"] and workspace:FindFirstChild("Locations") then
-                    for _, loc in pairs(workspace.Locations:GetChildren()) do
-                        if string.find(loc.Name:lower(), "island") or string.find(loc.Name:lower(), "raid") then
-                            TweenPlayer(loc.CFrame * CFrame.new(0, 30, 0))
-                            break
-                        end
-                    end
-                end
-
-                -- إيقاظ الفاكهة التلقائي
-                if _G.Settings.Raid["Auto Awaken"] and CommF_ then
-                    CommF_:InvokeServer("AwakeningExpert", "Awaken")
-                end
-            end)
-        end
-    end
-end)
-
---------------------------------------------------------------------------------
--- 11. محرك الـ Auto Stats
---------------------------------------------------------------------------------
-task.spawn(function()
-    while task.wait(0.5) do
-        if _G.Settings.Stats["Auto Stats"] then
-            pcall(function()
-                local points = LocalPlayer.Data.Points.Value
-                if points and points > 0 then
-                    local targetStat = _G.Settings.Stats["Selected Stat"]
-                    local addCount = math.min(points, _G.Settings.Stats["Points Per Tick"] or 1)
-                    if CommF_ then
-                        CommF_:InvokeServer("AddPoint", targetStat, addCount)
-                    end
-                end
-            end)
-        end
-    end
-end)
-
---------------------------------------------------------------------------------
--- 12. محرك ترقية الأجناس الاحترافي (Race V2 & V3 Master Loop)
---------------------------------------------------------------------------------
-task.spawn(function()
-    while task.wait(0.5) do
-        -- أتمتة Race V2 الكاملة (جمع الأزهار والتسليم)
-        if _G.Settings.Race["Auto Race V2 Quest"] and World2 then
-            pcall(function()
-                local char, hrp = GetCharacter()
-                if not char or not hrp then return end
-
-                local flowers = {"Flower1", "Flower2", "Flower3"}
-                local foundFlower = false
-
-                for _, fName in pairs(flowers) do
-                    local flowerObj = workspace:FindFirstChild(fName) or (workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild(fName))
-                    if flowerObj and flowerObj:IsA("BasePart") then
-                        foundFlower = true
-                        TweenPlayer(flowerObj.CFrame)
-                        break
-                    end
-                end
-
-                if not foundFlower then
-                    local alchemistPos = CFrame.new(-2440.79, 71.71, -3216.06)
-                    if (hrp.Position - alchemistPos.Position).Magnitude > 20 then
-                        TweenPlayer(alchemistPos)
-                    else
-                        if CommF_ then CommF_:InvokeServer("Alchemist", "1") end
-                    end
-                end
-            end)
-        end
-
-        -- أتمتة Race V3 الكاملة بحسب متطلبات الجنس
-        if _G.Settings.Race["Auto Race V3 Quest"] and World2 then
-            pcall(function()
-                local char, hrp = GetCharacter()
-                if not char or not hrp then return end
-
-                local selectedRace = _G.Settings.Race["Selected Race V3"]
-                local arouPos = CFrame.new(-2440.79, 71.71, -3216.06)
-
-                if selectedRace == "Human" then
-                    -- قتل الزعماء الثلاثة للـ Human V3
-                    for _, bossName in pairs({"Jeremy", "Diamond", "Fajita"}) do
-                        local boss = workspace.Enemies:FindFirstChild(bossName)
-                        if boss and boss:FindFirstChild("HumanoidRootPart") and boss:FindFirstChildOfClass("Humanoid") and boss.Humanoid.Health > 0 then
-                            AutoHaki()
-                            TweenPlayer(boss.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
-                            SmartAttackMob(boss)
-                            return
-                        end
-                    end
-                end
-
-                -- التحدث إلى NPC Arou
-                if (hrp.Position - arouPos.Position).Magnitude > 20 then
-                    TweenPlayer(arouPos)
-                else
-                    if CommF_ then CommF_:InvokeServer("Wenlocktoad", "1") end
-                end
-            end)
-        end
-    end
-end)
-
---------------------------------------------------------------------------------
--- 13. محرك السيوف الأسطورية المدمجة (CDK & TTK Auto Quests)
---------------------------------------------------------------------------------
-task.spawn(function()
-    while task.wait(0.5) do
-        -- أتمتة Cursed Dual Katana (CDK)
-        if _G.Settings.FarmingQuests["Auto Farm CDK"] and World3 then
-            pcall(function()
-                local char, hrp = GetCharacter()
-                if not char or not hrp then return end
-
-                local cryptPos = CFrame.new(-12471.16, 374.94, -7551.67)
-                if (hrp.Position - cryptPos.Position).Magnitude > 25 then
-                    TweenPlayer(cryptPos)
-                else
-                    if CommF_ then
-                        CommF_:InvokeServer("CDKQuest", "Start")
-                        CommF_:InvokeServer("CDKQuest", "Progress")
-                    end
-                end
-            end)
-        end
-
-        -- أتمتة True Triple Katana (TTK)
-        if _G.Settings.FarmingQuests["Auto Farm TTK"] and World2 then
-            pcall(function()
-                local char, hrp = GetCharacter()
-                if not char or not hrp then return end
-
-                local swordDealerPos = CFrame.new(-2448.53, 73.01, -3210.63)
-                if CommF_ then
-                    CommF_:InvokeServer("LegendarySwordDealer", "1")
-                    CommF_:InvokeServer("LegendarySwordDealer", "2")
-                    CommF_:InvokeServer("LegendarySwordDealer", "3")
-                end
-            end)
-        end
-    end
-end)
-
---------------------------------------------------------------------------------
--- 14. محرك الـ ESP المتكامل والحي (Advanced ESP Engine with Distance & HP)
---------------------------------------------------------------------------------
-local ESPCache = {}
-
-local function RemoveESP(obj)
-    if ESPCache[obj] then
-        ESPCache[obj]:Destroy()
-        ESPCache[obj] = nil
-    end
-end
-
-local function CreateUniversalESP(part: BasePart, text: string, color: Color3, showHP: boolean, maxHP: number?, currentHP: number?)
-    if not part then return end
-    if ESPCache[part] then RemoveESP(part) end
-
-    local bill = Instance.new("BillboardGui")
-    bill.Name = "HaroonESP"
-    bill.Adornee = part
-    bill.Size = UDim2.new(0, 150, 0, showHP and 45 or 28)
-    bill.AlwaysOnTop = true
-
-    local frame = Instance.new("Frame", bill)
-    frame.Size = UDim2.new(1, 0, 1, 0)
-    frame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-    frame.BackgroundTransparency = 0.25
-    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 4)
-
-    local txt = Instance.new("TextLabel", frame)
-    txt.Name = "ESPTitle"
-    txt.Size = UDim2.new(1, 0, 0, 14)
-    txt.BackgroundTransparency = 1
-    txt.Text = text
-    txt.TextColor3 = color
-    txt.Font = Enum.Font.GothamBold
-    txt.TextSize = 10
-
-    local distLabel = Instance.new("TextLabel", frame)
-    distLabel.Name = "ESPDist"
-    distLabel.Size = UDim2.new(1, 0, 0, 12)
-    distLabel.Position = UDim2.new(0, 0, 0, 13)
-    distLabel.BackgroundTransparency = 1
-    distLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-    distLabel.Font = Enum.Font.Gotham
-    distLabel.TextSize = 9
-    distLabel.Text = "Dist: ?m"
-
-    if showHP and maxHP and currentHP then
-        local hpBg = Instance.new("Frame", frame)
-        hpBg.Size = UDim2.new(1, -10, 0, 4)
-        hpBg.Position = UDim2.new(0, 5, 0, 28)
-        hpBg.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-        
-        local hpFill = Instance.new("Frame", hpBg)
-        hpFill.Name = "HPFill"
-        hpFill.Size = UDim2.new(math.clamp(currentHP / maxHP, 0, 1), 0, 1, 0)
-        hpFill.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
-    end
-
-    bill.Parent = part
-    ESPCache[part] = bill
-end
-
-task.spawn(function()
-    while task.wait(0.2) do
-        local char, hrp = GetCharacter()
-        if not char or not hrp then continue end
-
-        -- 1. Players ESP
-        if _G.Settings.Visuals["ESP Players"] then
-            for _, p in pairs(Players:GetPlayers()) do
-                if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChildOfClass("Humanoid") then
-                    local pHrp = p.Character.HumanoidRootPart
-                    local pHum = p.Character.Humanoid
-                    local dist = math.floor((hrp.Position - pHrp.Position).Magnitude)
-                    
-                    CreateUniversalESP(pHrp, p.Name, Color3.fromRGB(255, 85, 85), true, pHum.MaxHealth, pHum.Health)
-                    if ESPCache[pHrp] and ESPCache[pHrp]:FindFirstChild("Frame") then
-                        ESPCache[pHrp].Frame.ESPDist.Text = "Dist: " .. dist .. " Studs"
-                    end
-                end
-            end
-        end
-
-        -- 2. Fruits ESP
-        if _G.Settings.Visuals["ESP Fruits"] then
-            for _, v in pairs(workspace:GetChildren()) do
-                if v:IsA("Tool") and (string.find(v.Name, "Fruit") or string.find(v.Name, "Blox")) then
-                    local handle = v:FindFirstChild("Handle") or v.PrimaryPart
-                    if handle then
-                        local dist = math.floor((hrp.Position - handle.Position).Magnitude)
-                        CreateUniversalESP(handle, "🍎 " .. v.Name, Color3.fromRGB(255, 170, 0), false)
-                        if ESPCache[handle] and ESPCache[handle]:FindFirstChild("Frame") then
-                            ESPCache[handle].Frame.ESPDist.Text = "Dist: " .. dist .. " Studs"
-                        end
-                    end
-                end
-            end
-        end
-
-        -- 3. Chests ESP
-        if _G.Settings.Visuals["ESP Chests"] and workspace:FindFirstChild("ChestModels") then
-            for _, chest in pairs(workspace.ChestModels:GetChildren()) do
-                if chest:FindFirstChild("RootPart") then
-                    local dist = math.floor((hrp.Position - chest.RootPart.Position).Magnitude)
-                    CreateUniversalESP(chest.RootPart, "📦 " .. chest.Name, Color3.fromRGB(255, 255, 0), false)
-                    if ESPCache[chest.RootPart] and ESPCache[chest.RootPart]:FindFirstChild("Frame") then
-                        ESPCache[chest.RootPart].Frame.ESPDist.Text = "Dist: " .. dist .. " Studs"
-                    end
-                end
-            end
-        end
-
-        -- 4. Bosses & Enemies ESP
-        if (_G.Settings.Visuals["ESP Bosses"] or _G.Settings.Visuals["ESP Enemies"]) and workspace:FindFirstChild("Enemies") then
-            for _, enemy in pairs(workspace.Enemies:GetChildren()) do
-                if enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChildOfClass("Humanoid") then
-                    local eHrp = enemy.HumanoidRootPart
-                    local eHum = enemy.Humanoid
-                    if eHum.Health > 0 then
-                        local dist = math.floor((hrp.Position - eHrp.Position).Magnitude)
-                        CreateUniversalESP(eHrp, enemy.Name, Color3.fromRGB(255, 0, 127), true, eHum.MaxHealth, eHum.Health)
-                        if ESPCache[eHrp] and ESPCache[eHrp]:FindFirstChild("Frame") then
-                            ESPCache[eHrp].Frame.ESPDist.Text = "Dist: " .. dist .. " Studs"
-                        end
-                    end
-                end
-            end
-        end
-    end
-end)
-
---------------------------------------------------------------------------------
--- 15. حلقات الصناديق والماتيريال والزعماء المتبقية
---------------------------------------------------------------------------------
-
--- Chest Farm Loop
-task.spawn(function()
-    while task.wait(0.2) do
-        if _G.Settings.SubFarm["Auto Chest Tween"] or _G.Settings.SubFarm["Auto Chest Instant"] then
-            pcall(function()
-                local char, hrp = GetCharacter()
-                if not char or not hrp then return end
-
-                local closestChest = nil
-                local shortestDist = math.huge
-                if workspace:FindFirstChild("ChestModels") then
-                    for _, v in pairs(workspace.ChestModels:GetChildren()) do
-                        if string.find(v.Name, "Chest") and v:FindFirstChild("RootPart") then
-                            local dist = (hrp.Position - v.RootPart.Position).Magnitude
-                            if dist < shortestDist then
-                                shortestDist = dist
-                                closestChest = v
-                            end
-                        end
-                    end
-                end
-
-                if closestChest then
-                    if _G.Settings.SubFarm["Auto Chest Instant"] then
-                        hrp.CFrame = closestChest.RootPart.CFrame
-                    else
-                        TweenPlayer(closestChest.RootPart.CFrame)
-                    end
-                end
-            end)
-        end
-    end
-end)
-
--- Material Farm Loop
-task.spawn(function()
-    while task.wait(0.1) do
-        if _G.Settings.Main["Auto Farm Material"] then
-            pcall(function()
-                local char, hrp, hum = GetCharacter()
-                if not char or not hrp or not hum then return end
-
-                local mobs, pos = GetMaterialConfig(_G.Settings.Main["Selected Material"])
-                local found = false
-
-                for _, mName in pairs(mobs) do
-                    for _, v in pairs(workspace.Enemies:GetChildren()) do
-                        if v.Name == mName and v:FindFirstChild("HumanoidRootPart") and v:FindFirstChildOfClass("Humanoid") and v.Humanoid.Health > 0 then
-                            found = true
-                            AutoHaki()
-                            TweenPlayer(v.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
-                            SmartAttackMob(v)
-                            break
-                        end
-                    end
-                    if found then break end
-                end
-
-                if not found then
-                    TweenPlayer(pos, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
-                end
-            end)
-        end
-    end
-end)
-
--- Boss Farm Loop
-task.spawn(function()
-    while task.wait(0.1) do
-        if _G.Settings.Main["Auto Farm Boss"] or _G.Settings.Main["Auto Farm All Boss"] then
-            pcall(function()
-                local char, hrp, hum = GetCharacter()
-                if not char or not hrp or not hum then return end
-
-                local bTarget = _G.Settings.Main["Selected Boss"]
-                for _, v in pairs(workspace.Enemies:GetChildren()) do
-                    if (v.Name == bTarget or _G.Settings.Main["Auto Farm All Boss"]) and v:FindFirstChild("HumanoidRootPart") and v:FindFirstChildOfClass("Humanoid") and v.Humanoid.Health > 0 then
-                        AutoHaki()
-                        TweenPlayer(v.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
-                        SmartAttackMob(v)
-                        break
-                    end
-                end
-            end)
-        end
-    end
-end)       _G.Settings.Sea["Auto Draco Trail"] or _G.Settings.Raid["Auto Next Island"]
-
-    local char, hrp, hum = GetCharacter()
-    if not char or not hrp or not hum then return end
-
-    if active then
-        pcall(function()
-            for _, v in pairs(char:GetDescendants()) do
-                if v:IsA("BasePart") then v.CanCollide = false end
-            end
-            if not hrp:FindFirstChild("HaroonBV") then
-                local bv = Instance.new("BodyVelocity")
-                bv.Name = "HaroonBV"
-                bv.Parent = hrp
-                bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
-                bv.Velocity = Vector3.zero
-            end
-        end)
-    else
-        pcall(function()
-            if hrp:FindFirstChild("HaroonBV") then
-                hrp.HaroonBV:Destroy()
-            end
-        end)
-    end
-end)
-
-local function TweenPlayer(pos: CFrame | Vector3 | BasePart, offset: Vector3?): Tween?
-    local char, hrp, hum = GetCharacter()
-    if not char or not hrp or not hum then return nil end
-    if hum.Sit then hum.Sit = false end
-
-    local targetCFrame: CFrame
-    if typeof(pos) == "CFrame" then targetCFrame = pos
-    elseif typeof(pos) == "Vector3" then targetCFrame = CFrame.new(pos)
-    elseif pos:IsA("BasePart") then targetCFrame = pos.CFrame
-    else return nil end
-
-    if offset then targetCFrame = targetCFrame * CFrame.new(offset) end
-
-    local distance = (hrp.Position - targetCFrame.Position).Magnitude
-    local uprightCFrame = CFrame.new(targetCFrame.Position, targetCFrame.Position + Vector3.new(targetCFrame.LookVector.X, 0, targetCFrame.LookVector.Z))
-
-    if distance <= 25 then
-        hrp.CFrame = uprightCFrame
-        if currentTween then currentTween:Cancel() end
-        return nil
-    end
-
-    local speed = _G.Settings.Main["Player Tween Speed"] or 180
-    local tweenInfo = TweenInfo.new(distance / speed, Enum.EasingStyle.Linear)
-
-    if currentTween then currentTween:Cancel() end
-    currentTween = TweenService:Create(hrp, tweenInfo, {CFrame = uprightCFrame})
-    currentTween:Play()
-    return currentTween
-end
-
-local function StopTween()
-    if currentTween then
-        currentTween:Cancel()
-        currentTween = nil
-    end
-    local _, hrp = GetCharacter()
-    if hrp and hrp:FindFirstChild("HaroonBV") then
-        hrp.HaroonBV:Destroy()
-    end
-end
-
-local function AutoHaki()
-    local char = LocalPlayer.Character
-    if char and not CollectionService:HasTag(char, "Ken") then
-        if CommE then pcall(function() CommE:FireServer("Ken", true) end) end
-    end
-end
-
-local function EquipWeapon(weaponType: string)
-    pcall(function()
-        local char, _, hum = GetCharacter()
-        local backpack = LocalPlayer:FindFirstChild("Backpack")
-        if not backpack or not hum or not char then return end
-
-        for _, tool in pairs(char:GetChildren()) do
-            if tool:IsA("Tool") and (tool.ToolTip == weaponType or (weaponType == "Melee" and tool.ToolTip == "Melee") or (weaponType == "Blox Fruit" and tool.ToolTip == "Blox Fruit") or (weaponType == "Gun" and tool.ToolTip == "Gun") or (weaponType == "Sword" and tool.ToolTip == "Sword")) then
-                return
-            end
-        end
-
-        for _, tool in pairs(backpack:GetChildren()) do
-            if tool:IsA("Tool") and (tool.ToolTip == weaponType or (weaponType == "Melee" and tool.ToolTip == "Melee") or (weaponType == "Blox Fruit" and tool.ToolTip == "Blox Fruit") or (weaponType == "Gun" and tool.ToolTip == "Gun") or (weaponType == "Sword" and tool.ToolTip == "Sword")) then
-                hum:EquipTool(tool)
-                break
-            end
-        end
-    end)
-end
-
---------------------------------------------------------------------------------
--- 4. المحرك الذكي للهجوم والـ Aimbot والـ 80% Damage Mechanic
---------------------------------------------------------------------------------
-local function AimAtTarget(targetPosition: Vector3)
-    pcall(function()
-        local cam = workspace.CurrentCamera
-        if cam then
-            cam.CFrame = CFrame.lookAt(cam.CFrame.Position, targetPosition)
-        end
-    end)
-end
-
-local function FastAttackTarget(targetEnemy: Model)
-    if not targetEnemy or not targetEnemy:FindFirstChild("HumanoidRootPart") then return end
-    local head = targetEnemy:FindFirstChild("Head") or targetEnemy.HumanoidRootPart
-
-    if RegisterAttack then
-        pcall(function()
-            RegisterAttack:FireServer(0)
-            RegisterAttack:FireServer(1)
-            RegisterAttack:FireServer(2)
-            RegisterAttack:FireServer(3)
-        end)
-    end
-
-    if RegisterHit then
-        pcall(function()
-            if typeof(RegisterHit) == "thread" or typeof(RegisterHit) == "function" then
-                coroutine.resume(RegisterHit, head, {})
-            elseif typeof(RegisterHit) == "Instance" then
-                RegisterHit:FireServer(head, {})
-            end
-        end)
-    end
-end
-
-local function SmartAttackMob(targetMob: Model, weaponOverride: string?): boolean
-    local selectedWep = weaponOverride or _G.Settings.Main["Select Weapon"]
-    local mobHum = targetMob:FindFirstChildOfClass("Humanoid")
-    local mobRoot = targetMob:FindFirstChild("HumanoidRootPart") or targetMob:FindFirstChild("Head")
-    if not mobHum or mobHum.Health <= 0 or not mobRoot then return false end
-
-    local hpPercent = mobHum.Health / mobHum.MaxHealth
-
-    if selectedWep == "Blox Fruit" or selectedWep == "Gun" then
-        if hpPercent > 0.20 then
-            EquipWeapon("Melee")
-            FastAttackTarget(targetMob)
-        else
-            EquipWeapon(selectedWep)
-            AimAtTarget(mobRoot.Position)
-
-            if selectedWep == "Blox Fruit" then
-                for _, key in pairs({Enum.KeyCode.Z, Enum.KeyCode.X, Enum.KeyCode.C, Enum.KeyCode.V, Enum.KeyCode.F}) do
-                    VirtualInputManager:SendKeyEvent(true, key, false, game)
-                    task.wait(0.02)
-                    VirtualInputManager:SendKeyEvent(false, key, false, game)
-                end
-            elseif selectedWep == "Gun" then
-                for _, key in pairs({Enum.KeyCode.Z, Enum.KeyCode.X}) do
-                    VirtualInputManager:SendKeyEvent(true, key, false, game)
-                    task.wait(0.02)
-                    VirtualInputManager:SendKeyEvent(false, key, false, game)
-                end
-                if ShootGunEvent then
-                    pcall(function() ShootGunEvent:FireServer(mobRoot.Position, {mobRoot}) end)
-                end
-            end
-
-            VirtualInputManager:SendMouseButtonEvent(mobRoot.Position.X, mobRoot.Position.Y, 0, true, game, 0)
-            VirtualInputManager:SendMouseButtonEvent(mobRoot.Position.X, mobRoot.Position.Y, 0, false, game, 0)
-            FastAttackTarget(targetMob)
-        end
-    else
-        EquipWeapon(selectedWep)
-        FastAttackTarget(targetMob)
-    end
-
-    return true
-end
-
---------------------------------------------------------------------------------
--- 5. قواعد البيانات الشاملة للمهمات والجزر (Quests & Islands Database)
---------------------------------------------------------------------------------
-local CurrentQuest = {
-    Mon = "Bandit",
-    LevelQuest = 1,
-    NameQuest = "BanditQuest1",
-    NameMon = "Bandit",
-    CFrameQuest = CFrame.new(1059.37, 15.44, 1550.42),
-    CFrameMon = CFrame.new(1045.96, 27.00, 1560.82)
-}
-
-local function CheckQuest()
-    local MyLevel = (LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Level")) and LocalPlayer.Data.Level.Value or 1
-    if World1 then
-        if MyLevel <= 9 then
-            CurrentQuest = {Mon = "Bandit", LevelQuest = 1, NameQuest = "BanditQuest1", NameMon = "Bandit", CFrameQuest = CFrame.new(1059.37, 15.44, 1550.42), CFrameMon = CFrame.new(1045.96, 27.00, 1560.82)}
-        elseif MyLevel <= 14 then
-            CurrentQuest = {Mon = "Monkey", LevelQuest = 1, NameQuest = "JungleQuest", NameMon = "Monkey", CFrameQuest = CFrame.new(-1598.08, 35.55, 153.37), CFrameMon = CFrame.new(-1448.51, 67.85, 11.46)}
-        elseif MyLevel <= 29 then
-            if _G.Settings.Main["Include Boss Quests"] and MyLevel >= 20 then
-                CurrentQuest = {Mon = "The Gorilla King", LevelQuest = 3, NameQuest = "JungleQuest", NameMon = "The Gorilla King", CFrameQuest = CFrame.new(-1598.08, 35.55, 153.37), CFrameMon = CFrame.new(-1129.88, 40.46, -525.42)}
-            else
-                CurrentQuest = {Mon = "Gorilla", LevelQuest = 2, NameQuest = "JungleQuest", NameMon = "Gorilla", CFrameQuest = CFrame.new(-1598.08, 35.55, 153.37), CFrameMon = CFrame.new(-1129.88, 40.46, -525.42)}
-            end
-        elseif MyLevel <= 39 then
-            CurrentQuest = {Mon = "Pirate", LevelQuest = 1, NameQuest = "BuggyQuest1", NameMon = "Pirate", CFrameQuest = CFrame.new(-1141.07, 4.10, 3831.54), CFrameMon = CFrame.new(-1103.51, 13.75, 3896.09)}
-        elseif MyLevel <= 59 then
-            if _G.Settings.Main["Include Boss Quests"] and MyLevel >= 55 then
-                CurrentQuest = {Mon = "Bobby", LevelQuest = 3, NameQuest = "BuggyQuest1", NameMon = "Bobby", CFrameQuest = CFrame.new(-1141.07, 4.10, 3831.54), CFrameMon = CFrame.new(-1140.08, 14.80, 4322.92)}
-            else
-                CurrentQuest = {Mon = "Brute", LevelQuest = 2, NameQuest = "BuggyQuest1", NameMon = "Brute", CFrameQuest = CFrame.new(-1141.07, 4.10, 3831.54), CFrameMon = CFrame.new(-1140.08, 14.80, 4322.92)}
-            end
-        elseif MyLevel <= 74 then
-            CurrentQuest = {Mon = "Desert Bandit", LevelQuest = 1, NameQuest = "DesertQuest", NameMon = "Desert Bandit", CFrameQuest = CFrame.new(894.48, 5.14, 4392.43), CFrameMon = CFrame.new(924.79, 6.44, 4481.58)}
-        elseif MyLevel <= 89 then
-            CurrentQuest = {Mon = "Desert Officer", LevelQuest = 2, NameQuest = "DesertQuest", NameMon = "Desert Officer", CFrameQuest = CFrame.new(894.48, 5.14, 4392.43), CFrameMon = CFrame.new(1608.28, 8.61, 4371.00)}
-        elseif MyLevel <= 99 then
-            CurrentQuest = {Mon = "Snow Bandit", LevelQuest = 1, NameQuest = "SnowQuest", NameMon = "Snow Bandit", CFrameQuest = CFrame.new(1389.74, 88.15, -1298.90), CFrameMon = CFrame.new(1354.34, 87.27, -1393.94)}
-        elseif MyLevel <= 119 then
-            CurrentQuest = {Mon = "Snowman", LevelQuest = 2, NameQuest = "SnowQuest", NameMon = "Snowman", CFrameQuest = CFrame.new(1389.74, 88.15, -1298.90), CFrameMon = CFrame.new(1201.64, 144.57, -1550.06)}
-        elseif MyLevel <= 149 then
-            CurrentQuest = {Mon = "Chief Petty Officer", LevelQuest = 1, NameQuest = "MarineQuest2", NameMon = "Chief Petty Officer", CFrameQuest = CFrame.new(-5039.58, 27.35, 4324.68), CFrameMon = CFrame.new(-4881.23, 22.65, 4273.75)}
-        elseif MyLevel <= 174 then
-            CurrentQuest = {Mon = "Sky Bandit", LevelQuest = 1, NameQuest = "SkyQuest", NameMon = "Sky Bandit", CFrameQuest = CFrame.new(-4839.53, 716.36, -2619.44), CFrameMon = CFrame.new(-4953.20, 295.74, -2899.22)}
-        elseif MyLevel <= 189 then
-            CurrentQuest = {Mon = "Dark Master", LevelQuest = 2, NameQuest = "SkyQuest", NameMon = "Dark Master", CFrameQuest = CFrame.new(-4839.53, 716.36, -2619.44), CFrameMon = CFrame.new(-5259.84, 391.39, -2229.03)}
-        elseif MyLevel <= 209 then
-            CurrentQuest = {Mon = "Prisoner", LevelQuest = 1, NameQuest = "PrisonerQuest", NameMon = "Prisoner", CFrameQuest = CFrame.new(5308.93, 1.65, 475.12), CFrameMon = CFrame.new(5098.97, -0.32, 474.23)}
-        elseif MyLevel <= 249 then
-            CurrentQuest = {Mon = "Dangerous Prisoner", LevelQuest = 2, NameQuest = "PrisonerQuest", NameMon = "Dangerous Prisoner", CFrameQuest = CFrame.new(5308.93, 1.65, 475.12), CFrameMon = CFrame.new(5654.56, 15.63, 866.29)}
-        elseif MyLevel <= 274 then
-            CurrentQuest = {Mon = "Toga Warrior", LevelQuest = 1, NameQuest = "ColosseumQuest", NameMon = "Toga Warrior", CFrameQuest = CFrame.new(-1580.04, 6.35, -2986.47), CFrameMon = CFrame.new(-1820.21, 51.68, -2740.66)}
-        elseif MyLevel <= 299 then
-            CurrentQuest = {Mon = "Gladiator", LevelQuest = 2, NameQuest = "ColosseumQuest", NameMon = "Gladiator", CFrameQuest = CFrame.new(-1580.04, 6.35, -2986.47), CFrameMon = CFrame.new(-1292.83, 56.38, -3339.03)}
-        elseif MyLevel <= 324 then
-            CurrentQuest = {Mon = "Military Soldier", LevelQuest = 1, NameQuest = "MagmaQuest", NameMon = "Military Soldier", CFrameQuest = CFrame.new(-5313.37, 10.95, 8515.29), CFrameMon = CFrame.new(-5411.16, 11.08, 8454.29)}
-        elseif MyLevel <= 374 then
-            CurrentQuest = {Mon = "Military Spy", LevelQuest = 2, NameQuest = "MagmaQuest", NameMon = "Military Spy", CFrameQuest = CFrame.new(-5313.37, 10.95, 8515.29), CFrameMon = CFrame.new(-5802.86, 86.26, 8828.85)}
-        elseif MyLevel <= 399 then
-            CurrentQuest = {Mon = "Fishman Warrior", LevelQuest = 1, NameQuest = "FishmanQuest", NameMon = "Fishman Warrior", CFrameQuest = CFrame.new(61122.65, 18.49, 1569.39), CFrameMon = CFrame.new(60878.30, 18.48, 1543.75)}
-        elseif MyLevel <= 449 then
-            CurrentQuest = {Mon = "Fishman Commando", LevelQuest = 2, NameQuest = "FishmanQuest", NameMon = "Fishman Commando", CFrameQuest = CFrame.new(61122.65, 18.49, 1569.39), CFrameMon = CFrame.new(61922.63, 18.48, 1493.93)}
-        elseif MyLevel <= 474 then
-            CurrentQuest = {Mon = "God's Guard", LevelQuest = 1, NameQuest = "SkyExp1Quest", NameMon = "God's Guard", CFrameQuest = CFrame.new(-4721.88, 843.87, -1949.96), CFrameMon = CFrame.new(-4710.04, 845.27, -1927.30)}
-        elseif MyLevel <= 524 then
-            CurrentQuest = {Mon = "Shanda", LevelQuest = 2, NameQuest = "SkyExp1Quest", NameMon = "Shanda", CFrameQuest = CFrame.new(-7859.09, 5544.19, -381.47), CFrameMon = CFrame.new(-7678.48, 5566.40, -497.21)}
-        elseif MyLevel <= 549 then
-            CurrentQuest = {Mon = "Royal Squad", LevelQuest = 1, NameQuest = "SkyExp2Quest", NameMon = "Royal Squad", CFrameQuest = CFrame.new(-7906.81, 5634.66, -1411.99), CFrameMon = CFrame.new(-7624.25, 5658.13, -1467.35)}
-        elseif MyLevel <= 624 then
-            CurrentQuest = {Mon = "Royal Soldier", LevelQuest = 2, NameQuest = "SkyExp2Quest", NameMon = "Royal Soldier", CFrameQuest = CFrame.new(-7906.81, 5634.66, -1411.99), CFrameMon = CFrame.new(-7836.75, 5645.66, -1790.62)}
-        elseif MyLevel <= 649 then
-            CurrentQuest = {Mon = "Galley Pirate", LevelQuest = 1, NameQuest = "FountainQuest", NameMon = "Galley Pirate", CFrameQuest = CFrame.new(5259.81, 37.35, 4050.02), CFrameMon = CFrame.new(5551.02, 78.90, 3930.41)}
-        else
-            CurrentQuest = {Mon = "Galley Captain", LevelQuest = 2, NameQuest = "FountainQuest", NameMon = "Galley Captain", CFrameQuest = CFrame.new(5259.81, 37.35, 4050.02), CFrameMon = CFrame.new(5441.95, 42.50, 4950.09)}
-        end
-    elseif World2 then
-        if MyLevel <= 724 then
-            CurrentQuest = {Mon = "Raider", LevelQuest = 1, NameQuest = "Area1Quest", NameMon = "Raider", CFrameQuest = CFrame.new(-429.54, 71.76, 1836.18), CFrameMon = CFrame.new(-728.32, 52.77, 2345.77)}
-        elseif MyLevel <= 774 then
-            CurrentQuest = {Mon = "Mercenary", LevelQuest = 2, NameQuest = "Area1Quest", NameMon = "Mercenary", CFrameQuest = CFrame.new(-429.54, 71.76, 1836.18), CFrameMon = CFrame.new(-1004.32, 80.15, 1424.61)}
-        elseif MyLevel <= 799 then
-            CurrentQuest = {Mon = "Swan Pirate", LevelQuest = 1, NameQuest = "Area2Quest", NameMon = "Swan Pirate", CFrameQuest = CFrame.new(638.43, 71.76, 918.28), CFrameMon = CFrame.new(1068.66, 137.61, 1322.10)}
-        elseif MyLevel <= 874 then
-            CurrentQuest = {Mon = "Factory Staff", LevelQuest = 2, NameQuest = "Area2Quest", NameMon = "Factory Staff", CFrameQuest = CFrame.new(632.69, 73.10, 918.66), CFrameMon = CFrame.new(73.07, 81.86, -27.47)}
-        elseif MyLevel <= 899 then
-            CurrentQuest = {Mon = "Marine Lieutenant", LevelQuest = 1, NameQuest = "MarineQuest3", NameMon = "Marine Lieutenant", CFrameQuest = CFrame.new(-2440.79, 71.71, -3216.06), CFrameMon = CFrame.new(-2821.37, 75.89, -3070.08)}
-        elseif MyLevel <= 949 then
-            CurrentQuest = {Mon = "Marine Captain", LevelQuest = 2, NameQuest = "MarineQuest3", NameMon = "Marine Captain", CFrameQuest = CFrame.new(-2440.79, 71.71, -3216.06), CFrameMon = CFrame.new(-1861.23, 80.17, -3254.69)}
-        elseif MyLevel <= 974 then
-            CurrentQuest = {Mon = "Zombie", LevelQuest = 1, NameQuest = "ZombieQuest", NameMon = "Zombie", CFrameQuest = CFrame.new(-5497.06, 47.59, -795.23), CFrameMon = CFrame.new(-5657.77, 78.96, -928.68)}
-        elseif MyLevel <= 999 then
-            CurrentQuest = {Mon = "Vampire", LevelQuest = 2, NameQuest = "ZombieQuest", NameMon = "Vampire", CFrameQuest = CFrame.new(-5497.06, 47.59, -795.23), CFrameMon = CFrame.new(-6037.66, 32.18, -1340.65)}
-        elseif MyLevel <= 1049 then
-            CurrentQuest = {Mon = "Snow Trooper", LevelQuest = 1, NameQuest = "SnowMountainQuest", NameMon = "Snow Trooper", CFrameQuest = CFrame.new(609.85, 400.11, -5372.25), CFrameMon = CFrame.new(549.14, 427.38, -5563.69)}
-        elseif MyLevel <= 1099 then
-            CurrentQuest = {Mon = "Winter Warrior", LevelQuest = 2, NameQuest = "SnowMountainQuest", NameMon = "Winter Warrior", CFrameQuest = CFrame.new(609.85, 400.11, -5372.25), CFrameMon = CFrame.new(1142.74, 475.63, -5199.41)}
-        elseif MyLevel <= 1124 then
-            CurrentQuest = {Mon = "Lab Subordinate", LevelQuest = 1, NameQuest = "IceSideQuest", NameMon = "Lab Subordinate", CFrameQuest = CFrame.new(-6064.06, 15.24, -4902.97), CFrameMon = CFrame.new(-5707.47, 15.95, -4513.39)}
-        elseif MyLevel <= 1174 then
-            CurrentQuest = {Mon = "Horned Warrior", LevelQuest = 2, NameQuest = "IceSideQuest", NameMon = "Horned Warrior", CFrameQuest = CFrame.new(-6064.06, 15.24, -4902.97), CFrameMon = CFrame.new(-6341.36, 15.95, -5723.16)}
-        elseif MyLevel <= 1199 then
-            CurrentQuest = {Mon = "Magma Ninja", LevelQuest = 1, NameQuest = "FireSideQuest", NameMon = "Magma Ninja", CFrameQuest = CFrame.new(-5428.03, 15.06, -5299.43), CFrameMon = CFrame.new(-5449.67, 76.65, -5808.20)}
-        elseif MyLevel <= 1249 then
-            CurrentQuest = {Mon = "Lava Pirate", LevelQuest = 2, NameQuest = "FireSideQuest", NameMon = "Lava Pirate", CFrameQuest = CFrame.new(-5428.03, 15.06, -5299.43), CFrameMon = CFrame.new(-5213.33, 49.73, -4701.45)}
-        elseif MyLevel <= 1274 then
-            CurrentQuest = {Mon = "Ship Deckhand", LevelQuest = 1, NameQuest = "ShipQuest1", NameMon = "Ship Deckhand", CFrameQuest = CFrame.new(1037.80, 125.09, 32911.60), CFrameMon = CFrame.new(1212.01, 150.79, 33059.24)}
-        elseif MyLevel <= 1299 then
-            CurrentQuest = {Mon = "Ship Engineer", LevelQuest = 2, NameQuest = "ShipQuest1", NameMon = "Ship Engineer", CFrameQuest = CFrame.new(1037.80, 125.09, 32911.60), CFrameMon = CFrame.new(919.47, 43.54, 32779.96)}
-        elseif MyLevel <= 1324 then
-            CurrentQuest = {Mon = "Ship Steward", LevelQuest = 1, NameQuest = "ShipQuest2", NameMon = "Ship Steward", CFrameQuest = CFrame.new(968.80, 125.09, 33244.12), CFrameMon = CFrame.new(919.43, 129.55, 33436.03)}
-        elseif MyLevel <= 1349 then
-            CurrentQuest = {Mon = "Ship Officer", LevelQuest = 2, NameQuest = "ShipQuest2", NameMon = "Ship Officer", CFrameQuest = CFrame.new(968.80, 125.09, 33244.12), CFrameMon = CFrame.new(1036.01, 181.43, 33315.72)}
-        elseif MyLevel <= 1374 then
-            CurrentQuest = {Mon = "Arctic Warrior", LevelQuest = 1, NameQuest = "FrostQuest", NameMon = "Arctic Warrior", CFrameQuest = CFrame.new(5667.65, 26.79, -6486.08), CFrameMon = CFrame.new(5966.24, 62.97, -6179.38)}
-        elseif MyLevel <= 1424 then
-            CurrentQuest = {Mon = "Snow Lurker", LevelQuest = 2, NameQuest = "FrostQuest", NameMon = "Snow Lurker", CFrameQuest = CFrame.new(5667.65, 26.79, -6486.08), CFrameMon = CFrame.new(5407.07, 69.19, -6880.88)}
-        elseif MyLevel <= 1449 then
-            CurrentQuest = {Mon = "Sea Soldier", LevelQuest = 1, NameQuest = "ForgottenQuest", NameMon = "Sea Soldier", CFrameQuest = CFrame.new(-3054.44, 235.54, -10142.81), CFrameMon = CFrame.new(-3028.22, 64.67, -9775.42)}
-        else
-            CurrentQuest = {Mon = "Water Fighter", LevelQuest = 2, NameQuest = "ForgottenQuest", NameMon = "Water Fighter", CFrameQuest = CFrame.new(-3054.44, 235.54, -10142.81), CFrameMon = CFrame.new(-3352.90, 285.01, -10534.84)}
-        end
-    elseif World3 then
-        if MyLevel <= 1524 then
-            CurrentQuest = {Mon = "Pirate Millionaire", LevelQuest = 1, NameQuest = "PiratePortQuest", NameMon = "Pirate Millionaire", CFrameQuest = CFrame.new(-290.07, 42.90, 5581.58), CFrameMon = CFrame.new(-245.99, 47.30, 5584.10)}
-        elseif MyLevel <= 1574 then
-            CurrentQuest = {Mon = "Pistol Billionaire", LevelQuest = 2, NameQuest = "PiratePortQuest", NameMon = "Pistol Billionaire", CFrameQuest = CFrame.new(-290.07, 42.90, 5581.58), CFrameMon = CFrame.new(-187.33, 86.23, 6013.51)}
-        elseif MyLevel <= 1599 then
-            CurrentQuest = {Mon = "Dragon Crew Warrior", LevelQuest = 1, NameQuest = "AmazonQuest", NameMon = "Dragon Crew Warrior", CFrameQuest = CFrame.new(5832.83, 51.68, -1101.51), CFrameMon = CFrame.new(6141.14, 51.35, -1340.73)}
-        elseif MyLevel <= 1624 then
-            CurrentQuest = {Mon = "Dragon Crew Archer", LevelQuest = 2, NameQuest = "AmazonQuest", NameMon = "Dragon Crew Archer", CFrameQuest = CFrame.new(5833.11, 51.60, -1103.06), CFrameMon = CFrame.new(6616.41, 441.76, 446.04)}
-        elseif MyLevel <= 1649 then
-            CurrentQuest = {Mon = "Female Islander", LevelQuest = 1, NameQuest = "AmazonQuest2", NameMon = "Female Islander", CFrameQuest = CFrame.new(5446.87, 601.62, 749.45), CFrameMon = CFrame.new(4685.25, 735.80, 815.34)}
-        elseif MyLevel <= 1699 then
-            CurrentQuest = {Mon = "Giant Islander", LevelQuest = 2, NameQuest = "AmazonQuest2", NameMon = "Giant Islander", CFrameQuest = CFrame.new(5446.87, 601.62, 749.45), CFrameMon = CFrame.new(4729.09, 590.43, -36.97)}
-        elseif MyLevel <= 1724 then
-            CurrentQuest = {Mon = "Marine Commodore", LevelQuest = 1, NameQuest = "MarineTreeIsland", NameMon = "Marine Commodore", CFrameQuest = CFrame.new(2180.54, 27.81, -6741.54), CFrameMon = CFrame.new(2286.00, 73.13, -7159.80)}
-        elseif MyLevel <= 1774 then
-            CurrentQuest = {Mon = "Marine Rear Admiral", LevelQuest = 2, NameQuest = "MarineTreeIsland", NameMon = "Marine Rear Admiral", CFrameQuest = CFrame.new(2179.98, 28.73, -6740.05), CFrameMon = CFrame.new(3656.77, 160.52, -7001.59)}
-        elseif MyLevel <= 1799 then
-            CurrentQuest = {Mon = "Fishman Raider", LevelQuest = 1, NameQuest = "DeepForestIsland3", NameMon = "Fishman Raider", CFrameQuest = CFrame.new(-10581.65, 330.87, -8761.18), CFrameMon = CFrame.new(-10407.52, 331.76, -8368.51)}
-        elseif MyLevel <= 1824 then
-            CurrentQuest = {Mon = "Fishman Captain", LevelQuest = 2, NameQuest = "DeepForestIsland3", NameMon = "Fishman Captain", CFrameQuest = CFrame.new(-10581.65, 330.87, -8761.18), CFrameMon = CFrame.new(-10994.70, 352.38, -9002.11)}
-        elseif MyLevel <= 1849 then
-            CurrentQuest = {Mon = "Forest Pirate", LevelQuest = 1, NameQuest = "DeepForestIsland", NameMon = "Forest Pirate", CFrameQuest = CFrame.new(-13234.04, 331.48, -7625.40), CFrameMon = CFrame.new(-13274.47, 332.37, -7769.58)}
-        elseif MyLevel <= 1899 then
-            CurrentQuest = {Mon = "Mythological Pirate", LevelQuest = 2, NameQuest = "DeepForestIsland", NameMon = "Mythological Pirate", CFrameQuest = CFrame.new(-13234.04, 331.48, -7625.40), CFrameMon = CFrame.new(-13680.60, 501.08, -6991.18)}
-        elseif MyLevel <= 1924 then
-            CurrentQuest = {Mon = "Jungle Pirate", LevelQuest = 1, NameQuest = "DeepForestIsland2", NameMon = "Jungle Pirate", CFrameQuest = CFrame.new(-12680.38, 389.97, -9902.01), CFrameMon = CFrame.new(-12256.16, 331.73, -10485.83)}
-        elseif MyLevel <= 1974 then
-            CurrentQuest = {Mon = "Musketeer Pirate", LevelQuest = 2, NameQuest = "DeepForestIsland2", NameMon = "Musketeer Pirate", CFrameQuest = CFrame.new(-12680.38, 389.97, -9902.01), CFrameMon = CFrame.new(-13457.90, 391.54, -9859.17)}
-        elseif MyLevel <= 1999 then
-            CurrentQuest = {Mon = "Reborn Skeleton", LevelQuest = 1, NameQuest = "HauntedQuest1", NameMon = "Reborn Skeleton", CFrameQuest = CFrame.new(-9479.21, 141.21, 5566.09), CFrameMon = CFrame.new(-8763.72, 165.72, 6159.86)}
-        elseif MyLevel <= 2024 then
-            CurrentQuest = {Mon = "Living Zombie", LevelQuest = 2, NameQuest = "HauntedQuest1", NameMon = "Living Zombie", CFrameQuest = CFrame.new(-9479.21, 141.21, 5566.09), CFrameMon = CFrame.new(-10144.13, 138.62, 5838.08)}
-        elseif MyLevel <= 2049 then
-            CurrentQuest = {Mon = "Demonic Soul", LevelQuest = 1, NameQuest = "HauntedQuest2", NameMon = "Demonic Soul", CFrameQuest = CFrame.new(-9516.99, 172.01, 6078.46), CFrameMon = CFrame.new(-9505.87, 172.10, 6158.99)}
-        elseif MyLevel <= 2074 then
-            CurrentQuest = {Mon = "Posessed Mummy", LevelQuest = 2, NameQuest = "HauntedQuest2", NameMon = "Posessed Mummy", CFrameQuest = CFrame.new(-9516.99, 172.01, 6078.46), CFrameMon = CFrame.new(-9582.02, 6.25, 6205.47)}
-        elseif MyLevel <= 2099 then
-            CurrentQuest = {Mon = "Peanut Scout", LevelQuest = 1, NameQuest = "NutsIslandQuest", NameMon = "Peanut Scout", CFrameQuest = CFrame.new(-2104.39, 38.10, -10194.21), CFrameMon = CFrame.new(-2143.24, 47.72, -10029.99)}
-        elseif MyLevel <= 2124 then
-            CurrentQuest = {Mon = "Peanut President", LevelQuest = 2, NameQuest = "NutsIslandQuest", NameMon = "Peanut President", CFrameQuest = CFrame.new(-2104.39, 38.10, -10194.21), CFrameMon = CFrame.new(-1859.35, 38.10, -10422.42)}
-        elseif MyLevel <= 2149 then
-            CurrentQuest = {Mon = "Ice Cream Chef", LevelQuest = 1, NameQuest = "IceCreamIslandQuest", NameMon = "Ice Cream Chef", CFrameQuest = CFrame.new(-820.64, 65.81, -10965.79), CFrameMon = CFrame.new(-872.24, 65.81, -10919.95)}
-        elseif MyLevel <= 2199 then
-            CurrentQuest = {Mon = "Ice Cream Commander", LevelQuest = 2, NameQuest = "IceCreamIslandQuest", NameMon = "Ice Cream Commander", CFrameQuest = CFrame.new(-820.64, 65.81, -10965.79), CFrameMon = CFrame.new(-558.06, 112.04, -11290.77)}
-        elseif MyLevel <= 2224 then
-            CurrentQuest = {Mon = "Cookie Crafter", LevelQuest = 1, NameQuest = "CakeQuest1", NameMon = "Cookie Crafter", CFrameQuest = CFrame.new(-2021.32, 37.79, -12028.72), CFrameMon = CFrame.new(-2374.13, 37.79, -12125.30)}
-        elseif MyLevel <= 2249 then
-            CurrentQuest = {Mon = "Cake Guard", LevelQuest = 2, NameQuest = "CakeQuest1", NameMon = "Cake Guard", CFrameQuest = CFrame.new(-2021.32, 37.79, -12028.72), CFrameMon = CFrame.new(-1598.30, 43.77, -12244.58)}
-        elseif MyLevel <= 2274 then
-            CurrentQuest = {Mon = "Baking Staff", LevelQuest = 1, NameQuest = "CakeQuest2", NameMon = "Baking Staff", CFrameQuest = CFrame.new(-1927.91, 37.79, -12842.53), CFrameMon = CFrame.new(-1887.80, 77.61, -12998.35)}
-        elseif MyLevel <= 2299 then
-            CurrentQuest = {Mon = "Head Baker", LevelQuest = 2, NameQuest = "CakeQuest2", NameMon = "Head Baker", CFrameQuest = CFrame.new(-1927.91, 37.79, -12842.53), CFrameMon = CFrame.new(-2216.18, 82.88, -12869.29)}
-        elseif MyLevel <= 2324 then
-            CurrentQuest = {Mon = "Cocoa Warrior", LevelQuest = 1, NameQuest = "ChocQuest1", NameMon = "Cocoa Warrior", CFrameQuest = CFrame.new(233.22, 29.87, -12201.23), CFrameMon = CFrame.new(-21.55, 80.57, -12352.38)}
-        elseif MyLevel <= 2349 then
-            CurrentQuest = {Mon = "Chocolate Bar Battler", LevelQuest = 2, NameQuest = "ChocQuest1", NameMon = "Chocolate Bar Battler", CFrameQuest = CFrame.new(233.22, 29.87, -12201.23), CFrameMon = CFrame.new(582.59, 77.18, -12463.16)}
-        elseif MyLevel <= 2374 then
-            CurrentQuest = {Mon = "Sweet Thief", LevelQuest = 1, NameQuest = "ChocQuest2", NameMon = "Sweet Thief", CFrameQuest = CFrame.new(150.50, 30.69, -12774.50), CFrameMon = CFrame.new(165.18, 76.05, -12600.83)}
-        elseif MyLevel <= 2399 then
-            CurrentQuest = {Mon = "Candy Rebel", LevelQuest = 2, NameQuest = "ChocQuest2", NameMon = "Candy Rebel", CFrameQuest = CFrame.new(150.50, 30.69, -12774.50), CFrameMon = CFrame.new(134.86, 77.24, -12876.54)}
-        elseif MyLevel <= 2424 then
-            CurrentQuest = {Mon = "Candy Pirate", LevelQuest = 1, NameQuest = "CandyQuest1", NameMon = "Candy Pirate", CFrameQuest = CFrame.new(-1150.04, 20.37, -14446.33), CFrameMon = CFrame.new(-1310.50, 26.01, -14562.40)}
-        elseif MyLevel <= 2449 then
-            CurrentQuest = {Mon = "Snow Demon", LevelQuest = 2, NameQuest = "CandyQuest1", NameMon = "Snow Demon", CFrameQuest = CFrame.new(-1150.04, 20.37, -14446.33), CFrameMon = CFrame.new(-880.20, 71.24, -14538.60)}
-        elseif MyLevel <= 2474 then
-            CurrentQuest = {Mon = "Isle Outlaw", LevelQuest = 1, NameQuest = "TikiQuest1", NameMon = "Isle Outlaw", CFrameQuest = CFrame.new(-16547.74, 61.13, -173.41), CFrameMon = CFrame.new(-16442.81, 116.13, -264.46)}
-        elseif MyLevel <= 2524 then
-            CurrentQuest = {Mon = "Island Boy", LevelQuest = 2, NameQuest = "TikiQuest1", NameMon = "Island Boy", CFrameQuest = CFrame.new(-16547.74, 61.13, -173.41), CFrameMon = CFrame.new(-16901.26, 84.06, -192.88)}
-        else
-            CurrentQuest = {Mon = "Skull Slayer", LevelQuest = 2, NameQuest = "TikiQuest3", NameMon = "Skull Slayer", CFrameQuest = CFrame.new(-16661.89, 105.28, 1576.69), CFrameMon = CFrame.new(-16885.20, 114.12, 1627.94)}
-        end
-    end
-end
-
-local FullIslandLocations = {
-    Sea1 = {
-        ["Windmill"] = CFrame.new(979.79, 16.51, 1429.04),
-        ["Jungle"] = CFrame.new(-1612.79, 36.85, 149.12),
-        ["Pirate Village"] = CFrame.new(-1181.30, 4.75, 3803.54),
-        ["Desert"] = CFrame.new(944.15, 20.91, 4373.30),
-        ["Snow Island"] = CFrame.new(1347.80, 104.66, -1319.73),
-        ["Marineford"] = CFrame.new(-4914.82, 50.96, 4281.02),
-        ["Colosseum"] = CFrame.new(-1427.62, 7.28, -2792.77),
-        ["Sky Island"] = CFrame.new(-4869.10, 733.46, -2667.01),
-        ["Prison"] = CFrame.new(4875.33, 5.65, 734.85),
-        ["Magma Village"] = CFrame.new(-5247.71, 12.88, 8504.96),
-        ["Fountain City"] = CFrame.new(5259.81, 37.35, 4050.02),
-    },
-    Sea2 = {
-        ["Cafe"] = CFrame.new(-380.47, 77.22, 255.82),
-        ["Green Zone"] = CFrame.new(-2448.53, 73.01, -3210.63),
-        ["Cursed Ship"] = CFrame.new(923.40, 125.05, 32885.87),
-        ["Ice Castle"] = CFrame.new(6148.41, 294.38, -6741.11),
-        ["Hot & Cold"] = CFrame.new(-5428.03, 15.06, -5299.43),
-        ["Snow Mountain"] = CFrame.new(609.85, 400.11, -5372.25),
-        ["Graveyard"] = CFrame.new(-5497.06, 47.59, -795.23),
-        ["Factory"] = CFrame.new(632.69, 73.10, 918.66),
-        ["Colosseum Sea 2"] = CFrame.new(-1580.04, 6.35, -2986.47),
-        ["Dark Arena"] = CFrame.new(1000, 100, 1000),
-    },
-    Sea3 = {
-        ["Mansion"] = CFrame.new(-12471.16, 374.94, -7551.67),
-        ["Port Town"] = CFrame.new(-290.73, 6.72, 5343.55),
-        ["Hydra Island"] = CFrame.new(5291.24, 1005.44, 393.76),
-        ["Floating Turtle"] = CFrame.new(-13274.52, 531.82, -7579.22),
-        ["Haunted Castle"] = CFrame.new(-9515.37, 164.00, 5786.06),
-        ["Tiki Outpost"] = CFrame.new(-16218.68, 9.08, 445.61),
-        ["Great Tree"] = CFrame.new(2180.54, 27.81, -6741.54),
-        ["Castle on the Sea"] = CFrame.new(-5039.58, 27.35, 4324.68),
-        ["Cake Land"] = CFrame.new(-2021.32, 37.79, -12028.72),
-        ["Peanut Island"] = CFrame.new(-2104.39, 38.10, -10194.21),
-    }
-}
-
-local DungeonChips = {
-    "Flame", "Ice", "Quake", "Light", "Dark", "Spider", "Rumble", "Magma", "Buddha", "Dough"
-}
-
-local BossList = (World1 and {
-    "The Gorilla King", "Bobby", "The Saw", "Yeti", "Mob Leader", "Vice Admiral",
-    "Saber Expert", "Warden", "Chief Warden", "Swan", "Magma Admiral", "Fishman Lord",
-    "Wysper", "Thunder God", "Cyborg", "Ice Admiral", "Greybeard", "Darkbeard"
-}) or (World2 and {
-    "Diamond", "Jeremy", "Fajita", "Don Swan", "Smoke Admiral", "Awakened Ice Admiral",
-    "Tide Keeper", "Darkbeard", "Cursed Captain", "Order"
-}) or (World3 and {
-    "Stone", "Hydra Leader", "Kilo Admiral", "Captain Elephant", "Beautiful Pirate",
-    "Cake Queen", "Longma", "Soul Reaper", "Dough King", "Katakuri", "Island Boy"
-})
-
-local MaterialList = (World1 and {
-    "Leather + Scrap Metal", "Angel Wings", "Magma Ore", "Fish Tail", "Wood Planks"
-}) or (World2 and {
-    "Leather + Scrap Metal", "Radioactive Material", "Ectoplasm", "Mystic Droplet",
-    "Magma Ore", "Vampire Fang"
-}) or (World3 and {
-    "Scrap Metal", "Demonic Wisp", "Conjured Cocoa", "Dragon Scale", "Gunpowder",
-    "Fish Tail", "Mini Tusk", "Azure Ember"
-})
-
-local MobSpecificTeleports = {
-    ["Darkbeard"] = CFrame.new(1000, 100, 1000),
-    ["Longma"] = CFrame.new(-13510, 584, -6987),
-    ["Terrorshark"] = CFrame.new(-40000, 30, -2000),
-    ["Leviathan"] = CFrame.new(-148073.35, 9.00, 7721.05),
-    ["Tide Keeper"] = CFrame.new(6148.41, 294.38, -6741.11),
-    ["Thunder God"] = CFrame.new(-4869.10, 733.46, -2667.01),
-    ["Don Swan"] = CFrame.new(638.43, 71.76, 918.28),
-    ["Cursed Captain"] = CFrame.new(923.40, 125.05, 32885.87),
-    ["Order"] = CFrame.new(-408.09, 16.04, 247.43),
-    ["Indra"] = CFrame.new(-12471.16, 374.94, -7551.67),
-    ["Kitsune Island"] = CFrame.new(-16526, 108, 752),
-    ["Mirage Island"] = CFrame.new(29221.82, 14890.97, -205.99),
-    ["Prehistoric Island"] = CFrame.new(-16471, 528, 539),
-    ["Island Boy"] = CFrame.new(-16901.26, 84.06, -192.88),
-}
-
-local ZoneCFrames = {
-    ["Zone 1"] = CFrame.new(-21998.37, 30.00, -682.30),
-    ["Zone 2"] = CFrame.new(-26779.52, 30.00, -822.85),
-    ["Zone 3"] = CFrame.new(-31171.95, 30.00, -2256.93),
-    ["Zone 4"] = CFrame.new(-34054.68, 30.21, -2560.12),
-    ["Zone 5"] = CFrame.new(-38887.55, 30.00, -2162.99),
-    ["Zone 6"] = CFrame.new(-44541.76, 30.00, -1244.85),
-    ["Infinite"] = CFrame.new(-148073.35, 9.00, 7721.05)
-}
-
-local function GetMaterialConfig(mat: string): ({string}, CFrame)
-    if mat == "Radioactive Material" and World2 then return {"Factory Staff"}, CFrame.new(-507.78, 72.99, -126.45)
-    elseif mat == "Mystic Droplet" and World2 then return {"Water Fighter"}, CFrame.new(-3352.90, 285.01, -10534.84)
-    elseif mat == "Magma Ore" and World1 then return {"Military Spy"}, CFrame.new(-5850.28, 77.28, 8848.67)
-    elseif mat == "Magma Ore" and World2 then return {"Lava Pirate"}, CFrame.new(-5234.60, 51.95, -4732.27)
-    elseif mat == "Angel Wings" and World1 then return {"Royal Soldier"}, CFrame.new(-7827.15, 5606.91, -1705.58)
-    elseif mat == "Leather + Scrap Metal" and World1 then return {"Pirate", "Brute"}, CFrame.new(-1211.87, 4.78, 3916.83)
-    elseif mat == "Leather + Scrap Metal" and World2 then return {"Marine Captain", "Mercenary"}, CFrame.new(-2010.50, 73.00, -3326.62)
-    elseif mat == "Scrap Metal" and World3 then return {"Pirate Millionaire"}, CFrame.new(-289.63, 43.82, 5583.66)
-    elseif mat == "Ectoplasm" and World2 then return {"Ship Deckhand", "Ship Engineer", "Ship Steward", "Ship Officer"}, CFrame.new(911.35, 125.95, 33159.53)
-    elseif mat == "Conjured Cocoa" and World3 then return {"Chocolate Bar Battler"}, CFrame.new(744.79, 24.76, -12637.72)
-    elseif mat == "Dragon Scale" and World3 then return {"Dragon Crew Warrior"}, CFrame.new(5824.06, 51.38, -1106.69)
-    elseif mat == "Gunpowder" and World3 then return {"Pistol Billionaire"}, CFrame.new(-379.61, 73.84, 5928.52)
-    elseif mat == "Fish Tail" and World3 then return {"Fishman Captain"}, CFrame.new(-10961.01, 331.79, -8914.29)
-    elseif mat == "Mini Tusk" and World3 then return {"Mythological Pirate"}, CFrame.new(-13516.04, 469.81, -6899.16)
-    elseif mat == "Vampire Fang" and World2 then return {"Vampire"}, CFrame.new(-6037.66, 32.18, -1340.65)
-    elseif mat == "Demonic Wisp" and World3 then return {"Demonic Soul"}, CFrame.new(-9579, 6, 6194)
-    elseif mat == "Wood Planks" and World3 then return {"Tree"}, CFrame.new(-16471, 528, 539)
-    elseif mat == "Azure Ember" and World3 then return {"Kitsune Shrine"}, CFrame.new(-16526, 108, 752)
-    end
-    return {}, CFrame.new(0,0,0)
-end
-
---------------------------------------------------------------------------------
--- 6. دمج واجهة AetherUI والتابات الكاملة
---------------------------------------------------------------------------------
-local AetherUI = nil
-local success_ui, err_ui = pcall(function()
-    AetherUI = loadstring(game:HttpGet("https://pastebin.com/raw/yeULgMe0"))()
-end)
-
-if not success_ui or not AetherUI then
-    warn("Haroon Hub: Failed to load AetherUI library. Error:", err_ui)
-    return
-end
-
-AetherUI:InitLoadingScreen("Haroon Hub V12 Ultimate Master Edition", "Initializing Fruits, Raids & Safe Motors...", function()
-    AetherUI:InitKeySystem({"HAROON-2025-VIP", "HAROON-KEY-100"}, function()
-        AetherUI:Notify({Title = "🔥 Haroon Hub V12 Active", Content = "تم دمج مكتبتك بالنظام الجديد بنجاح 100%!", Duration = 4})
-
-        local Window = AetherUI:CreateWindow({
-            Title = "Haroon Hub | Blox Fruits Master",
-            Subtitle = "by: 3amek4222",
-            ToggleKey = Enum.KeyCode.RightControl
-        })
-
-        local MainTab = Window:CreateTab("Main", "rbxassetid://6034287594")
-        local CombatTab = Window:CreateTab("Combat", "rbxassetid://6034834832")
-        local FruitsTab = Window:CreateTab("Fruits Tab", "rbxassetid://6034453535")
-        local RaidTab = Window:CreateTab("Dungeon / Raid", "rbxassetid://6034834832")
-        local FarmingQuestsTab = Window:CreateTab("Farming Quests", "rbxassetid://6034453535")
-        local RaceTab = Window:CreateTab("Race V4 & Mirage", "rbxassetid://6034453535")
-        local SubFarmTab = Window:CreateTab("Sub Farming", "rbxassetid://6034834832")
-        local CakeTab = Window:CreateTab("Cake & Dough", "rbxassetid://6034453535")
-        local SeaTab = Window:CreateTab("Sea Farming", "rbxassetid://6034453535")
-        local AutoQuestsTab = Window:CreateTab("Auto Quests", "rbxassetid://6034453535")
-        local TeleportsTab = Window:CreateTab("Teleports", "rbxassetid://6034453535")
-        local VisualTab = Window:CreateTab("Visuals & ESP", "rbxassetid://6034453535")
-        local MiscTab = Window:CreateTab("Misc", "rbxassetid://6031280882")
-        local SettingsTab = Window:CreateTab("Settings", "rbxassetid://6031280882")
-
-        ---------------------------------------------------------
-        -- 📌 1. TAB: MAIN
-        ---------------------------------------------------------
-        MainTab:CreateSection("خيارات التلفيل الأساسية (Level Farm)")
-
-        MainTab:CreateToggle("تفعيل التجميع التلقائي (Auto Farm Level)", "AutoFarmFlag", false, function(state)
-            _G.Settings.Main["Auto Farm Level"] = state
-            if not state then StopTween() end
-        end)
-
-        MainTab:CreateToggle("تضمين مهمات الزعماء بالتلفيل (Include Bosses)", "IncludeBossQuestFlag", false, function(state)
-            _G.Settings.Main["Include Boss Quests"] = state
-        end)
-
-        MainTab:CreateDropdown("اختر السلاح الفعال (Weapon)", "WeaponFlag", {"Melee", "Sword", "Blox Fruit", "Gun"}, "Melee", function(selected)
-            _G.Settings.Main["Select Weapon"] = selected
-        end)
-
-        MainTab:CreateSlider("ارتفاع الطيران فوق العدو (Farm Distance)", "FarmDistFlag", 10, 50, 28, function(val)
-            _G.Settings.Main["Farm Distance"] = val
-        end)
-
-        MainTab:CreateSlider("سرعة الانتقال الآمنة (Safe Tween Speed)", "TweenSpeedFlag", 100, 300, 180, function(val)
-            _G.Settings.Main["Player Tween Speed"] = val
-        end)
-
-        MainTab:CreateToggle("الضرب السريع الخارق (Fast Attack)", "FastAttackFlag", false, function(state)
-            _G.Settings.Main["Fast Attack"] = state
-        end)
-
-        MainTab:CreateSection("تجميع الماتيريال (Auto Farm Materials)")
-
-        MainTab:CreateDropdown("اختر الماتيريال (Select Material)", "MatDropdownFlag", MaterialList, MaterialList[1], function(selected)
-            _G.Settings.Main["Selected Material"] = selected
-        end)
-
-        MainTab:CreateToggle("تفعيل تجميع الماتيريال (Farm Material)", "FarmMatFlag", false, function(state)
-            _G.Settings.Main["Auto Farm Material"] = state
-            if not state then StopTween() end
-        end)
-
-        MainTab:CreateSection("قتل الزعماء (Auto Farm Bosses)")
-
-        MainTab:CreateDropdown("اختر البوس (Select Boss)", "BossDropdownFlag", BossList, BossList[1], function(selected)
-            _G.Settings.Main["Selected Boss"] = selected
-        end)
-
-        MainTab:CreateToggle("تفعيل قتل البوس المحدد (Auto Farm Boss)", "FarmBossFlag", false, function(state)
-            _G.Settings.Main["Auto Farm Boss"] = state
-            if not state then StopTween() end
-        end)
-
-        MainTab:CreateToggle("تفعيل قتل جميع البوسات المتوفرة (Farm All Bosses)", "FarmAllBossFlag", false, function(state)
-            _G.Settings.Main["Auto Farm All Boss"] = state
-            if not state then StopTween() end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 2. TAB: COMBAT (PVP)
-        ---------------------------------------------------------
-        CombatTab:CreateSection("قتال اللاعبين والـ PVP")
-
-        local playerList = {}
-        for _, p in pairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer then table.insert(playerList, p.Name) end
-        end
-
-        CombatTab:CreateDropdown("اختر اللاعب المستهدف", "PVPPlayerDropdown", playerList, playerList[1] or "None", function(selected)
-            _G.Settings.Combat["Selected Player"] = selected
-        end)
-
-        CombatTab:CreateToggle("مراقبة اللاعب (Spectate Player)", "SpectateFlag", false, function(state)
-            _G.Settings.Combat["Spectate Player"] = state
-            if state and _G.Settings.Combat["Selected Player"] then
-                local target = Players:FindFirstChild(_G.Settings.Combat["Selected Player"])
-                if target and target.Character and target.Character:FindFirstChild("Humanoid") then
-                    workspace.CurrentCamera.CameraSubject = target.Character.Humanoid
-                end
-            else
-                local char, hum = GetCharacter()
-                if char and hum then
-                    workspace.CurrentCamera.CameraSubject = hum
-                end
-            end
-        end)
-
-        CombatTab:CreateToggle("الانتقال إلى اللاعب (Teleport To Player)", "TPPlayerFlag", false, function(state)
-            _G.Settings.Combat["Teleport To Player"] = state
-            if not state then StopTween() end
-            task.spawn(function()
-                while _G.Settings.Combat["Teleport To Player"] do
-                    task.wait()
-                    pcall(function()
-                        local target = Players:FindFirstChild(_G.Settings.Combat["Selected Player"])
-                        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-                            TweenPlayer(target.Character.HumanoidRootPart.CFrame)
-                        end
-                    end)
-                end
-            end)
-        end)
-
-        CombatTab:CreateToggle("تصويب المسدسات التلقائي (Aimbot Gun)", "AimbotGunFlag", false, function(state)
-            _G.Settings.Combat["Aimbot Gun"] = state
-        end)
-
-        CombatTab:CreateSection("خيارات الهروب والعودة في الـ PVP")
-        CombatTab:CreateToggle("تفعيل الهروب والعودة التلقائي (Auto PvP Escape)", "AutoPvPEscapeFlag", false, function(state)
-            _G.Settings.Combat["Auto PvP Escape"] = state
-            if not state then StopTween() end
-        end)
-        CombatTab:CreateSlider("نسبة HP للهروب (Escape HP %)", "EscapeHPSlider", 10, 90, 30, function(val)
-            _G.Settings.Combat["Escape HP %"] = val
-        end)
-        CombatTab:CreateSlider("نسبة HP للعودة (Return HP %)", "ReturnHPSlider", 20, 100, 70, function(val)
-            _G.Settings.Combat["Return HP %"] = val
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 3. TAB: FRUITS TAB
-        ---------------------------------------------------------
-        FruitsTab:CreateSection("نظام الفواكه والتخزين (Blox Fruits Engine)")
-        
-        FruitsTab:CreateToggle("🍎 Fruit Notifier (ESP)", "FruitESPFlag", false, function(state)
-            _G.Settings.Fruits["Fruit ESP"] = state
-            _G.Settings.Visuals["ESP Fruits"] = state
-        end)
-
-        FruitsTab:CreateToggle("🏃 Fruit Sniper (Auto-Collect)", "FruitSniperFlag", false, function(state)
-            _G.Settings.Fruits["Fruit Sniper"] = state
-            if not state then StopTween() end
-        end)
-
-        FruitsTab:CreateToggle("🔄 Auto-Store Fruit", "AutoStoreFruitFlag", false, function(state)
-            _G.Settings.Fruits["Auto Store Fruit"] = state
-        end)
-
-        FruitsTab:CreateButton("🗺️ Show All Fruit Locations", function()
-            _G.Settings.Fruits["Show All Fruits"] = true
-            AetherUI:Notify({Title = "Fruits Scanner", Content = "جاري مسح كافة الفواكه على الخريطة...", Duration = 3})
-            task.wait(5)
-            _G.Settings.Fruits["Show All Fruits"] = false
-        end)
-
-        FruitsTab:CreateButton("🛒 Buy Random Fruit (Cousin)", function()
-            if CommF_ then
-                local res = CommF_:InvokeServer("Cousin", "Buy")
-                AetherUI:Notify({Title = "Fruit Dealer", Content = tostring(res), Duration = 4})
-            end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 4. TAB: DUNGEON / RAID (Auto Next Island المستخرج)
-        ---------------------------------------------------------
-        RaidTab:CreateSection("نظام الـ Dungeon و غارات الفواكه (Dungeon System)")
-
-        RaidTab:CreateDropdown("Select Raid Chip (اختر شريحة الريد)", "DungeonChipDropdown", DungeonChips, DungeonChips[1], function(selected)
-            _G.Settings.Raid["Selected Chip"] = selected
-        end)
-
-        RaidTab:CreateToggle("⚡ Auto Dungeon / Fruits Raid (تفعيل الريد)", "AutoDungeonFlag", false, function(state)
-            _G.Settings.Raid["Auto Dungeon / Raid"] = state
-            if not state then StopTween() end
-        end)
-
-        RaidTab:CreateToggle("🛒 Buy Chip & Start Raid (شراء وبدء تلقائي)", "AutoBuyStartRaidFlag", false, function(state)
-            _G.Settings.Raid["Auto Buy Chip & Start"] = state
-        end)
-
-        RaidTab:CreateToggle("⚔️ Auto Clear Dungeon Waves (مسح وحوش الريد)", "AutoClearDungeonFlag", false, function(state)
-            _G.Settings.Raid["Auto Clear Dungeon Waves"] = state
-            if not state then StopTween() end
-        end)
-
-        RaidTab:CreateToggle("🏝️ Auto Next Island (الانتقال للجزيرة التالية تلقائياً)", "AutoNextIslandFlag", false, function(state)
-            _G.Settings.Raid["Auto Next Island"] = state
-            if not state then StopTween() end
-        end)
-
-        RaidTab:CreateToggle("✨ Auto Awaken Skills (إيقاظ المهارات التلقائي)", "AutoAwakenSkillsFlag", false, function(state)
-            _G.Settings.Raid["Auto Awaken"] = state
-        end)
-
-        RaidTab:CreateToggle("⚡ Law Raid (ريد لاو التلقائي)", "LawRaidFlag", false, function(state)
-            _G.Settings.Raid["Law Raid"] = state
-            if not state then StopTween() end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 5. TAB: FARMING QUESTS (CDK & TTK المستخرج بالكامل)
-        ---------------------------------------------------------
-        FarmingQuestsTab:CreateSection("مهمات السيوف الأسطورية (Legendary Swords)")
-
-        FarmingQuestsTab:CreateDropdown("اختر مهمة السيف", "SwordQuestDropdown", {"Saber V2", "Yama", "Tushita"}, "Saber V2", function(selected)
-            _G.Settings.FarmingQuests["Selected Sword Quest"] = selected
-        end)
-
-        FarmingQuestsTab:CreateToggle("تفعيل أتمتة مهمة السيف", "AutoSwordQuestFlag", false, function(state)
-            _G.Settings.FarmingQuests["Auto Sword Quest"] = state
-            if not state then StopTween() end
-        end)
-
-        FarmingQuestsTab:CreateSection("مهمات السيوف المدمجة الأسطورية (CDK & TTK Engine)")
-
-        FarmingQuestsTab:CreateToggle("⚔️ أتمتة Cursed Dual Katana بالكامل (Auto CDK)", "AutoFarmCDKFlag", false, function(state)
-            _G.Settings.FarmingQuests["Auto Farm CDK"] = state
-            if not state then StopTween() end
-        end)
-
-        FarmingQuestsTab:CreateToggle("⚔️ أتمتة True Triple Katana بالكامل (Auto TTK)", "AutoFarmTTKFlag", false, function(state)
-            _G.Settings.FarmingQuests["Auto Farm TTK"] = state
-            if not state then StopTween() end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 6. TAB: RACE V2, V3, V4 & MIRAGE (النظام المستخرج الكامل)
-        ---------------------------------------------------------
-        RaceTab:CreateSection("ترقية الأجناس (Race V2 & V3 Quests)")
-
-        RaceTab:CreateToggle("🧬 أتمتة مهمة Race V2 (Auto Race V2 Quest)", "AutoRaceV2QuestFlag", false, function(state)
-            _G.Settings.Race["Auto Race V2 Quest"] = state
-            if not state then StopTween() end
-        end)
-
-        RaceTab:CreateDropdown("اختر مهمة Race V3", "RaceV3QuestDropdown", {"Human", "Fishman", "Skypian", "Mink", "Ghoul", "Cyborg"}, "Human", function(selected)
-            _G.Settings.Race["Selected Race V3"] = selected
-        end)
-
-        RaceTab:CreateToggle("🧬 أتمتة مهمة Race V3 (Auto Race V3 Quest)", "AutoRaceV3QuestFlag", false, function(state)
-            _G.Settings.Race["Auto Race V3 Quest"] = state
-            if not state then StopTween() end
-        end)
-
-        RaceTab:CreateToggle("تفعيل مهارة V3 تلقائياً (Auto Race V3 Ability)", "AutoV3AbilityFlag", false, function(state)
-            _G.Settings.Race["Auto Race V3 Ability"] = state
-            task.spawn(function()
-                while _G.Settings.Race["Auto Race V3 Ability"] do
-                    task.wait(1)
-                    if CommE then pcall(function() CommE:FireServer("ActivateAbility") end) end
-                end
-            end)
-        end)
-
-        RaceTab:CreateSection("حزمة الميراج و الترس الأزرق (Mirage Island Suite)")
-
-        RaceTab:CreateToggle("🏝️ البحث التلقائي عن Mirage Island والإبحار لها", "AutoFindMirageFlag", false, function(state)
-            _G.Settings.Race["Auto Find Mirage"] = state
-            if not state then StopTween() end
-        end)
-
-        RaceTab:CreateToggle("🏔️ الانتقال لقمة الميراج (Tween To Highest Mirage)", "TweenMirageFlag", false, function(state)
-            _G.Settings.Race["Tween To Highest Mirage"] = state
-            if not state then StopTween() end
-            task.spawn(function()
-                while _G.Settings.Race["Tween To Highest Mirage"] do
-                    task.wait()
-                    pcall(function()
-                        if workspace.Map:FindFirstChild("MysticIsland") then
-                            for _, v in pairs(workspace.Map.MysticIsland:GetDescendants()) do
-                                if v:IsA("MeshPart") and v.MeshId == "rbxassetid://6745037796" then
-                                    TweenPlayer(v.CFrame, Vector3.new(0, 212, 0))
-                                end
-                            end
-                        end
-                    end)
-                end
-            end)
-        end)
-
-        RaceTab:CreateToggle("⚙️ الانتقال وأخذ الترس الأزرق (Teleport to Gear)", "TeleportToGearFlag", false, function(state)
-            _G.Settings.Race["Teleport To Blue Gear"] = state
-            if not state then StopTween() end
-            task.spawn(function()
-                while _G.Settings.Race["Teleport To Blue Gear"] do
-                    task.wait(0.2)
-                    pcall(function()
-                        if workspace.Map:FindFirstChild("MysticIsland") then
-                            for _, v in pairs(workspace.Map.MysticIsland:GetChildren()) do
-                                if v:IsA("MeshPart") and (v.Material == Enum.Material.Neon or string.find(v.Name:lower(), "gear")) then
-                                    TweenPlayer(v.CFrame)
-                                    if (LocalPlayer.Character.HumanoidRootPart.Position - v.Position).Magnitude < 15 then
-                                        if CommF_ then CommF_:InvokeServer("InteractGear", v) end
-                                    end
-                                end
-                            end
-                        end
-                    end)
-                end
-            end)
-        end)
-
-        RaceTab:CreateToggle("🌕 النظر للقمر وتفعيل المهارة (Look Moon)", "LookMoonFlag", false, function(state)
-            _G.Settings.Race["Look Moon Ability"] = state
-            task.spawn(function()
-                while _G.Settings.Race["Look Moon Ability"] do
-                    task.wait()
-                    pcall(function()
-                        local moonDir = game.Lighting:GetMoonDirection()
-                        local lookAtPos = workspace.CurrentCamera.CFrame.p + moonDir * 100
-                        workspace.CurrentCamera.CFrame = CFrame.lookAt(workspace.CurrentCamera.CFrame.p, lookAtPos)
-                    end)
-                end
-            end)
-        end)
-
-        RaceTab:CreateToggle("🚪 الانتقال لباب الترايل تلقائياً (Teleport To Race Door)", "TPDoorFlag", false, function(state)
-            _G.Settings.Race["Teleport To Race Door"] = state
-            if not state then StopTween() end
-            if state then
-                local myRace = (LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Race")) and LocalPlayer.Data.Race.Value or "Human"
-                local raceDoors = {
-                    ["Human"] = CFrame.new(29221.82, 14890.97, -205.99),
-                    ["Skypian"] = CFrame.new(28960.15, 14919.62, 235.03),
-                    ["Fishman"] = CFrame.new(28231.17, 14890.97, -211.64),
-                    ["Cyborg"] = CFrame.new(28502.68, 14895.97, -423.72),
-                    ["Ghoul"] = CFrame.new(28674.24, 14890.67, 445.43),
-                    ["Mink"] = CFrame.new(29012.34, 14890.97, -380.14)
-                }
-                local char, hrp = GetCharacter()
-                if char and hrp then
-                    hrp.CFrame = CFrame.new(28286.35, 14895.30, 102.62)
-                    task.wait(0.3)
-                    if raceDoors[myRace] then TweenPlayer(raceDoors[myRace]) end
-                end
-            end
-        end)
-
-        RaceTab:CreateSection("التدريب واجتياز الترايل (Race V4 Train & Trial)")
-
-        RaceTab:CreateToggle("التدريب التلقائي للـ V4 (Auto Train)", "AutoTrainFlag", false, function(state)
-            _G.Settings.Race["Auto Train"] = state
-            if not state then StopTween() end
-        end)
-
-        RaceTab:CreateToggle("اجتياز الترايل تلقائياً (Auto Trial)", "AutoTrialFlag", false, function(state)
-            _G.Settings.Race["Auto Trial"] = state
-            if not state then StopTween() end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 7. TAB: SUB FARMING
-        ---------------------------------------------------------
-        SubFarmTab:CreateSection("صياد النخبة والعظام (Elite & Bones)")
-
-        SubFarmTab:CreateToggle("صياد النخبة التلقائي (Auto Elite Hunter)", "EliteFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Elite Hunter"] = state
-            if not state then StopTween() end
-        end)
-
-        SubFarmTab:CreateToggle("صياد النخبة مع السيرفر هوب (Elite Hop)", "EliteHopFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Elite Hunter Hop"] = state
-            if not state then StopTween() end
-        end)
-
-        SubFarmTab:CreateToggle("تجميع العظام التلقائي (Auto Farm Bones)", "BoneFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Farm Bone"] = state
-            if not state then StopTween() end
-        end)
-
-        SubFarmTab:CreateSection("تجميع الصناديق التلقائي (Auto Chests)")
-
-        SubFarmTab:CreateToggle("جمع الصناديق بالطيران (Chest Tween)", "ChestTweenFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Chest Tween"] = state
-            if not state then StopTween() end
-        end)
-
-        SubFarmTab:CreateToggle("جمع الصناديق الفوري (Chest Instant)", "ChestInstantFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Chest Instant"] = state
-            if not state then StopTween() end
-        end)
-
-        SubFarmTab:CreateToggle("توقف عند الحصول على دروب نادر (Stop on Items)", "StopItemsFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Stop Items"] = state
-        end)
-
-        SubFarmTab:CreateSection("تلفيل الماستري التلقائي (Auto Mastery)")
-
-        SubFarmTab:CreateToggle("تلفيل ماستري Melee (لـ 400)", "AutoMasteryMeleeFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Mastery Melee"] = state
-            if not state then StopTween() end
-        end)
-        SubFarmTab:CreateToggle("تلفيل ماستري Swords (لـ 400)", "AutoMasterySwordsFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Mastery Swords"] = state
-            if not state then StopTween() end
-        end)
-        SubFarmTab:CreateToggle("تلفيل ماستري Blox Fruits (لـ 400)", "AutoMasteryBloxFruitsFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Mastery Blox Fruits"] = state
-            if not state then StopTween() end
-        end)
-        SubFarmTab:CreateToggle("تلفيل ماستري Guns (لـ 400)", "AutoMasteryGunsFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Mastery Guns"] = state
-            if not state then StopTween() end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 8. TAB: CAKE PRINCE & DOUGH KING
-        ---------------------------------------------------------
-        CakeTab:CreateSection("الكيك برنس و دو كينغ")
-
-        CakeTab:CreateToggle("تلفيل وقتل الكاتكوري بالكامل (Auto Katakuri)", "KatakuriFlag", false, function(state)
-            _G.Settings.Cake["Auto Katakuri"] = state
-            if not state then StopTween() end
-        end)
-
-        CakeTab:CreateToggle("استدعاء الكيك برنس التلقائي (Auto Spawn Prince)", "SpawnPrinceFlag", false, function(state)
-            _G.Settings.Cake["Auto Spawn Cake Prince"] = state
-        end)
-
-        CakeTab:CreateToggle("قتل الكيك برنس فور ظهوره (Auto Kill Cake Prince)", "KillPrinceFlag", false, function(state)
-            _G.Settings.Cake["Auto Kill Cake Prince"] = state
-            if not state then StopTween() end
-        end)
-
-        CakeTab:CreateToggle("قتل دو كينغ فور ظهوره (Auto Kill Dough King)", "KillDoughFlag", false, function(state)
-            _G.Settings.Cake["Auto Kill Dough King"] = state
-            if not state then StopTween() end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 9. TAB: SEA FARMING (Prehistoric & Draco Trail)
-        ---------------------------------------------------------
-        SeaTab:CreateSection("الجزيرة القديمة وما قبل التاريخ (Prehistoric Engine)")
-
-        SeaTab:CreateButton("🏝️ Teleport Prehistoric Island (انتقال فوري)", function()
-            TweenPlayer(MobSpecificTeleports["Prehistoric Island"])
-            AetherUI:Notify({Title = "Teleport", Content = "جاري الانتقال إلى الجزيرة القديمة...", Duration = 2})
-        end)
-
-        SeaTab:CreateToggle("🦖 أتمتة الجزيرة القديمة (Auto Prehistoric Island)", "AutoPrehistoricFlag", false, function(state)
-            _G.Settings.Sea["Auto Prehistoric Island"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("🔥 إنهاء الجزيرة والشعلات (Auto Complete Prehistoric Island)", "AutoCompletePrehistoricFlag", false, function(state)
-            _G.Settings.Sea["Auto Complete Prehistoric Island"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("🐉 تدريب دراكو وقهر الوحوش (Auto Draco Trail)", "AutoDracoTrailFlag", false, function(state)
-            _G.Settings.Sea["Auto Draco Trail"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateSection("إبحار وأحداث البحر والبحث عن الجزر")
-
-        SeaTab:CreateDropdown("اختر القارب (Select Boat)", "BoatDropdownFlag", {"Guardian", "Beast Hunter", "PirateGrandBrigade", "MarineGrandBrigade"}, "Guardian", function(selected)
-            _G.Settings.Sea["Selected Boat"] = selected
-        end)
-
-        SeaTab:CreateDropdown("اختر منطقة الإبحار (Select Zone)", "ZoneDropdownFlag", {"Zone 1", "Zone 2", "Zone 3", "Zone 4", "Zone 5", "Zone 6", "Infinite"}, "Zone 5", function(selected)
-            _G.Settings.Sea["Selected Zone"] = selected
-        end)
-
-        SeaTab:CreateToggle("تفعيل الإبحار التلقائي (Sail Boat)", "SailBoatFlag", false, function(state)
-            _G.Settings.Sea["Sail Boat"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateSection("قتال مخلوقات وحوش البحر (Sea Mobs Farming)")
-
-        SeaTab:CreateToggle("🦈 قتل أسماك القرش (Auto Farm Shark)", "SharkFlag", false, function(state)
-            _G.Settings.Sea["Auto Farm Shark"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("🐟 قتل البيرانا (Auto Farm Piranha)", "PiranhaFlag", false, function(state)
-            _G.Settings.Sea["Auto Farm Piranha"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("🧜‍♂️ قتل طاقم الأسماك (Fish Crew Member)", "CrewFlag", false, function(state)
-            _G.Settings.Sea["Auto Farm Fish Crew Member"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("👻 قتل السفن الشبحية (Ghost Ship)", "GhostShipFlag", false, function(state)
-            _G.Settings.Sea["Auto Farm Ghost Ship"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("🦖 قتل التيرور شارك (Terrorshark)", "TerrorFlag", false, function(state)
-            _G.Settings.Sea["Auto Farm Terrorshark"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("🌊 قتل السي بيست (Seabeasts)", "SeabeastFlag", false, function(state)
-            _G.Settings.Sea["Auto Farm Seabeasts"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("🛡️ تفادي هجمات السي بيست (Dodge Seabeasts)", "DodgeSBFlag", true, function(state)
-            _G.Settings.Sea["Dodge Seabeasts Attack"] = state
-        end)
-
-        SeaTab:CreateToggle("🦊 البحث التلقائي عن Kitsune Island والإبحار لها", "AutoFindKitsuneIslandFlag", false, function(state)
-            _G.Settings.Sea["Auto Find Kitsune Island"] = state
-            if not state then StopTween() end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 10. TAB: AUTO QUESTS
-        ---------------------------------------------------------
-        AutoQuestsTab:CreateSection("أخذ وإنهاء المهمات المباشرة")
-
-        AutoQuestsTab:CreateButton("أخذ مهمة القرود (Jungle Quest 1)", function()
-            if CommF_ then CommF_:InvokeServer("StartQuest", "JungleQuest", 1) end
-        end)
-        AutoQuestsTab:CreateButton("أخذ مهمة القراصنة (Buggy Quest 1)", function()
-            if CommF_ then CommF_:InvokeServer("StartQuest", "BuggyQuest1", 1) end
-        end)
-        AutoQuestsTab:CreateButton("إلغاء المهمة الحالية (Abandon Quest)", function()
-            if CommF_ then CommF_:InvokeServer("AbandonQuest") end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 11. TAB: TELEPORTS (أزرار للبحار وتوغلات للجزر)
-        ---------------------------------------------------------
-        TeleportsTab:CreateSection("الانتقال بين البحار (Sea Travel Buttons)")
-
-        TeleportsTab:CreateButton("🌊 الانتقال إلى Sea 1 (World 1)", function()
-            if CommF_ then CommF_:InvokeServer("TravelMain") end
-        end)
-
-        TeleportsTab:CreateButton("🌊 الانتقال إلى Sea 2 (World 2)", function()
-            if CommF_ then CommF_:InvokeServer("TravelDressrosa") end
-        end)
-
-        TeleportsTab:CreateButton("🌊 الانتقال إلى Sea 3 (World 3)", function()
-            if CommF_ then CommF_:InvokeServer("TravelZou") end
-        end)
-
-        TeleportsTab:CreateSection("انتقالات جزر العالم الأول (Sea 1 Toggles)")
-        for islandName, cf in pairs(FullIslandLocations.Sea1) do
-            local key = "TP_" .. islandName
-            TeleportsTab:CreateToggle("📍 انتقال إلى " .. islandName, key, false, function(state)
-                _G.Settings.Teleports[key] = state
-                if state then
-                    TweenPlayer(cf)
-                    task.wait(1)
-                    _G.Settings.Teleports[key] = false
-                end
-            end)
-        end
-
-        TeleportsTab:CreateSection("انتقالات جزر العالم الثاني (Sea 2 Toggles)")
-        for islandName, cf in pairs(FullIslandLocations.Sea2) do
-            local key = "TP_" .. islandName
-            TeleportsTab:CreateToggle("📍 انتقال إلى " .. islandName, key, false, function(state)
-                _G.Settings.Teleports[key] = state
-                if state then
-                    TweenPlayer(cf)
-                    task.wait(1)
-                    _G.Settings.Teleports[key] = false
-                end
-            end)
-        end
-
-        TeleportsTab:CreateSection("انتقالات جزر العالم الثالث (Sea 3 Toggles)")
-        for islandName, cf in pairs(FullIslandLocations.Sea3) do
-            local key = "TP_" .. islandName
-            TeleportsTab:CreateToggle("📍 انتقال إلى " .. islandName, key, false, function(state)
-                _G.Settings.Teleports[key] = state
-                if state then
-                    TweenPlayer(cf)
-                    task.wait(1)
-                    _G.Settings.Teleports[key] = false
-                end
-            end)
-        end
-
-        ---------------------------------------------------------
-        -- 📌 12. TAB: VISUALS & ESP (جميع التوغلات Off افتراضياً)
-        ---------------------------------------------------------
-        VisualTab:CreateSection("كاشفات العناصر ورادار المسافات (All Toggles Off)")
-
-        VisualTab:CreateToggle("👤 ESP Players (كاشف اللاعبين)", "ESPPlayersFlag", false, function(state)
-            _G.Settings.Visuals["ESP Players"] = state
-        end)
-
-        VisualTab:CreateToggle("💀 ESP Bosses (كاشف الزعماء)", "ESPBossesFlag", false, function(state)
-            _G.Settings.Visuals["ESP Bosses"] = state
-        end)
-
-        VisualTab:CreateToggle("🍎 ESP Fruits (كاشف الفواكه)", "ESPFruitsFlag", false, function(state)
-            _G.Settings.Visuals["ESP Fruits"] = state
-        end)
-
-        VisualTab:CreateToggle("📦 ESP Chests (كاشف الصناديق)", "ESPChestsFlag", false, function(state)
-            _G.Settings.Visuals["ESP Chests"] = state
-        end)
-
-        VisualTab:CreateToggle("👾 ESP Enemies (كاشف الوحوش والأعداء)", "ESPEnemiesFlag", false, function(state)
-            _G.Settings.Visuals["ESP Enemies"] = state
-        end)
-
-        VisualTab:CreateToggle("🏝️ ESP Mirage Island", "ESPMirageFlag", false, function(state)
-            _G.Settings.Visuals["ESP Mirage Island"] = state
-        end)
-
-        VisualTab:CreateToggle("🦊 ESP Kitsune Island", "ESPKitsuneFlag", false, function(state)
-            _G.Settings.Visuals["ESP Kitsune Island"] = state
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 13. TAB: MISC (Auto Stats وحالة السيرفر)
-        ---------------------------------------------------------
-        MiscTab:CreateSection("توزيع النقاط التلقائي (Auto Stats Engine)")
-
-        MiscTab:CreateDropdown("اختر الخاصية (Select Stat)", "SelectStatDropdown", {"Melee", "Defense", "Sword", "Gun", "Demon Fruit"}, "Melee", function(selected)
-            _G.Settings.Stats["Selected Stat"] = selected
-        end)
-
-        MiscTab:CreateSlider("عدد النقاط لكل دورة (Points Per Tick)", "StatPointsSlider", 1, 100, 1, function(val)
-            _G.Settings.Stats["Points Per Tick"] = val
-        end)
-
-        MiscTab:CreateToggle("⚡ تفعيل توزيع النقاط التلقائي (Auto Stats)", "AutoStatsToggleFlag", false, function(state)
-            _G.Settings.Stats["Auto Stats"] = state
-        end)
-
-        MiscTab:CreateSection("حالة السيرفر والعدادات المباشرة (Server Status)")
-
-        local serverClockParagraph = MiscTab:CreateParagraph({
-            Title = "⏰ Server Clock Time (ساعة السيرفر)",
-            Desc = "جارٍ التحميل...",
-            Image = "rbxassetid://6034287594",
-            ImageSize = 20
-        })
-
-        local playerTimeParagraph = MiscTab:CreateParagraph({
-            Title = "⏱️ Time Connected In Server (مدة بقائك بالسيرفر)",
-            Desc = "0 Hours 0 Minutes 0 Seconds",
-            Image = "rbxassetid://6034287594",
-            ImageSize = 20
-        })
-
-        local cakePrinceCountParagraph = MiscTab:CreateParagraph({
-            Title = "👑 Cake Prince Status (عداد الأعداء المتبقي)",
-            Desc = "جارٍ جلب البيانات الحية...",
-            Image = "rbxassetid://6034834832",
-            ImageSize = 20
-        })
-
-        local mirageStatusParagraph = MiscTab:CreateParagraph({
-            Title = "🏝️ Mirage Island Status",
-            Desc = "جارٍ الفحص...",
-            Image = "rbxassetid://6034453535",
-            ImageSize = 20
-        })
-
-        local kitsuneStatusParagraph = MiscTab:CreateParagraph({
-            Title = "🦊 Kitsune Island Status",
-            Desc = "جارٍ الفحص...",
-            Image = "rbxassetid://6034453535",
-            ImageSize = 20
-        })
-
-        task.spawn(function()
-            while task.wait(1) do
-                pcall(function()
-                    local clockTime = game.Lighting.ClockTime
-                    local hours = math.floor(clockTime)
-                    local minutes = math.floor((clockTime - hours) * 60)
-                    serverClockParagraph:SetDesc(string.format("%02d:%02d", hours, minutes))
-
-                    local gameTime = math.floor(workspace.DistributedGameTime + 0.5)
-                    local sH = math.floor(gameTime / 3600) % 24
-                    local sM = math.floor(gameTime / 60) % 60
-                    local sS = math.floor(gameTime) % 60
-                    playerTimeParagraph:SetDesc(sH .. " Hours " .. sM .. " Minutes " .. sS .. " Seconds")
-
-                    if World3 and CommF_ then
-                        local princeData = CommF_:InvokeServer("CakePrinceSpawner")
-                        if typeof(princeData) == "string" then
-                            if string.find(princeData, "spawned") or string.find(princeData, "ready") then
-                                cakePrinceCountParagraph:SetDesc("👑 Cake Prince Is Spawned! (تم استدعاء الكيك برنس!)")
-                            else
-                                local rem = string.match(princeData, "%d+")
-                                cakePrinceCountParagraph:SetDesc(rem and ("⚔️ متبقي " .. rem .. " بوت/عدو لاستدعاء Cake Prince") or princeData)
-                            end
-                        end
-                    else
-                        cakePrinceCountParagraph:SetDesc("متوفر في العالم الثالث فقط (Sea 3 Only)")
-                    end
-
-                    local mirageIsland = workspace.Map:FindFirstChild("MysticIsland")
-                    if mirageIsland then
-                        local char, hrp = GetCharacter()
-                        local dist = hrp and math.floor((hrp.Position - mirageIsland.WorldPivot.Position).Magnitude) or 0
-                        mirageStatusParagraph:SetDesc("✅ ظهرت بالفعل! | المسافة: " .. dist .. "m")
-                    else
-                        mirageStatusParagraph:SetDesc("❌ لم تظهر بعد")
-                    end
-
-                    local kitsuneIsland = workspace.Map:FindFirstChild("KitsuneIsland")
-                    if kitsuneIsland then
-                        local char, hrp = GetCharacter()
-                        local dist = hrp and math.floor((hrp.Position - kitsuneIsland.WorldPivot.Position).Magnitude) or 0
-                        kitsuneStatusParagraph:SetDesc("✅ ظهرت بالفعل! | المسافة: " .. dist .. "m")
-                    else
-                        kitsuneStatusParagraph:SetDesc("❌ لم تظهر بعد")
-                    end
-                end)
-            end
-        end)
-
-        MiscTab:CreateSection("إعدادات الفريق والـ Haki")
-
-        MiscTab:CreateToggle("تفعيل الـ Ken (Buso Haki) تلقائياً", "AutoKenFlag", false, function(state)
-            _G.Settings.Misc["Auto Ken (Buso Haki)"] = state
-        end)
-
-        MiscTab:CreateToggle("الانضمام إلى فريق المارينز", "SetTeamMarinesFlag", false, function(state)
-            _G.Settings.Misc["Set Team to Marines"] = state
-            if state and CommF_ then CommF_:InvokeServer("SetTeam", "Marines") end
-        end)
-
-        MiscTab:CreateToggle("الانضمام إلى فريق القراصنة", "SetTeamPiratesFlag", false, function(state)
-            _G.Settings.Misc["Set Team to Pirates"] = state
-            if state and CommF_ then CommF_:InvokeServer("SetTeam", "Pirates") end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 14. TAB: SETTINGS
-        ---------------------------------------------------------
-        SettingsTab:CreateSection("إعدادات وتحكم السكربت")
-
-        SettingsTab:CreateButton("إعادة دخول السيرفر (Rejoin)", function()
-            TeleportService:Teleport(game.PlaceId, LocalPlayer)
-        end)
-
-        SettingsTab:CreateButton("إغلاق السكربت بالكامل (Destroy Hub)", function()
-            local master = game:GetService("CoreGui"):FindFirstChild("HaroonHub_Master") or game:GetService("Players").LocalPlayer.PlayerGui:FindFirstChild("HaroonHub_Master")
-            if master then master:Destroy() end
-        end)
-    end)
-end)
-
---------------------------------------------------------------------------------
--- 7. حلقة التلفيل الفردي والانتقال المباشر (Single-Target Master Loop)
---------------------------------------------------------------------------------
-task.spawn(function()
-    while task.wait(0.08) do
-        if _G.Settings.Main["Auto Farm Level"] then
-            pcall(function()
-                local char, hrp, hum = GetCharacter()
-                if not char or not hrp or not hum or hum.Health <= 0 then return end
-
-                CheckQuest()
-                AutoHaki()
-
-                local questGui = LocalPlayer.PlayerGui:FindFirstChild("Main") and LocalPlayer.PlayerGui.Main:FindFirstChild("Quest")
-
-                if not questGui or not questGui.Visible or not string.find(questGui.Container.QuestTitle.Title.Text, CurrentQuest.NameMon) then
-                    if CommF_ then CommF_:InvokeServer("AbandonQuest") end
-                    TweenPlayer(CurrentQuest.CFrameQuest, Vector3.new(0, 5, 0))
-
-                    if (hrp.Position - CurrentQuest.CFrameQuest.Position).Magnitude <= 20 then
-                        if CommF_ then CommF_:InvokeServer("StartQuest", CurrentQuest.NameQuest, CurrentQuest.LevelQuest) end
-                    end
-                else
-                    local targetMob = nil
-                    local closestDistance = math.huge
-
-                    for _, v in pairs(workspace.Enemies:GetChildren()) do
-                        if v:IsA("Model") and v.Name == CurrentQuest.Mon then
-                            local root = v:FindFirstChild("HumanoidRootPart")
-                            local mobHum = v:FindFirstChildOfClass("Humanoid")
-                            if root and mobHum and mobHum.Health > 0 then
-                                local dist = (hrp.Position - root.Position).Magnitude
-                                if dist < closestDistance then
-                                    closestDistance = dist
-                                    targetMob = v
-                                end
-                            end
-                        end
-                    end
-
-                    if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
-                        TweenPlayer(targetMob.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
-                        SmartAttackMob(targetMob)
-                    else
-                        TweenPlayer(CurrentQuest.CFrameMon, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
-                    end
-                end
-            end)
-        end
-    end
-end)
-
---------------------------------------------------------------------------------
--- 8. محرك الإبحار والقتال البحري والجزيرة القديمة (Sea & Prehistoric Engine)
---------------------------------------------------------------------------------
-local function GetMyBoat(boatName: string): Model?
-    if workspace:FindFirstChild("Boats") then
-        for _, b in pairs(workspace.Boats:GetChildren()) do
-            if b.Name == boatName and b:FindFirstChild("VehicleSeat") then
-                return b
-            end
-        end
-    end
-    return nil
-end
-
-task.spawn(function()
-    while task.wait(0.2) do
-        if World3 then
-            pcall(function()
-                local char, hrp, hum = GetCharacter()
-                if not char or not hrp or not hum then return end
-
-                -- 1. أتمتة الجزيرة القديمة وما قبل التاريخ Prehistoric Engine
-                if _G.Settings.Sea["Auto Prehistoric Island"] or _G.Settings.Sea["Auto Complete Prehistoric Island"] or _G.Settings.Sea["Auto Draco Trail"] then
-                    local targetPreMob = nil
-                    for _, mName in pairs({"Isle Outlaw", "Island Boy", "Sun-kissed Warrior", "Terrorshark"}) do
-                        local mob = workspace.Enemies:FindFirstChild(mName)
-                        if mob and mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChildOfClass("Humanoid") and mob.Humanoid.Health > 0 then
-                            targetPreMob = mob
-                            break
-                        end
-                    end
-
-                    if targetPreMob then
-                        AutoHaki()
-                        TweenPlayer(targetPreMob.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
-                        SmartAttackMob(targetPreMob)
-                        return
-                    else
-                        TweenPlayer(MobSpecificTeleports["Prehistoric Island"], Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
-                    end
-                end
-
-                -- 2. فحص وهجوم أعداء ومخلوقات البحر
-                local targetSeaEnemy = nil
-                local allowedEnemies = {}
-                if _G.Settings.Sea["Auto Farm Shark"] then table.insert(allowedEnemies, "Shark") end
-                if _G.Settings.Sea["Auto Farm Piranha"] then table.insert(allowedEnemies, "Piranha") end
-                if _G.Settings.Sea["Auto Farm Fish Crew Member"] then table.insert(allowedEnemies, "Fish Crew Member") end
-                if _G.Settings.Sea["Auto Farm Ghost Ship"] then table.insert(allowedEnemies, "Ghost Ship") table.insert(allowedEnemies, "FishBoat") end
-                if _G.Settings.Sea["Auto Farm Terrorshark"] then table.insert(allowedEnemies, "Terrorshark") end
-
-                if #allowedEnemies > 0 and workspace:FindFirstChild("Enemies") then
-                    for _, enemy in pairs(workspace.Enemies:GetChildren()) do
-                        if table.find(allowedEnemies, enemy.Name) and enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChildOfClass("Humanoid") and enemy.Humanoid.Health > 0 then
-                            targetSeaEnemy = enemy
-                            break
-                        end
-                    end
-                end
-
-                if targetSeaEnemy then
-                    if hum.Sit then hum.Sit = false end
-                    AutoHaki()
-                    TweenPlayer(targetSeaEnemy.HumanoidRootPart.CFrame, Vector3.new(0, 25, 0))
-                    SmartAttackMob(targetSeaEnemy)
-                    return
-                end
-
-                -- قتال السي بيست (SeaBeasts)
-                if _G.Settings.Sea["Auto Farm Seabeasts"] and workspace:FindFirstChild("SeaBeasts") then
-                    for _, sb in pairs(workspace.SeaBeasts:GetChildren()) do
-                        if sb:FindFirstChild("HumanoidRootPart") and sb:FindFirstChildOfClass("Humanoid") and sb.Humanoid.Health > 0 then
-                            if hum.Sit then hum.Sit = false end
-                            AutoHaki()
-                            local dodgeOffset = _G.Settings.Sea["Dodge Seabeasts Attack"] and Vector3.new(math.random(-50, 50), 55, math.random(-50, 50)) or Vector3.new(0, 55, 0)
-                            TweenPlayer(sb.HumanoidRootPart.CFrame, dodgeOffset)
-                            FastAttackTarget(sb)
-                            return
-                        end
-                    end
-                end
-
-                -- الفحص الفوري عن Mirage أو Kitsune Island
-                local mirage = workspace.Map:FindFirstChild("MysticIsland")
-                local kitsune = workspace.Map:FindFirstChild("KitsuneIsland")
-
-                if _G.Settings.Race["Auto Find Mirage"] and mirage then
-                    TweenPlayer(mirage.WorldPivot)
-                    return
-                end
-
-                if _G.Settings.Sea["Auto Find Kitsune Island"] and kitsune then
-                    TweenPlayer(kitsune.WorldPivot)
-                    return
-                end
-
-                -- الإبحار التلقائي بالقارب
-                if _G.Settings.Sea["Sail Boat"] or _G.Settings.Race["Auto Find Mirage"] or _G.Settings.Sea["Auto Find Kitsune Island"] then
-                    local boat = GetMyBoat(_G.Settings.Sea["Selected Boat"])
-                    if not boat then
-                        local buyPos = MobSpecificTeleports["Kitsune Island"]
-                        if (hrp.Position - buyPos.Position).Magnitude > 30 then
-                            TweenPlayer(buyPos)
-                        else
-                            if CommF_ then CommF_:InvokeServer("BuyBoat", _G.Settings.Sea["Selected Boat"]) end
-                        end
-                    else
-                        if not hum.Sit then
-                            hrp.CFrame = boat.VehicleSeat.CFrame * CFrame.new(0, 1.5, 0)
-                        else
-                            local targetZone = ZoneCFrames[_G.Settings.Sea["Selected Zone"]] or ZoneCFrames["Zone 5"]
-                            local dist = (boat.VehicleSeat.Position - targetZone.Position).Magnitude
-                            if dist > 100 then
-                                local tween = TweenService:Create(boat.VehicleSeat, TweenInfo.new(dist / _G.Settings.Sea["Boat Tween Speed"], Enum.EasingStyle.Linear), {CFrame = targetZone})
-                                tween:Play()
-                            end
-                        end
-                    end
-                end
-            end)
-        end
-    end
-end)
-
---------------------------------------------------------------------------------
--- 9. محرك تجميع وسرقة وتخزين الفواكه (Fruits Automation Loop)
---------------------------------------------------------------------------------
-task.spawn(function()
-    while task.wait(0.5) do
-        if _G.Settings.Fruits["Auto Store Fruit"] then
-            pcall(function()
-                local char = LocalPlayer.Character
-                if char then
-                    for _, tool in pairs(char:GetChildren()) do
-                        if tool:IsA("Tool") and (string.find(tool.Name, "Fruit") or tool.ToolTip == "Blox Fruit") then
-                            if CommF_ then CommF_:InvokeServer("StoreFruit", tool.Name, tool) end
-                        end
-                    end
-                end
-                for _, tool in pairs(LocalPlayer.Backpack:GetChildren()) do
-                    if tool:IsA("Tool") and (string.find(tool.Name, "Fruit") or tool.ToolTip == "Blox Fruit") then
-                        if CommF_ then CommF_:InvokeServer("StoreFruit", tool.Name, tool) end
-                    end
-                end
-            end)
-        end
-
-        if _G.Settings.Fruits["Fruit Sniper"] then
-            pcall(function()
-                local char, hrp = GetCharacter()
-                if not char or not hrp then return end
-
-                for _, obj in pairs(workspace:GetChildren()) do
-                    if obj:IsA("Tool") and (string.find(obj.Name, "Fruit") or string.find(obj.Name, "Blox")) then
-                        local handle = obj:FindFirstChild("Handle") or obj.PrimaryPart
-                        if handle then
-                            TweenPlayer(handle.CFrame)
-                            break
-                        end
-                    end
-                end
-            end)
-        end
-    end
-end)
-
---------------------------------------------------------------------------------
--- 10. محرك الـ Dungeon / Fruits Raid (مع Auto Next Island)
---------------------------------------------------------------------------------
-task.spawn(function()
-    while task.wait(0.5) do
-        if _G.Settings.Raid["Auto Dungeon / Raid"] or _G.Settings.Raid["Auto Buy Chip & Start"] or _G.Settings.Raid["Auto Clear Dungeon Waves"] or _G.Settings.Raid["Auto Next Island"] then
-            pcall(function()
-                local char, hrp, hum = GetCharacter()
-                if not char or not hrp or not hum then return end
-
-                -- شراء الشريحة وبدء الريد
-                if _G.Settings.Raid["Auto Buy Chip & Start"] then
-                    if CommF_ then
-                        CommF_:InvokeServer("RaidsNpc", "Select", _G.Settings.Raid["Selected Chip"])
-                        task.wait(0.5)
-                        CommF_:InvokeServer("RaidsNpc", "Start")
-                    end
-                end
-
-                -- تنظيف وتصفية وحوش الريد
-                if _G.Settings.Raid["Auto Clear Dungeon Waves"] and workspace:FindFirstChild("Enemies") then
-                    for _, mob in pairs(workspace.Enemies:GetChildren()) do
-                        if mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChildOfClass("Humanoid") and mob.Humanoid.Health > 0 then
-                            AutoHaki()
-                            TweenPlayer(mob.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
-                            SmartAttackMob(mob)
-                            break
-                        end
-                    end
-                end
-
-                -- الانتقال التلقائي للجزيرة التالية في الريد فور انتهاء الموجة
-                if _G.Settings.Raid["Auto Next Island"] and workspace:FindFirstChild("Locations") then
-                    for _, loc in pairs(workspace.Locations:GetChildren()) do
-                        if string.find(loc.Name:lower(), "island") or string.find(loc.Name:lower(), "raid") then
-                            TweenPlayer(loc.CFrame * CFrame.new(0, 30, 0))
-                            break
-                        end
-                    end
-                end
-
-                -- إيقاظ الفاكهة التلقائي
-                if _G.Settings.Raid["Auto Awaken"] and CommF_ then
-                    CommF_:InvokeServer("AwakeningExpert", "Awaken")
-                end
-            end)
-        end
-    end
-end)
-
---------------------------------------------------------------------------------
--- 11. محرك الـ Auto Stats
---------------------------------------------------------------------------------
-task.spawn(function()
-    while task.wait(0.5) do
-        if _G.Settings.Stats["Auto Stats"] then
-            pcall(function()
-                local points = LocalPlayer.Data.Points.Value
-                if points and points > 0 then
-                    local targetStat = _G.Settings.Stats["Selected Stat"]
-                    local addCount = math.min(points, _G.Settings.Stats["Points Per Tick"] or 1)
-                    if CommF_ then
-                        CommF_:InvokeServer("AddPoint", targetStat, addCount)
-                    end
-                end
-            end)
-        end
-    end
-end)
-
---------------------------------------------------------------------------------
--- 12. محرك ترقية الأجناس الاحترافي (Race V2 & V3 Master Loop)
---------------------------------------------------------------------------------
-task.spawn(function()
-    while task.wait(0.5) do
-        -- أتمتة Race V2 الكاملة (جمع الأزهار والتسليم)
-        if _G.Settings.Race["Auto Race V2 Quest"] and World2 then
-            pcall(function()
-                local char, hrp = GetCharacter()
-                if not char or not hrp then return end
-
-                local flowers = {"Flower1", "Flower2", "Flower3"}
-                local foundFlower = false
-
-                for _, fName in pairs(flowers) do
-                    local flowerObj = workspace:FindFirstChild(fName) or (workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild(fName))
-                    if flowerObj and flowerObj:IsA("BasePart") then
-                        foundFlower = true
-                        TweenPlayer(flowerObj.CFrame)
-                        break
-                    end
-                end
-
-                if not foundFlower then
-                    local alchemistPos = CFrame.new(-2440.79, 71.71, -3216.06)
-                    if (hrp.Position - alchemistPos.Position).Magnitude > 20 then
-                        TweenPlayer(alchemistPos)
-                    else
-                        if CommF_ then CommF_:InvokeServer("Alchemist", "1") end
-                    end
-                end
-            end)
-        end
-
-        -- أتمتة Race V3 الكاملة بحسب متطلبات الجنس
-        if _G.Settings.Race["Auto Race V3 Quest"] and World2 then
-            pcall(function()
-                local char, hrp = GetCharacter()
-                if not char or not hrp then return end
-
-                local selectedRace = _G.Settings.Race["Selected Race V3"]
-                local arouPos = CFrame.new(-2440.79, 71.71, -3216.06)
-
-                if selectedRace == "Human" then
-                    -- قتل الزعماء الثلاثة للـ Human V3
-                    for _, bossName in pairs({"Jeremy", "Diamond", "Fajita"}) do
-                        local boss = workspace.Enemies:FindFirstChild(bossName)
-                        if boss and boss:FindFirstChild("HumanoidRootPart") and boss:FindFirstChildOfClass("Humanoid") and boss.Humanoid.Health > 0 then
-                            AutoHaki()
-                            TweenPlayer(boss.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
-                            SmartAttackMob(boss)
-                            return
-                        end
-                    end
-                end
-
-                -- التحدث إلى NPC Arou
-                if (hrp.Position - arouPos.Position).Magnitude > 20 then
-                    TweenPlayer(arouPos)
-                else
-                    if CommF_ then CommF_:InvokeServer("Wenlocktoad", "1") end
-                end
-            end)
-        end
-    end
-end)
-
---------------------------------------------------------------------------------
--- 13. محرك السيوف الأسطورية المدمجة (CDK & TTK Auto Quests)
---------------------------------------------------------------------------------
-task.spawn(function()
-    while task.wait(0.5) do
-        -- أتمتة Cursed Dual Katana (CDK)
-        if _G.Settings.FarmingQuests["Auto Farm CDK"] and World3 then
-            pcall(function()
-                local char, hrp = GetCharacter()
-                if not char or not hrp then return end
-
-                local cryptPos = CFrame.new(-12471.16, 374.94, -7551.67)
-                if (hrp.Position - cryptPos.Position).Magnitude > 25 then
-                    TweenPlayer(cryptPos)
-                else
-                    if CommF_ then
-                        CommF_:InvokeServer("CDKQuest", "Start")
-                        CommF_:InvokeServer("CDKQuest", "Progress")
-                    end
-                end
-            end)
-        end
-
-        -- أتمتة True Triple Katana (TTK)
-        if _G.Settings.FarmingQuests["Auto Farm TTK"] and World2 then
-            pcall(function()
-                local char, hrp = GetCharacter()
-                if not char or not hrp then return end
-
-                local swordDealerPos = CFrame.new(-2448.53, 73.01, -3210.63)
-                if CommF_ then
-                    CommF_:InvokeServer("LegendarySwordDealer", "1")
-                    CommF_:InvokeServer("LegendarySwordDealer", "2")
-                    CommF_:InvokeServer("LegendarySwordDealer", "3")
-                end
-            end)
-        end
-    end
-end)
-
---------------------------------------------------------------------------------
--- 14. محرك الـ ESP المتكامل والحي (Advanced ESP Engine with Distance & HP)
---------------------------------------------------------------------------------
-local ESPCache = {}
-
-local function RemoveESP(obj)
-    if ESPCache[obj] then
-        ESPCache[obj]:Destroy()
-        ESPCache[obj] = nil
-    end
-end
-
-local function CreateUniversalESP(part: BasePart, text: string, color: Color3, showHP: boolean, maxHP: number?, currentHP: number?)
-    if not part then return end
-    if ESPCache[part] then RemoveESP(part) end
-
-    local bill = Instance.new("BillboardGui")
-    bill.Name = "HaroonESP"
-    bill.Adornee = part
-    bill.Size = UDim2.new(0, 150, 0, showHP and 45 or 28)
-    bill.AlwaysOnTop = true
-
-    local frame = Instance.new("Frame", bill)
-    frame.Size = UDim2.new(1, 0, 1, 0)
-    frame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-    frame.BackgroundTransparency = 0.25
-    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 4)
-
-    local txt = Instance.new("TextLabel", frame)
-    txt.Name = "ESPTitle"
-    txt.Size = UDim2.new(1, 0, 0, 14)
-    txt.BackgroundTransparency = 1
-    txt.Text = text
-    txt.TextColor3 = color
-    txt.Font = Enum.Font.GothamBold
-    txt.TextSize = 10
-
-    local distLabel = Instance.new("TextLabel", frame)
-    distLabel.Name = "ESPDist"
-    distLabel.Size = UDim2.new(1, 0, 0, 12)
-    distLabel.Position = UDim2.new(0, 0, 0, 13)
-    distLabel.BackgroundTransparency = 1
-    distLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-    distLabel.Font = Enum.Font.Gotham
-    distLabel.TextSize = 9
-    distLabel.Text = "Dist: ?m"
-
-    if showHP and maxHP and currentHP then
-        local hpBg = Instance.new("Frame", frame)
-        hpBg.Size = UDim2.new(1, -10, 0, 4)
-        hpBg.Position = UDim2.new(0, 5, 0, 28)
-        hpBg.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-        
-        local hpFill = Instance.new("Frame", hpBg)
-        hpFill.Name = "HPFill"
-        hpFill.Size = UDim2.new(math.clamp(currentHP / maxHP, 0, 1), 0, 1, 0)
-        hpFill.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
-    end
-
-    bill.Parent = part
-    ESPCache[part] = bill
-end
-
-task.spawn(function()
-    while task.wait(0.2) do
-        local char, hrp = GetCharacter()
-        if not char or not hrp then continue end
-
-        -- 1. Players ESP
-        if _G.Settings.Visuals["ESP Players"] then
-            for _, p in pairs(Players:GetPlayers()) do
-                if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChildOfClass("Humanoid") then
-                    local pHrp = p.Character.HumanoidRootPart
-                    local pHum = p.Character.Humanoid
-                    local dist = math.floor((hrp.Position - pHrp.Position).Magnitude)
-                    
-                    CreateUniversalESP(pHrp, p.Name, Color3.fromRGB(255, 85, 85), true, pHum.MaxHealth, pHum.Health)
-                    if ESPCache[pHrp] and ESPCache[pHrp]:FindFirstChild("Frame") then
-                        ESPCache[pHrp].Frame.ESPDist.Text = "Dist: " .. dist .. " Studs"
-                    end
-                end
-            end
-        end
-
-        -- 2. Fruits ESP
-        if _G.Settings.Visuals["ESP Fruits"] then
-            for _, v in pairs(workspace:GetChildren()) do
-                if v:IsA("Tool") and (string.find(v.Name, "Fruit") or string.find(v.Name, "Blox")) then
-                    local handle = v:FindFirstChild("Handle") or v.PrimaryPart
-                    if handle then
-                        local dist = math.floor((hrp.Position - handle.Position).Magnitude)
-                        CreateUniversalESP(handle, "🍎 " .. v.Name, Color3.fromRGB(255, 170, 0), false)
-                        if ESPCache[handle] and ESPCache[handle]:FindFirstChild("Frame") then
-                            ESPCache[handle].Frame.ESPDist.Text = "Dist: " .. dist .. " Studs"
-                        end
-                    end
-                end
-            end
-        end
-
-        -- 3. Chests ESP
-        if _G.Settings.Visuals["ESP Chests"] and workspace:FindFirstChild("ChestModels") then
-            for _, chest in pairs(workspace.ChestModels:GetChildren()) do
-                if chest:FindFirstChild("RootPart") then
-                    local dist = math.floor((hrp.Position - chest.RootPart.Position).Magnitude)
-                    CreateUniversalESP(chest.RootPart, "📦 " .. chest.Name, Color3.fromRGB(255, 255, 0), false)
-                    if ESPCache[chest.RootPart] and ESPCache[chest.RootPart]:FindFirstChild("Frame") then
-                        ESPCache[chest.RootPart].Frame.ESPDist.Text = "Dist: " .. dist .. " Studs"
-                    end
-                end
-            end
-        end
-
-        -- 4. Bosses & Enemies ESP
-        if (_G.Settings.Visuals["ESP Bosses"] or _G.Settings.Visuals["ESP Enemies"]) and workspace:FindFirstChild("Enemies") then
-            for _, enemy in pairs(workspace.Enemies:GetChildren()) do
-                if enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChildOfClass("Humanoid") then
-                    local eHrp = enemy.HumanoidRootPart
-                    local eHum = enemy.Humanoid
-                    if eHum.Health > 0 then
-                        local dist = math.floor((hrp.Position - eHrp.Position).Magnitude)
-                        CreateUniversalESP(eHrp, enemy.Name, Color3.fromRGB(255, 0, 127), true, eHum.MaxHealth, eHum.Health)
-                        if ESPCache[eHrp] and ESPCache[eHrp]:FindFirstChild("Frame") then
-                            ESPCache[eHrp].Frame.ESPDist.Text = "Dist: " .. dist .. " Studs"
-                        end
-                    end
-                end
-            end
-        end
-    end
-end)
-
---------------------------------------------------------------------------------
--- 15. حلقات الصناديق والماتيريال والزعماء المتبقية
---------------------------------------------------------------------------------
-
--- Chest Farm Loop
-task.spawn(function()
-    while task.wait(0.2) do
-        if _G.Settings.SubFarm["Auto Chest Tween"] or _G.Settings.SubFarm["Auto Chest Instant"] then
-            pcall(function()
-                local char, hrp = GetCharacter()
-                if not char or not hrp then return end
-
-                local closestChest = nil
-                local shortestDist = math.huge
-                if workspace:FindFirstChild("ChestModels") then
-                    for _, v in pairs(workspace.ChestModels:GetChildren()) do
-                        if string.find(v.Name, "Chest") and v:FindFirstChild("RootPart") then
-                            local dist = (hrp.Position - v.RootPart.Position).Magnitude
-                            if dist < shortestDist then
-                                shortestDist = dist
-                                closestChest = v
-                            end
-                        end
-                    end
-                end
-
-                if closestChest then
-                    if _G.Settings.SubFarm["Auto Chest Instant"] then
-                        hrp.CFrame = closestChest.RootPart.CFrame
-                    else
-                        TweenPlayer(closestChest.RootPart.CFrame)
-                    end
-                end
-            end)
-        end
-    end
-end)
-
--- Material Farm Loop
-task.spawn(function()
-    while task.wait(0.1) do
-        if _G.Settings.Main["Auto Farm Material"] then
-            pcall(function()
-                local char, hrp, hum = GetCharacter()
-                if not char or not hrp or not hum then return end
-
-                local mobs, pos = GetMaterialConfig(_G.Settings.Main["Selected Material"])
-                local found = false
-
-                for _, mName in pairs(mobs) do
-                    for _, v in pairs(workspace.Enemies:GetChildren()) do
-                        if v.Name == mName and v:FindFirstChild("HumanoidRootPart") and v:FindFirstChildOfClass("Humanoid") and v.Humanoid.Health > 0 then
-                            found = true
-                            AutoHaki()
-                            TweenPlayer(v.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
-                            SmartAttackMob(v)
-                            break
-                        end
-                    end
-                    if found then break end
-                end
-
-                if not found then
-                    TweenPlayer(pos, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
-                end
-            end)
-        end
-    end
-end)
-
--- Boss Farm Loop
-task.spawn(function()
-    while task.wait(0.1) do
-        if _G.Settings.Main["Auto Farm Boss"] or _G.Settings.Main["Auto Farm All Boss"] then
-            pcall(function()
-                local char, hrp, hum = GetCharacter()
-                if not char or not hrp or not hum then return end
-
-                local bTarget = _G.Settings.Main["Selected Boss"]
-                for _, v in pairs(workspace.Enemies:GetChildren()) do
-                    if (v.Name == bTarget or _G.Settings.Main["Auto Farm All Boss"]) and v:FindFirstChild("HumanoidRootPart") and v:FindFirstChildOfClass("Humanoid") and v.Humanoid.Health > 0 then
-                        AutoHaki()
-                        TweenPlayer(v.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
-                        SmartAttackMob(v)
-                        break
-                    end
-                end
-            end)
-        end
-    end
-end)       _G.Settings.Sea["Auto Draco Trail"] or _G.Settings.Raid["Auto Next Island"]
-
-    local char, hrp, hum = GetCharacter()
-    if not char or not hrp or not hum then return end
-
-    if active then
-        pcall(function()
-            for _, v in pairs(char:GetDescendants()) do
-                if v:IsA("BasePart") then v.CanCollide = false end
-            end
-            if not hrp:FindFirstChild("HaroonBV") then
-                local bv = Instance.new("BodyVelocity")
-                bv.Name = "HaroonBV"
-                bv.Parent = hrp
-                bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
-                bv.Velocity = Vector3.zero
-            end
-        end)
-    else
-        pcall(function()
-            if hrp:FindFirstChild("HaroonBV") then
-                hrp.HaroonBV:Destroy()
-            end
-        end)
-    end
-end)
-
-local function TweenPlayer(pos: CFrame | Vector3 | BasePart, offset: Vector3?): Tween?
-    local char, hrp, hum = GetCharacter()
-    if not char or not hrp or not hum then return nil end
-    if hum.Sit then hum.Sit = false end
-
-    local targetCFrame: CFrame
-    if typeof(pos) == "CFrame" then targetCFrame = pos
-    elseif typeof(pos) == "Vector3" then targetCFrame = CFrame.new(pos)
-    elseif pos:IsA("BasePart") then targetCFrame = pos.CFrame
-    else return nil end
-
-    if offset then targetCFrame = targetCFrame * CFrame.new(offset) end
-
-    local distance = (hrp.Position - targetCFrame.Position).Magnitude
-    local uprightCFrame = CFrame.new(targetCFrame.Position, targetCFrame.Position + Vector3.new(targetCFrame.LookVector.X, 0, targetCFrame.LookVector.Z))
-
-    if distance <= 25 then
-        hrp.CFrame = uprightCFrame
-        if currentTween then currentTween:Cancel() end
-        return nil
-    end
-
-    local speed = _G.Settings.Main["Player Tween Speed"] or 180
-    local tweenInfo = TweenInfo.new(distance / speed, Enum.EasingStyle.Linear)
-
-    if currentTween then currentTween:Cancel() end
-    currentTween = TweenService:Create(hrp, tweenInfo, {CFrame = uprightCFrame})
-    currentTween:Play()
-    return currentTween
-end
-
-local function StopTween()
-    if currentTween then
-        currentTween:Cancel()
-        currentTween = nil
-    end
-    local _, hrp = GetCharacter()
-    if hrp and hrp:FindFirstChild("HaroonBV") then
-        hrp.HaroonBV:Destroy()
-    end
-end
-
-local function AutoHaki()
-    local char = LocalPlayer.Character
-    if char and not CollectionService:HasTag(char, "Ken") then
-        if CommE then pcall(function() CommE:FireServer("Ken", true) end) end
-    end
-end
-
-local function EquipWeapon(weaponType: string)
-    pcall(function()
-        local char, _, hum = GetCharacter()
-        local backpack = LocalPlayer:FindFirstChild("Backpack")
-        if not backpack or not hum or not char then return end
-
-        for _, tool in pairs(char:GetChildren()) do
-            if tool:IsA("Tool") and (tool.ToolTip == weaponType or (weaponType == "Melee" and tool.ToolTip == "Melee") or (weaponType == "Blox Fruit" and tool.ToolTip == "Blox Fruit") or (weaponType == "Gun" and tool.ToolTip == "Gun") or (weaponType == "Sword" and tool.ToolTip == "Sword")) then
-                return
-            end
-        end
-
-        for _, tool in pairs(backpack:GetChildren()) do
-            if tool:IsA("Tool") and (tool.ToolTip == weaponType or (weaponType == "Melee" and tool.ToolTip == "Melee") or (weaponType == "Blox Fruit" and tool.ToolTip == "Blox Fruit") or (weaponType == "Gun" and tool.ToolTip == "Gun") or (weaponType == "Sword" and tool.ToolTip == "Sword")) then
-                hum:EquipTool(tool)
-                break
-            end
-        end
-    end)
-end
-
---------------------------------------------------------------------------------
--- 4. المحرك الذكي للهجوم والـ Aimbot والـ 80% Damage Mechanic
---------------------------------------------------------------------------------
-local function AimAtTarget(targetPosition: Vector3)
-    pcall(function()
-        local cam = workspace.CurrentCamera
-        if cam then
-            cam.CFrame = CFrame.lookAt(cam.CFrame.Position, targetPosition)
-        end
-    end)
-end
-
-local function FastAttackTarget(targetEnemy: Model)
-    if not targetEnemy or not targetEnemy:FindFirstChild("HumanoidRootPart") then return end
-    local head = targetEnemy:FindFirstChild("Head") or targetEnemy.HumanoidRootPart
-
-    if RegisterAttack then
-        pcall(function()
-            RegisterAttack:FireServer(0)
-            RegisterAttack:FireServer(1)
-            RegisterAttack:FireServer(2)
-            RegisterAttack:FireServer(3)
-        end)
-    end
-
-    if RegisterHit then
-        pcall(function()
-            if typeof(RegisterHit) == "thread" or typeof(RegisterHit) == "function" then
-                coroutine.resume(RegisterHit, head, {})
-            elseif typeof(RegisterHit) == "Instance" then
-                RegisterHit:FireServer(head, {})
-            end
-        end)
-    end
-end
-
-local function SmartAttackMob(targetMob: Model, weaponOverride: string?): boolean
-    local selectedWep = weaponOverride or _G.Settings.Main["Select Weapon"]
-    local mobHum = targetMob:FindFirstChildOfClass("Humanoid")
-    local mobRoot = targetMob:FindFirstChild("HumanoidRootPart") or targetMob:FindFirstChild("Head")
-    if not mobHum or mobHum.Health <= 0 or not mobRoot then return false end
-
-    local hpPercent = mobHum.Health / mobHum.MaxHealth
-
-    if selectedWep == "Blox Fruit" or selectedWep == "Gun" then
-        if hpPercent > 0.20 then
-            EquipWeapon("Melee")
-            FastAttackTarget(targetMob)
-        else
-            EquipWeapon(selectedWep)
-            AimAtTarget(mobRoot.Position)
-
-            if selectedWep == "Blox Fruit" then
-                for _, key in pairs({Enum.KeyCode.Z, Enum.KeyCode.X, Enum.KeyCode.C, Enum.KeyCode.V, Enum.KeyCode.F}) do
-                    VirtualInputManager:SendKeyEvent(true, key, false, game)
-                    task.wait(0.02)
-                    VirtualInputManager:SendKeyEvent(false, key, false, game)
-                end
-            elseif selectedWep == "Gun" then
-                for _, key in pairs({Enum.KeyCode.Z, Enum.KeyCode.X}) do
-                    VirtualInputManager:SendKeyEvent(true, key, false, game)
-                    task.wait(0.02)
-                    VirtualInputManager:SendKeyEvent(false, key, false, game)
-                end
-                if ShootGunEvent then
-                    pcall(function() ShootGunEvent:FireServer(mobRoot.Position, {mobRoot}) end)
-                end
-            end
-
-            VirtualInputManager:SendMouseButtonEvent(mobRoot.Position.X, mobRoot.Position.Y, 0, true, game, 0)
-            VirtualInputManager:SendMouseButtonEvent(mobRoot.Position.X, mobRoot.Position.Y, 0, false, game, 0)
-            FastAttackTarget(targetMob)
-        end
-    else
-        EquipWeapon(selectedWep)
-        FastAttackTarget(targetMob)
-    end
-
-    return true
-end
-
---------------------------------------------------------------------------------
--- 5. قواعد البيانات الشاملة للمهمات والجزر (Quests & Islands Database)
---------------------------------------------------------------------------------
-local CurrentQuest = {
-    Mon = "Bandit",
-    LevelQuest = 1,
-    NameQuest = "BanditQuest1",
-    NameMon = "Bandit",
-    CFrameQuest = CFrame.new(1059.37, 15.44, 1550.42),
-    CFrameMon = CFrame.new(1045.96, 27.00, 1560.82)
-}
-
-local function CheckQuest()
-    local MyLevel = (LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Level")) and LocalPlayer.Data.Level.Value or 1
-    if World1 then
-        if MyLevel <= 9 then
-            CurrentQuest = {Mon = "Bandit", LevelQuest = 1, NameQuest = "BanditQuest1", NameMon = "Bandit", CFrameQuest = CFrame.new(1059.37, 15.44, 1550.42), CFrameMon = CFrame.new(1045.96, 27.00, 1560.82)}
-        elseif MyLevel <= 14 then
-            CurrentQuest = {Mon = "Monkey", LevelQuest = 1, NameQuest = "JungleQuest", NameMon = "Monkey", CFrameQuest = CFrame.new(-1598.08, 35.55, 153.37), CFrameMon = CFrame.new(-1448.51, 67.85, 11.46)}
-        elseif MyLevel <= 29 then
-            if _G.Settings.Main["Include Boss Quests"] and MyLevel >= 20 then
-                CurrentQuest = {Mon = "The Gorilla King", LevelQuest = 3, NameQuest = "JungleQuest", NameMon = "The Gorilla King", CFrameQuest = CFrame.new(-1598.08, 35.55, 153.37), CFrameMon = CFrame.new(-1129.88, 40.46, -525.42)}
-            else
-                CurrentQuest = {Mon = "Gorilla", LevelQuest = 2, NameQuest = "JungleQuest", NameMon = "Gorilla", CFrameQuest = CFrame.new(-1598.08, 35.55, 153.37), CFrameMon = CFrame.new(-1129.88, 40.46, -525.42)}
-            end
-        elseif MyLevel <= 39 then
-            CurrentQuest = {Mon = "Pirate", LevelQuest = 1, NameQuest = "BuggyQuest1", NameMon = "Pirate", CFrameQuest = CFrame.new(-1141.07, 4.10, 3831.54), CFrameMon = CFrame.new(-1103.51, 13.75, 3896.09)}
-        elseif MyLevel <= 59 then
-            if _G.Settings.Main["Include Boss Quests"] and MyLevel >= 55 then
-                CurrentQuest = {Mon = "Bobby", LevelQuest = 3, NameQuest = "BuggyQuest1", NameMon = "Bobby", CFrameQuest = CFrame.new(-1141.07, 4.10, 3831.54), CFrameMon = CFrame.new(-1140.08, 14.80, 4322.92)}
-            else
-                CurrentQuest = {Mon = "Brute", LevelQuest = 2, NameQuest = "BuggyQuest1", NameMon = "Brute", CFrameQuest = CFrame.new(-1141.07, 4.10, 3831.54), CFrameMon = CFrame.new(-1140.08, 14.80, 4322.92)}
-            end
-        elseif MyLevel <= 74 then
-            CurrentQuest = {Mon = "Desert Bandit", LevelQuest = 1, NameQuest = "DesertQuest", NameMon = "Desert Bandit", CFrameQuest = CFrame.new(894.48, 5.14, 4392.43), CFrameMon = CFrame.new(924.79, 6.44, 4481.58)}
-        elseif MyLevel <= 89 then
-            CurrentQuest = {Mon = "Desert Officer", LevelQuest = 2, NameQuest = "DesertQuest", NameMon = "Desert Officer", CFrameQuest = CFrame.new(894.48, 5.14, 4392.43), CFrameMon = CFrame.new(1608.28, 8.61, 4371.00)}
-        elseif MyLevel <= 99 then
-            CurrentQuest = {Mon = "Snow Bandit", LevelQuest = 1, NameQuest = "SnowQuest", NameMon = "Snow Bandit", CFrameQuest = CFrame.new(1389.74, 88.15, -1298.90), CFrameMon = CFrame.new(1354.34, 87.27, -1393.94)}
-        elseif MyLevel <= 119 then
-            CurrentQuest = {Mon = "Snowman", LevelQuest = 2, NameQuest = "SnowQuest", NameMon = "Snowman", CFrameQuest = CFrame.new(1389.74, 88.15, -1298.90), CFrameMon = CFrame.new(1201.64, 144.57, -1550.06)}
-        elseif MyLevel <= 149 then
-            CurrentQuest = {Mon = "Chief Petty Officer", LevelQuest = 1, NameQuest = "MarineQuest2", NameMon = "Chief Petty Officer", CFrameQuest = CFrame.new(-5039.58, 27.35, 4324.68), CFrameMon = CFrame.new(-4881.23, 22.65, 4273.75)}
-        elseif MyLevel <= 174 then
-            CurrentQuest = {Mon = "Sky Bandit", LevelQuest = 1, NameQuest = "SkyQuest", NameMon = "Sky Bandit", CFrameQuest = CFrame.new(-4839.53, 716.36, -2619.44), CFrameMon = CFrame.new(-4953.20, 295.74, -2899.22)}
-        elseif MyLevel <= 189 then
-            CurrentQuest = {Mon = "Dark Master", LevelQuest = 2, NameQuest = "SkyQuest", NameMon = "Dark Master", CFrameQuest = CFrame.new(-4839.53, 716.36, -2619.44), CFrameMon = CFrame.new(-5259.84, 391.39, -2229.03)}
-        elseif MyLevel <= 209 then
-            CurrentQuest = {Mon = "Prisoner", LevelQuest = 1, NameQuest = "PrisonerQuest", NameMon = "Prisoner", CFrameQuest = CFrame.new(5308.93, 1.65, 475.12), CFrameMon = CFrame.new(5098.97, -0.32, 474.23)}
-        elseif MyLevel <= 249 then
-            CurrentQuest = {Mon = "Dangerous Prisoner", LevelQuest = 2, NameQuest = "PrisonerQuest", NameMon = "Dangerous Prisoner", CFrameQuest = CFrame.new(5308.93, 1.65, 475.12), CFrameMon = CFrame.new(5654.56, 15.63, 866.29)}
-        elseif MyLevel <= 274 then
-            CurrentQuest = {Mon = "Toga Warrior", LevelQuest = 1, NameQuest = "ColosseumQuest", NameMon = "Toga Warrior", CFrameQuest = CFrame.new(-1580.04, 6.35, -2986.47), CFrameMon = CFrame.new(-1820.21, 51.68, -2740.66)}
-        elseif MyLevel <= 299 then
-            CurrentQuest = {Mon = "Gladiator", LevelQuest = 2, NameQuest = "ColosseumQuest", NameMon = "Gladiator", CFrameQuest = CFrame.new(-1580.04, 6.35, -2986.47), CFrameMon = CFrame.new(-1292.83, 56.38, -3339.03)}
-        elseif MyLevel <= 324 then
-            CurrentQuest = {Mon = "Military Soldier", LevelQuest = 1, NameQuest = "MagmaQuest", NameMon = "Military Soldier", CFrameQuest = CFrame.new(-5313.37, 10.95, 8515.29), CFrameMon = CFrame.new(-5411.16, 11.08, 8454.29)}
-        elseif MyLevel <= 374 then
-            CurrentQuest = {Mon = "Military Spy", LevelQuest = 2, NameQuest = "MagmaQuest", NameMon = "Military Spy", CFrameQuest = CFrame.new(-5313.37, 10.95, 8515.29), CFrameMon = CFrame.new(-5802.86, 86.26, 8828.85)}
-        elseif MyLevel <= 399 then
-            CurrentQuest = {Mon = "Fishman Warrior", LevelQuest = 1, NameQuest = "FishmanQuest", NameMon = "Fishman Warrior", CFrameQuest = CFrame.new(61122.65, 18.49, 1569.39), CFrameMon = CFrame.new(60878.30, 18.48, 1543.75)}
-        elseif MyLevel <= 449 then
-            CurrentQuest = {Mon = "Fishman Commando", LevelQuest = 2, NameQuest = "FishmanQuest", NameMon = "Fishman Commando", CFrameQuest = CFrame.new(61122.65, 18.49, 1569.39), CFrameMon = CFrame.new(61922.63, 18.48, 1493.93)}
-        elseif MyLevel <= 474 then
-            CurrentQuest = {Mon = "God's Guard", LevelQuest = 1, NameQuest = "SkyExp1Quest", NameMon = "God's Guard", CFrameQuest = CFrame.new(-4721.88, 843.87, -1949.96), CFrameMon = CFrame.new(-4710.04, 845.27, -1927.30)}
-        elseif MyLevel <= 524 then
-            CurrentQuest = {Mon = "Shanda", LevelQuest = 2, NameQuest = "SkyExp1Quest", NameMon = "Shanda", CFrameQuest = CFrame.new(-7859.09, 5544.19, -381.47), CFrameMon = CFrame.new(-7678.48, 5566.40, -497.21)}
-        elseif MyLevel <= 549 then
-            CurrentQuest = {Mon = "Royal Squad", LevelQuest = 1, NameQuest = "SkyExp2Quest", NameMon = "Royal Squad", CFrameQuest = CFrame.new(-7906.81, 5634.66, -1411.99), CFrameMon = CFrame.new(-7624.25, 5658.13, -1467.35)}
-        elseif MyLevel <= 624 then
-            CurrentQuest = {Mon = "Royal Soldier", LevelQuest = 2, NameQuest = "SkyExp2Quest", NameMon = "Royal Soldier", CFrameQuest = CFrame.new(-7906.81, 5634.66, -1411.99), CFrameMon = CFrame.new(-7836.75, 5645.66, -1790.62)}
-        elseif MyLevel <= 649 then
-            CurrentQuest = {Mon = "Galley Pirate", LevelQuest = 1, NameQuest = "FountainQuest", NameMon = "Galley Pirate", CFrameQuest = CFrame.new(5259.81, 37.35, 4050.02), CFrameMon = CFrame.new(5551.02, 78.90, 3930.41)}
-        else
-            CurrentQuest = {Mon = "Galley Captain", LevelQuest = 2, NameQuest = "FountainQuest", NameMon = "Galley Captain", CFrameQuest = CFrame.new(5259.81, 37.35, 4050.02), CFrameMon = CFrame.new(5441.95, 42.50, 4950.09)}
-        end
-    elseif World2 then
-        if MyLevel <= 724 then
-            CurrentQuest = {Mon = "Raider", LevelQuest = 1, NameQuest = "Area1Quest", NameMon = "Raider", CFrameQuest = CFrame.new(-429.54, 71.76, 1836.18), CFrameMon = CFrame.new(-728.32, 52.77, 2345.77)}
-        elseif MyLevel <= 774 then
-            CurrentQuest = {Mon = "Mercenary", LevelQuest = 2, NameQuest = "Area1Quest", NameMon = "Mercenary", CFrameQuest = CFrame.new(-429.54, 71.76, 1836.18), CFrameMon = CFrame.new(-1004.32, 80.15, 1424.61)}
-        elseif MyLevel <= 799 then
-            CurrentQuest = {Mon = "Swan Pirate", LevelQuest = 1, NameQuest = "Area2Quest", NameMon = "Swan Pirate", CFrameQuest = CFrame.new(638.43, 71.76, 918.28), CFrameMon = CFrame.new(1068.66, 137.61, 1322.10)}
-        elseif MyLevel <= 874 then
-            CurrentQuest = {Mon = "Factory Staff", LevelQuest = 2, NameQuest = "Area2Quest", NameMon = "Factory Staff", CFrameQuest = CFrame.new(632.69, 73.10, 918.66), CFrameMon = CFrame.new(73.07, 81.86, -27.47)}
-        elseif MyLevel <= 899 then
-            CurrentQuest = {Mon = "Marine Lieutenant", LevelQuest = 1, NameQuest = "MarineQuest3", NameMon = "Marine Lieutenant", CFrameQuest = CFrame.new(-2440.79, 71.71, -3216.06), CFrameMon = CFrame.new(-2821.37, 75.89, -3070.08)}
-        elseif MyLevel <= 949 then
-            CurrentQuest = {Mon = "Marine Captain", LevelQuest = 2, NameQuest = "MarineQuest3", NameMon = "Marine Captain", CFrameQuest = CFrame.new(-2440.79, 71.71, -3216.06), CFrameMon = CFrame.new(-1861.23, 80.17, -3254.69)}
-        elseif MyLevel <= 974 then
-            CurrentQuest = {Mon = "Zombie", LevelQuest = 1, NameQuest = "ZombieQuest", NameMon = "Zombie", CFrameQuest = CFrame.new(-5497.06, 47.59, -795.23), CFrameMon = CFrame.new(-5657.77, 78.96, -928.68)}
-        elseif MyLevel <= 999 then
-            CurrentQuest = {Mon = "Vampire", LevelQuest = 2, NameQuest = "ZombieQuest", NameMon = "Vampire", CFrameQuest = CFrame.new(-5497.06, 47.59, -795.23), CFrameMon = CFrame.new(-6037.66, 32.18, -1340.65)}
-        elseif MyLevel <= 1049 then
-            CurrentQuest = {Mon = "Snow Trooper", LevelQuest = 1, NameQuest = "SnowMountainQuest", NameMon = "Snow Trooper", CFrameQuest = CFrame.new(609.85, 400.11, -5372.25), CFrameMon = CFrame.new(549.14, 427.38, -5563.69)}
-        elseif MyLevel <= 1099 then
-            CurrentQuest = {Mon = "Winter Warrior", LevelQuest = 2, NameQuest = "SnowMountainQuest", NameMon = "Winter Warrior", CFrameQuest = CFrame.new(609.85, 400.11, -5372.25), CFrameMon = CFrame.new(1142.74, 475.63, -5199.41)}
-        elseif MyLevel <= 1124 then
-            CurrentQuest = {Mon = "Lab Subordinate", LevelQuest = 1, NameQuest = "IceSideQuest", NameMon = "Lab Subordinate", CFrameQuest = CFrame.new(-6064.06, 15.24, -4902.97), CFrameMon = CFrame.new(-5707.47, 15.95, -4513.39)}
-        elseif MyLevel <= 1174 then
-            CurrentQuest = {Mon = "Horned Warrior", LevelQuest = 2, NameQuest = "IceSideQuest", NameMon = "Horned Warrior", CFrameQuest = CFrame.new(-6064.06, 15.24, -4902.97), CFrameMon = CFrame.new(-6341.36, 15.95, -5723.16)}
-        elseif MyLevel <= 1199 then
-            CurrentQuest = {Mon = "Magma Ninja", LevelQuest = 1, NameQuest = "FireSideQuest", NameMon = "Magma Ninja", CFrameQuest = CFrame.new(-5428.03, 15.06, -5299.43), CFrameMon = CFrame.new(-5449.67, 76.65, -5808.20)}
-        elseif MyLevel <= 1249 then
-            CurrentQuest = {Mon = "Lava Pirate", LevelQuest = 2, NameQuest = "FireSideQuest", NameMon = "Lava Pirate", CFrameQuest = CFrame.new(-5428.03, 15.06, -5299.43), CFrameMon = CFrame.new(-5213.33, 49.73, -4701.45)}
-        elseif MyLevel <= 1274 then
-            CurrentQuest = {Mon = "Ship Deckhand", LevelQuest = 1, NameQuest = "ShipQuest1", NameMon = "Ship Deckhand", CFrameQuest = CFrame.new(1037.80, 125.09, 32911.60), CFrameMon = CFrame.new(1212.01, 150.79, 33059.24)}
-        elseif MyLevel <= 1299 then
-            CurrentQuest = {Mon = "Ship Engineer", LevelQuest = 2, NameQuest = "ShipQuest1", NameMon = "Ship Engineer", CFrameQuest = CFrame.new(1037.80, 125.09, 32911.60), CFrameMon = CFrame.new(919.47, 43.54, 32779.96)}
-        elseif MyLevel <= 1324 then
-            CurrentQuest = {Mon = "Ship Steward", LevelQuest = 1, NameQuest = "ShipQuest2", NameMon = "Ship Steward", CFrameQuest = CFrame.new(968.80, 125.09, 33244.12), CFrameMon = CFrame.new(919.43, 129.55, 33436.03)}
-        elseif MyLevel <= 1349 then
-            CurrentQuest = {Mon = "Ship Officer", LevelQuest = 2, NameQuest = "ShipQuest2", NameMon = "Ship Officer", CFrameQuest = CFrame.new(968.80, 125.09, 33244.12), CFrameMon = CFrame.new(1036.01, 181.43, 33315.72)}
-        elseif MyLevel <= 1374 then
-            CurrentQuest = {Mon = "Arctic Warrior", LevelQuest = 1, NameQuest = "FrostQuest", NameMon = "Arctic Warrior", CFrameQuest = CFrame.new(5667.65, 26.79, -6486.08), CFrameMon = CFrame.new(5966.24, 62.97, -6179.38)}
-        elseif MyLevel <= 1424 then
-            CurrentQuest = {Mon = "Snow Lurker", LevelQuest = 2, NameQuest = "FrostQuest", NameMon = "Snow Lurker", CFrameQuest = CFrame.new(5667.65, 26.79, -6486.08), CFrameMon = CFrame.new(5407.07, 69.19, -6880.88)}
-        elseif MyLevel <= 1449 then
-            CurrentQuest = {Mon = "Sea Soldier", LevelQuest = 1, NameQuest = "ForgottenQuest", NameMon = "Sea Soldier", CFrameQuest = CFrame.new(-3054.44, 235.54, -10142.81), CFrameMon = CFrame.new(-3028.22, 64.67, -9775.42)}
-        else
-            CurrentQuest = {Mon = "Water Fighter", LevelQuest = 2, NameQuest = "ForgottenQuest", NameMon = "Water Fighter", CFrameQuest = CFrame.new(-3054.44, 235.54, -10142.81), CFrameMon = CFrame.new(-3352.90, 285.01, -10534.84)}
-        end
-    elseif World3 then
-        if MyLevel <= 1524 then
-            CurrentQuest = {Mon = "Pirate Millionaire", LevelQuest = 1, NameQuest = "PiratePortQuest", NameMon = "Pirate Millionaire", CFrameQuest = CFrame.new(-290.07, 42.90, 5581.58), CFrameMon = CFrame.new(-245.99, 47.30, 5584.10)}
-        elseif MyLevel <= 1574 then
-            CurrentQuest = {Mon = "Pistol Billionaire", LevelQuest = 2, NameQuest = "PiratePortQuest", NameMon = "Pistol Billionaire", CFrameQuest = CFrame.new(-290.07, 42.90, 5581.58), CFrameMon = CFrame.new(-187.33, 86.23, 6013.51)}
-        elseif MyLevel <= 1599 then
-            CurrentQuest = {Mon = "Dragon Crew Warrior", LevelQuest = 1, NameQuest = "AmazonQuest", NameMon = "Dragon Crew Warrior", CFrameQuest = CFrame.new(5832.83, 51.68, -1101.51), CFrameMon = CFrame.new(6141.14, 51.35, -1340.73)}
-        elseif MyLevel <= 1624 then
-            CurrentQuest = {Mon = "Dragon Crew Archer", LevelQuest = 2, NameQuest = "AmazonQuest", NameMon = "Dragon Crew Archer", CFrameQuest = CFrame.new(5833.11, 51.60, -1103.06), CFrameMon = CFrame.new(6616.41, 441.76, 446.04)}
-        elseif MyLevel <= 1649 then
-            CurrentQuest = {Mon = "Female Islander", LevelQuest = 1, NameQuest = "AmazonQuest2", NameMon = "Female Islander", CFrameQuest = CFrame.new(5446.87, 601.62, 749.45), CFrameMon = CFrame.new(4685.25, 735.80, 815.34)}
-        elseif MyLevel <= 1699 then
-            CurrentQuest = {Mon = "Giant Islander", LevelQuest = 2, NameQuest = "AmazonQuest2", NameMon = "Giant Islander", CFrameQuest = CFrame.new(5446.87, 601.62, 749.45), CFrameMon = CFrame.new(4729.09, 590.43, -36.97)}
-        elseif MyLevel <= 1724 then
-            CurrentQuest = {Mon = "Marine Commodore", LevelQuest = 1, NameQuest = "MarineTreeIsland", NameMon = "Marine Commodore", CFrameQuest = CFrame.new(2180.54, 27.81, -6741.54), CFrameMon = CFrame.new(2286.00, 73.13, -7159.80)}
-        elseif MyLevel <= 1774 then
-            CurrentQuest = {Mon = "Marine Rear Admiral", LevelQuest = 2, NameQuest = "MarineTreeIsland", NameMon = "Marine Rear Admiral", CFrameQuest = CFrame.new(2179.98, 28.73, -6740.05), CFrameMon = CFrame.new(3656.77, 160.52, -7001.59)}
-        elseif MyLevel <= 1799 then
-            CurrentQuest = {Mon = "Fishman Raider", LevelQuest = 1, NameQuest = "DeepForestIsland3", NameMon = "Fishman Raider", CFrameQuest = CFrame.new(-10581.65, 330.87, -8761.18), CFrameMon = CFrame.new(-10407.52, 331.76, -8368.51)}
-        elseif MyLevel <= 1824 then
-            CurrentQuest = {Mon = "Fishman Captain", LevelQuest = 2, NameQuest = "DeepForestIsland3", NameMon = "Fishman Captain", CFrameQuest = CFrame.new(-10581.65, 330.87, -8761.18), CFrameMon = CFrame.new(-10994.70, 352.38, -9002.11)}
-        elseif MyLevel <= 1849 then
-            CurrentQuest = {Mon = "Forest Pirate", LevelQuest = 1, NameQuest = "DeepForestIsland", NameMon = "Forest Pirate", CFrameQuest = CFrame.new(-13234.04, 331.48, -7625.40), CFrameMon = CFrame.new(-13274.47, 332.37, -7769.58)}
-        elseif MyLevel <= 1899 then
-            CurrentQuest = {Mon = "Mythological Pirate", LevelQuest = 2, NameQuest = "DeepForestIsland", NameMon = "Mythological Pirate", CFrameQuest = CFrame.new(-13234.04, 331.48, -7625.40), CFrameMon = CFrame.new(-13680.60, 501.08, -6991.18)}
-        elseif MyLevel <= 1924 then
-            CurrentQuest = {Mon = "Jungle Pirate", LevelQuest = 1, NameQuest = "DeepForestIsland2", NameMon = "Jungle Pirate", CFrameQuest = CFrame.new(-12680.38, 389.97, -9902.01), CFrameMon = CFrame.new(-12256.16, 331.73, -10485.83)}
-        elseif MyLevel <= 1974 then
-            CurrentQuest = {Mon = "Musketeer Pirate", LevelQuest = 2, NameQuest = "DeepForestIsland2", NameMon = "Musketeer Pirate", CFrameQuest = CFrame.new(-12680.38, 389.97, -9902.01), CFrameMon = CFrame.new(-13457.90, 391.54, -9859.17)}
-        elseif MyLevel <= 1999 then
-            CurrentQuest = {Mon = "Reborn Skeleton", LevelQuest = 1, NameQuest = "HauntedQuest1", NameMon = "Reborn Skeleton", CFrameQuest = CFrame.new(-9479.21, 141.21, 5566.09), CFrameMon = CFrame.new(-8763.72, 165.72, 6159.86)}
-        elseif MyLevel <= 2024 then
-            CurrentQuest = {Mon = "Living Zombie", LevelQuest = 2, NameQuest = "HauntedQuest1", NameMon = "Living Zombie", CFrameQuest = CFrame.new(-9479.21, 141.21, 5566.09), CFrameMon = CFrame.new(-10144.13, 138.62, 5838.08)}
-        elseif MyLevel <= 2049 then
-            CurrentQuest = {Mon = "Demonic Soul", LevelQuest = 1, NameQuest = "HauntedQuest2", NameMon = "Demonic Soul", CFrameQuest = CFrame.new(-9516.99, 172.01, 6078.46), CFrameMon = CFrame.new(-9505.87, 172.10, 6158.99)}
-        elseif MyLevel <= 2074 then
-            CurrentQuest = {Mon = "Posessed Mummy", LevelQuest = 2, NameQuest = "HauntedQuest2", NameMon = "Posessed Mummy", CFrameQuest = CFrame.new(-9516.99, 172.01, 6078.46), CFrameMon = CFrame.new(-9582.02, 6.25, 6205.47)}
-        elseif MyLevel <= 2099 then
-            CurrentQuest = {Mon = "Peanut Scout", LevelQuest = 1, NameQuest = "NutsIslandQuest", NameMon = "Peanut Scout", CFrameQuest = CFrame.new(-2104.39, 38.10, -10194.21), CFrameMon = CFrame.new(-2143.24, 47.72, -10029.99)}
-        elseif MyLevel <= 2124 then
-            CurrentQuest = {Mon = "Peanut President", LevelQuest = 2, NameQuest = "NutsIslandQuest", NameMon = "Peanut President", CFrameQuest = CFrame.new(-2104.39, 38.10, -10194.21), CFrameMon = CFrame.new(-1859.35, 38.10, -10422.42)}
-        elseif MyLevel <= 2149 then
-            CurrentQuest = {Mon = "Ice Cream Chef", LevelQuest = 1, NameQuest = "IceCreamIslandQuest", NameMon = "Ice Cream Chef", CFrameQuest = CFrame.new(-820.64, 65.81, -10965.79), CFrameMon = CFrame.new(-872.24, 65.81, -10919.95)}
-        elseif MyLevel <= 2199 then
-            CurrentQuest = {Mon = "Ice Cream Commander", LevelQuest = 2, NameQuest = "IceCreamIslandQuest", NameMon = "Ice Cream Commander", CFrameQuest = CFrame.new(-820.64, 65.81, -10965.79), CFrameMon = CFrame.new(-558.06, 112.04, -11290.77)}
-        elseif MyLevel <= 2224 then
-            CurrentQuest = {Mon = "Cookie Crafter", LevelQuest = 1, NameQuest = "CakeQuest1", NameMon = "Cookie Crafter", CFrameQuest = CFrame.new(-2021.32, 37.79, -12028.72), CFrameMon = CFrame.new(-2374.13, 37.79, -12125.30)}
-        elseif MyLevel <= 2249 then
-            CurrentQuest = {Mon = "Cake Guard", LevelQuest = 2, NameQuest = "CakeQuest1", NameMon = "Cake Guard", CFrameQuest = CFrame.new(-2021.32, 37.79, -12028.72), CFrameMon = CFrame.new(-1598.30, 43.77, -12244.58)}
-        elseif MyLevel <= 2274 then
-            CurrentQuest = {Mon = "Baking Staff", LevelQuest = 1, NameQuest = "CakeQuest2", NameMon = "Baking Staff", CFrameQuest = CFrame.new(-1927.91, 37.79, -12842.53), CFrameMon = CFrame.new(-1887.80, 77.61, -12998.35)}
-        elseif MyLevel <= 2299 then
-            CurrentQuest = {Mon = "Head Baker", LevelQuest = 2, NameQuest = "CakeQuest2", NameMon = "Head Baker", CFrameQuest = CFrame.new(-1927.91, 37.79, -12842.53), CFrameMon = CFrame.new(-2216.18, 82.88, -12869.29)}
-        elseif MyLevel <= 2324 then
-            CurrentQuest = {Mon = "Cocoa Warrior", LevelQuest = 1, NameQuest = "ChocQuest1", NameMon = "Cocoa Warrior", CFrameQuest = CFrame.new(233.22, 29.87, -12201.23), CFrameMon = CFrame.new(-21.55, 80.57, -12352.38)}
-        elseif MyLevel <= 2349 then
-            CurrentQuest = {Mon = "Chocolate Bar Battler", LevelQuest = 2, NameQuest = "ChocQuest1", NameMon = "Chocolate Bar Battler", CFrameQuest = CFrame.new(233.22, 29.87, -12201.23), CFrameMon = CFrame.new(582.59, 77.18, -12463.16)}
-        elseif MyLevel <= 2374 then
-            CurrentQuest = {Mon = "Sweet Thief", LevelQuest = 1, NameQuest = "ChocQuest2", NameMon = "Sweet Thief", CFrameQuest = CFrame.new(150.50, 30.69, -12774.50), CFrameMon = CFrame.new(165.18, 76.05, -12600.83)}
-        elseif MyLevel <= 2399 then
-            CurrentQuest = {Mon = "Candy Rebel", LevelQuest = 2, NameQuest = "ChocQuest2", NameMon = "Candy Rebel", CFrameQuest = CFrame.new(150.50, 30.69, -12774.50), CFrameMon = CFrame.new(134.86, 77.24, -12876.54)}
-        elseif MyLevel <= 2424 then
-            CurrentQuest = {Mon = "Candy Pirate", LevelQuest = 1, NameQuest = "CandyQuest1", NameMon = "Candy Pirate", CFrameQuest = CFrame.new(-1150.04, 20.37, -14446.33), CFrameMon = CFrame.new(-1310.50, 26.01, -14562.40)}
-        elseif MyLevel <= 2449 then
-            CurrentQuest = {Mon = "Snow Demon", LevelQuest = 2, NameQuest = "CandyQuest1", NameMon = "Snow Demon", CFrameQuest = CFrame.new(-1150.04, 20.37, -14446.33), CFrameMon = CFrame.new(-880.20, 71.24, -14538.60)}
-        elseif MyLevel <= 2474 then
-            CurrentQuest = {Mon = "Isle Outlaw", LevelQuest = 1, NameQuest = "TikiQuest1", NameMon = "Isle Outlaw", CFrameQuest = CFrame.new(-16547.74, 61.13, -173.41), CFrameMon = CFrame.new(-16442.81, 116.13, -264.46)}
-        elseif MyLevel <= 2524 then
-            CurrentQuest = {Mon = "Island Boy", LevelQuest = 2, NameQuest = "TikiQuest1", NameMon = "Island Boy", CFrameQuest = CFrame.new(-16547.74, 61.13, -173.41), CFrameMon = CFrame.new(-16901.26, 84.06, -192.88)}
-        else
-            CurrentQuest = {Mon = "Skull Slayer", LevelQuest = 2, NameQuest = "TikiQuest3", NameMon = "Skull Slayer", CFrameQuest = CFrame.new(-16661.89, 105.28, 1576.69), CFrameMon = CFrame.new(-16885.20, 114.12, 1627.94)}
-        end
-    end
-end
-
-local FullIslandLocations = {
-    Sea1 = {
-        ["Windmill"] = CFrame.new(979.79, 16.51, 1429.04),
-        ["Jungle"] = CFrame.new(-1612.79, 36.85, 149.12),
-        ["Pirate Village"] = CFrame.new(-1181.30, 4.75, 3803.54),
-        ["Desert"] = CFrame.new(944.15, 20.91, 4373.30),
-        ["Snow Island"] = CFrame.new(1347.80, 104.66, -1319.73),
-        ["Marineford"] = CFrame.new(-4914.82, 50.96, 4281.02),
-        ["Colosseum"] = CFrame.new(-1427.62, 7.28, -2792.77),
-        ["Sky Island"] = CFrame.new(-4869.10, 733.46, -2667.01),
-        ["Prison"] = CFrame.new(4875.33, 5.65, 734.85),
-        ["Magma Village"] = CFrame.new(-5247.71, 12.88, 8504.96),
-        ["Fountain City"] = CFrame.new(5259.81, 37.35, 4050.02),
-    },
-    Sea2 = {
-        ["Cafe"] = CFrame.new(-380.47, 77.22, 255.82),
-        ["Green Zone"] = CFrame.new(-2448.53, 73.01, -3210.63),
-        ["Cursed Ship"] = CFrame.new(923.40, 125.05, 32885.87),
-        ["Ice Castle"] = CFrame.new(6148.41, 294.38, -6741.11),
-        ["Hot & Cold"] = CFrame.new(-5428.03, 15.06, -5299.43),
-        ["Snow Mountain"] = CFrame.new(609.85, 400.11, -5372.25),
-        ["Graveyard"] = CFrame.new(-5497.06, 47.59, -795.23),
-        ["Factory"] = CFrame.new(632.69, 73.10, 918.66),
-        ["Colosseum Sea 2"] = CFrame.new(-1580.04, 6.35, -2986.47),
-        ["Dark Arena"] = CFrame.new(1000, 100, 1000),
-    },
-    Sea3 = {
-        ["Mansion"] = CFrame.new(-12471.16, 374.94, -7551.67),
-        ["Port Town"] = CFrame.new(-290.73, 6.72, 5343.55),
-        ["Hydra Island"] = CFrame.new(5291.24, 1005.44, 393.76),
-        ["Floating Turtle"] = CFrame.new(-13274.52, 531.82, -7579.22),
-        ["Haunted Castle"] = CFrame.new(-9515.37, 164.00, 5786.06),
-        ["Tiki Outpost"] = CFrame.new(-16218.68, 9.08, 445.61),
-        ["Great Tree"] = CFrame.new(2180.54, 27.81, -6741.54),
-        ["Castle on the Sea"] = CFrame.new(-5039.58, 27.35, 4324.68),
-        ["Cake Land"] = CFrame.new(-2021.32, 37.79, -12028.72),
-        ["Peanut Island"] = CFrame.new(-2104.39, 38.10, -10194.21),
-    }
-}
-
-local DungeonChips = {
-    "Flame", "Ice", "Quake", "Light", "Dark", "Spider", "Rumble", "Magma", "Buddha", "Dough"
-}
-
-local BossList = (World1 and {
-    "The Gorilla King", "Bobby", "The Saw", "Yeti", "Mob Leader", "Vice Admiral",
-    "Saber Expert", "Warden", "Chief Warden", "Swan", "Magma Admiral", "Fishman Lord",
-    "Wysper", "Thunder God", "Cyborg", "Ice Admiral", "Greybeard", "Darkbeard"
-}) or (World2 and {
-    "Diamond", "Jeremy", "Fajita", "Don Swan", "Smoke Admiral", "Awakened Ice Admiral",
-    "Tide Keeper", "Darkbeard", "Cursed Captain", "Order"
-}) or (World3 and {
-    "Stone", "Hydra Leader", "Kilo Admiral", "Captain Elephant", "Beautiful Pirate",
-    "Cake Queen", "Longma", "Soul Reaper", "Dough King", "Katakuri", "Island Boy"
-})
-
-local MaterialList = (World1 and {
-    "Leather + Scrap Metal", "Angel Wings", "Magma Ore", "Fish Tail", "Wood Planks"
-}) or (World2 and {
-    "Leather + Scrap Metal", "Radioactive Material", "Ectoplasm", "Mystic Droplet",
-    "Magma Ore", "Vampire Fang"
-}) or (World3 and {
-    "Scrap Metal", "Demonic Wisp", "Conjured Cocoa", "Dragon Scale", "Gunpowder",
-    "Fish Tail", "Mini Tusk", "Azure Ember"
-})
-
-local MobSpecificTeleports = {
-    ["Darkbeard"] = CFrame.new(1000, 100, 1000),
-    ["Longma"] = CFrame.new(-13510, 584, -6987),
-    ["Terrorshark"] = CFrame.new(-40000, 30, -2000),
-    ["Leviathan"] = CFrame.new(-148073.35, 9.00, 7721.05),
-    ["Tide Keeper"] = CFrame.new(6148.41, 294.38, -6741.11),
-    ["Thunder God"] = CFrame.new(-4869.10, 733.46, -2667.01),
-    ["Don Swan"] = CFrame.new(638.43, 71.76, 918.28),
-    ["Cursed Captain"] = CFrame.new(923.40, 125.05, 32885.87),
-    ["Order"] = CFrame.new(-408.09, 16.04, 247.43),
-    ["Indra"] = CFrame.new(-12471.16, 374.94, -7551.67),
-    ["Kitsune Island"] = CFrame.new(-16526, 108, 752),
-    ["Mirage Island"] = CFrame.new(29221.82, 14890.97, -205.99),
-    ["Prehistoric Island"] = CFrame.new(-16471, 528, 539),
-    ["Island Boy"] = CFrame.new(-16901.26, 84.06, -192.88),
-}
-
-local ZoneCFrames = {
-    ["Zone 1"] = CFrame.new(-21998.37, 30.00, -682.30),
-    ["Zone 2"] = CFrame.new(-26779.52, 30.00, -822.85),
-    ["Zone 3"] = CFrame.new(-31171.95, 30.00, -2256.93),
-    ["Zone 4"] = CFrame.new(-34054.68, 30.21, -2560.12),
-    ["Zone 5"] = CFrame.new(-38887.55, 30.00, -2162.99),
-    ["Zone 6"] = CFrame.new(-44541.76, 30.00, -1244.85),
-    ["Infinite"] = CFrame.new(-148073.35, 9.00, 7721.05)
-}
-
-local function GetMaterialConfig(mat: string): ({string}, CFrame)
-    if mat == "Radioactive Material" and World2 then return {"Factory Staff"}, CFrame.new(-507.78, 72.99, -126.45)
-    elseif mat == "Mystic Droplet" and World2 then return {"Water Fighter"}, CFrame.new(-3352.90, 285.01, -10534.84)
-    elseif mat == "Magma Ore" and World1 then return {"Military Spy"}, CFrame.new(-5850.28, 77.28, 8848.67)
-    elseif mat == "Magma Ore" and World2 then return {"Lava Pirate"}, CFrame.new(-5234.60, 51.95, -4732.27)
-    elseif mat == "Angel Wings" and World1 then return {"Royal Soldier"}, CFrame.new(-7827.15, 5606.91, -1705.58)
-    elseif mat == "Leather + Scrap Metal" and World1 then return {"Pirate", "Brute"}, CFrame.new(-1211.87, 4.78, 3916.83)
-    elseif mat == "Leather + Scrap Metal" and World2 then return {"Marine Captain", "Mercenary"}, CFrame.new(-2010.50, 73.00, -3326.62)
-    elseif mat == "Scrap Metal" and World3 then return {"Pirate Millionaire"}, CFrame.new(-289.63, 43.82, 5583.66)
-    elseif mat == "Ectoplasm" and World2 then return {"Ship Deckhand", "Ship Engineer", "Ship Steward", "Ship Officer"}, CFrame.new(911.35, 125.95, 33159.53)
-    elseif mat == "Conjured Cocoa" and World3 then return {"Chocolate Bar Battler"}, CFrame.new(744.79, 24.76, -12637.72)
-    elseif mat == "Dragon Scale" and World3 then return {"Dragon Crew Warrior"}, CFrame.new(5824.06, 51.38, -1106.69)
-    elseif mat == "Gunpowder" and World3 then return {"Pistol Billionaire"}, CFrame.new(-379.61, 73.84, 5928.52)
-    elseif mat == "Fish Tail" and World3 then return {"Fishman Captain"}, CFrame.new(-10961.01, 331.79, -8914.29)
-    elseif mat == "Mini Tusk" and World3 then return {"Mythological Pirate"}, CFrame.new(-13516.04, 469.81, -6899.16)
-    elseif mat == "Vampire Fang" and World2 then return {"Vampire"}, CFrame.new(-6037.66, 32.18, -1340.65)
-    elseif mat == "Demonic Wisp" and World3 then return {"Demonic Soul"}, CFrame.new(-9579, 6, 6194)
-    elseif mat == "Wood Planks" and World3 then return {"Tree"}, CFrame.new(-16471, 528, 539)
-    elseif mat == "Azure Ember" and World3 then return {"Kitsune Shrine"}, CFrame.new(-16526, 108, 752)
-    end
-    return {}, CFrame.new(0,0,0)
-end
-
---------------------------------------------------------------------------------
--- 6. دمج واجهة AetherUI والتابات الكاملة
---------------------------------------------------------------------------------
-local AetherUI = nil
-local success_ui, err_ui = pcall(function()
-    AetherUI = loadstring(game:HttpGet("https://pastebin.com/raw/yeULgMe0"))()
-end)
-
-if not success_ui or not AetherUI then
-    warn("Haroon Hub: Failed to load AetherUI library. Error:", err_ui)
-    return
-end
-
-AetherUI:InitLoadingScreen("Haroon Hub V12 Ultimate Master Edition", "Initializing Fruits, Raids & Safe Motors...", function()
-    AetherUI:InitKeySystem({"HAROON-2025-VIP", "HAROON-KEY-100"}, function()
-        AetherUI:Notify({Title = "🔥 Haroon Hub V12 Active", Content = "تم دمج مكتبتك بالنظام الجديد بنجاح 100%!", Duration = 4})
-
-        local Window = AetherUI:CreateWindow({
-            Title = "Haroon Hub | Blox Fruits Master",
-            Subtitle = "by: 3amek4222",
-            ToggleKey = Enum.KeyCode.RightControl
-        })
-
-        local MainTab = Window:CreateTab("Main", "rbxassetid://6034287594")
-        local CombatTab = Window:CreateTab("Combat", "rbxassetid://6034834832")
-        local FruitsTab = Window:CreateTab("Fruits Tab", "rbxassetid://6034453535")
-        local RaidTab = Window:CreateTab("Dungeon / Raid", "rbxassetid://6034834832")
-        local FarmingQuestsTab = Window:CreateTab("Farming Quests", "rbxassetid://6034453535")
-        local RaceTab = Window:CreateTab("Race V4 & Mirage", "rbxassetid://6034453535")
-        local SubFarmTab = Window:CreateTab("Sub Farming", "rbxassetid://6034834832")
-        local CakeTab = Window:CreateTab("Cake & Dough", "rbxassetid://6034453535")
-        local SeaTab = Window:CreateTab("Sea Farming", "rbxassetid://6034453535")
-        local AutoQuestsTab = Window:CreateTab("Auto Quests", "rbxassetid://6034453535")
-        local TeleportsTab = Window:CreateTab("Teleports", "rbxassetid://6034453535")
-        local VisualTab = Window:CreateTab("Visuals & ESP", "rbxassetid://6034453535")
-        local MiscTab = Window:CreateTab("Misc", "rbxassetid://6031280882")
-        local SettingsTab = Window:CreateTab("Settings", "rbxassetid://6031280882")
-
-        ---------------------------------------------------------
-        -- 📌 1. TAB: MAIN
-        ---------------------------------------------------------
-        MainTab:CreateSection("خيارات التلفيل الأساسية (Level Farm)")
-
-        MainTab:CreateToggle("تفعيل التجميع التلقائي (Auto Farm Level)", "AutoFarmFlag", false, function(state)
-            _G.Settings.Main["Auto Farm Level"] = state
-            if not state then StopTween() end
-        end)
-
-        MainTab:CreateToggle("تضمين مهمات الزعماء بالتلفيل (Include Bosses)", "IncludeBossQuestFlag", false, function(state)
-            _G.Settings.Main["Include Boss Quests"] = state
-        end)
-
-        MainTab:CreateDropdown("اختر السلاح الفعال (Weapon)", "WeaponFlag", {"Melee", "Sword", "Blox Fruit", "Gun"}, "Melee", function(selected)
-            _G.Settings.Main["Select Weapon"] = selected
-        end)
-
-        MainTab:CreateSlider("ارتفاع الطيران فوق العدو (Farm Distance)", "FarmDistFlag", 10, 50, 28, function(val)
-            _G.Settings.Main["Farm Distance"] = val
-        end)
-
-        MainTab:CreateSlider("سرعة الانتقال الآمنة (Safe Tween Speed)", "TweenSpeedFlag", 100, 300, 180, function(val)
-            _G.Settings.Main["Player Tween Speed"] = val
-        end)
-
-        MainTab:CreateToggle("الضرب السريع الخارق (Fast Attack)", "FastAttackFlag", false, function(state)
-            _G.Settings.Main["Fast Attack"] = state
-        end)
-
-        MainTab:CreateSection("تجميع الماتيريال (Auto Farm Materials)")
-
-        MainTab:CreateDropdown("اختر الماتيريال (Select Material)", "MatDropdownFlag", MaterialList, MaterialList[1], function(selected)
-            _G.Settings.Main["Selected Material"] = selected
-        end)
-
-        MainTab:CreateToggle("تفعيل تجميع الماتيريال (Farm Material)", "FarmMatFlag", false, function(state)
-            _G.Settings.Main["Auto Farm Material"] = state
-            if not state then StopTween() end
-        end)
-
-        MainTab:CreateSection("قتل الزعماء (Auto Farm Bosses)")
-
-        MainTab:CreateDropdown("اختر البوس (Select Boss)", "BossDropdownFlag", BossList, BossList[1], function(selected)
-            _G.Settings.Main["Selected Boss"] = selected
-        end)
-
-        MainTab:CreateToggle("تفعيل قتل البوس المحدد (Auto Farm Boss)", "FarmBossFlag", false, function(state)
-            _G.Settings.Main["Auto Farm Boss"] = state
-            if not state then StopTween() end
-        end)
-
-        MainTab:CreateToggle("تفعيل قتل جميع البوسات المتوفرة (Farm All Bosses)", "FarmAllBossFlag", false, function(state)
-            _G.Settings.Main["Auto Farm All Boss"] = state
-            if not state then StopTween() end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 2. TAB: COMBAT (PVP)
-        ---------------------------------------------------------
-        CombatTab:CreateSection("قتال اللاعبين والـ PVP")
-
-        local playerList = {}
-        for _, p in pairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer then table.insert(playerList, p.Name) end
-        end
-
-        CombatTab:CreateDropdown("اختر اللاعب المستهدف", "PVPPlayerDropdown", playerList, playerList[1] or "None", function(selected)
-            _G.Settings.Combat["Selected Player"] = selected
-        end)
-
-        CombatTab:CreateToggle("مراقبة اللاعب (Spectate Player)", "SpectateFlag", false, function(state)
-            _G.Settings.Combat["Spectate Player"] = state
-            if state and _G.Settings.Combat["Selected Player"] then
-                local target = Players:FindFirstChild(_G.Settings.Combat["Selected Player"])
-                if target and target.Character and target.Character:FindFirstChild("Humanoid") then
-                    workspace.CurrentCamera.CameraSubject = target.Character.Humanoid
-                end
-            else
-                local char, hum = GetCharacter()
-                if char and hum then
-                    workspace.CurrentCamera.CameraSubject = hum
-                end
-            end
-        end)
-
-        CombatTab:CreateToggle("الانتقال إلى اللاعب (Teleport To Player)", "TPPlayerFlag", false, function(state)
-            _G.Settings.Combat["Teleport To Player"] = state
-            if not state then StopTween() end
-            task.spawn(function()
-                while _G.Settings.Combat["Teleport To Player"] do
-                    task.wait()
-                    pcall(function()
-                        local target = Players:FindFirstChild(_G.Settings.Combat["Selected Player"])
-                        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-                            TweenPlayer(target.Character.HumanoidRootPart.CFrame)
-                        end
-                    end)
-                end
-            end)
-        end)
-
-        CombatTab:CreateToggle("تصويب المسدسات التلقائي (Aimbot Gun)", "AimbotGunFlag", false, function(state)
-            _G.Settings.Combat["Aimbot Gun"] = state
-        end)
-
-        CombatTab:CreateSection("خيارات الهروب والعودة في الـ PVP")
-        CombatTab:CreateToggle("تفعيل الهروب والعودة التلقائي (Auto PvP Escape)", "AutoPvPEscapeFlag", false, function(state)
-            _G.Settings.Combat["Auto PvP Escape"] = state
-            if not state then StopTween() end
-        end)
-        CombatTab:CreateSlider("نسبة HP للهروب (Escape HP %)", "EscapeHPSlider", 10, 90, 30, function(val)
-            _G.Settings.Combat["Escape HP %"] = val
-        end)
-        CombatTab:CreateSlider("نسبة HP للعودة (Return HP %)", "ReturnHPSlider", 20, 100, 70, function(val)
-            _G.Settings.Combat["Return HP %"] = val
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 3. TAB: FRUITS TAB
-        ---------------------------------------------------------
-        FruitsTab:CreateSection("نظام الفواكه والتخزين (Blox Fruits Engine)")
-        
-        FruitsTab:CreateToggle("🍎 Fruit Notifier (ESP)", "FruitESPFlag", false, function(state)
-            _G.Settings.Fruits["Fruit ESP"] = state
-            _G.Settings.Visuals["ESP Fruits"] = state
-        end)
-
-        FruitsTab:CreateToggle("🏃 Fruit Sniper (Auto-Collect)", "FruitSniperFlag", false, function(state)
-            _G.Settings.Fruits["Fruit Sniper"] = state
-            if not state then StopTween() end
-        end)
-
-        FruitsTab:CreateToggle("🔄 Auto-Store Fruit", "AutoStoreFruitFlag", false, function(state)
-            _G.Settings.Fruits["Auto Store Fruit"] = state
-        end)
-
-        FruitsTab:CreateButton("🗺️ Show All Fruit Locations", function()
-            _G.Settings.Fruits["Show All Fruits"] = true
-            AetherUI:Notify({Title = "Fruits Scanner", Content = "جاري مسح كافة الفواكه على الخريطة...", Duration = 3})
-            task.wait(5)
-            _G.Settings.Fruits["Show All Fruits"] = false
-        end)
-
-        FruitsTab:CreateButton("🛒 Buy Random Fruit (Cousin)", function()
-            if CommF_ then
-                local res = CommF_:InvokeServer("Cousin", "Buy")
-                AetherUI:Notify({Title = "Fruit Dealer", Content = tostring(res), Duration = 4})
-            end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 4. TAB: DUNGEON / RAID (Auto Next Island المستخرج)
-        ---------------------------------------------------------
-        RaidTab:CreateSection("نظام الـ Dungeon و غارات الفواكه (Dungeon System)")
-
-        RaidTab:CreateDropdown("Select Raid Chip (اختر شريحة الريد)", "DungeonChipDropdown", DungeonChips, DungeonChips[1], function(selected)
-            _G.Settings.Raid["Selected Chip"] = selected
-        end)
-
-        RaidTab:CreateToggle("⚡ Auto Dungeon / Fruits Raid (تفعيل الريد)", "AutoDungeonFlag", false, function(state)
-            _G.Settings.Raid["Auto Dungeon / Raid"] = state
-            if not state then StopTween() end
-        end)
-
-        RaidTab:CreateToggle("🛒 Buy Chip & Start Raid (شراء وبدء تلقائي)", "AutoBuyStartRaidFlag", false, function(state)
-            _G.Settings.Raid["Auto Buy Chip & Start"] = state
-        end)
-
-        RaidTab:CreateToggle("⚔️ Auto Clear Dungeon Waves (مسح وحوش الريد)", "AutoClearDungeonFlag", false, function(state)
-            _G.Settings.Raid["Auto Clear Dungeon Waves"] = state
-            if not state then StopTween() end
-        end)
-
-        RaidTab:CreateToggle("🏝️ Auto Next Island (الانتقال للجزيرة التالية تلقائياً)", "AutoNextIslandFlag", false, function(state)
-            _G.Settings.Raid["Auto Next Island"] = state
-            if not state then StopTween() end
-        end)
-
-        RaidTab:CreateToggle("✨ Auto Awaken Skills (إيقاظ المهارات التلقائي)", "AutoAwakenSkillsFlag", false, function(state)
-            _G.Settings.Raid["Auto Awaken"] = state
-        end)
-
-        RaidTab:CreateToggle("⚡ Law Raid (ريد لاو التلقائي)", "LawRaidFlag", false, function(state)
-            _G.Settings.Raid["Law Raid"] = state
-            if not state then StopTween() end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 5. TAB: FARMING QUESTS (CDK & TTK المستخرج بالكامل)
-        ---------------------------------------------------------
-        FarmingQuestsTab:CreateSection("مهمات السيوف الأسطورية (Legendary Swords)")
-
-        FarmingQuestsTab:CreateDropdown("اختر مهمة السيف", "SwordQuestDropdown", {"Saber V2", "Yama", "Tushita"}, "Saber V2", function(selected)
-            _G.Settings.FarmingQuests["Selected Sword Quest"] = selected
-        end)
-
-        FarmingQuestsTab:CreateToggle("تفعيل أتمتة مهمة السيف", "AutoSwordQuestFlag", false, function(state)
-            _G.Settings.FarmingQuests["Auto Sword Quest"] = state
-            if not state then StopTween() end
-        end)
-
-        FarmingQuestsTab:CreateSection("مهمات السيوف المدمجة الأسطورية (CDK & TTK Engine)")
-
-        FarmingQuestsTab:CreateToggle("⚔️ أتمتة Cursed Dual Katana بالكامل (Auto CDK)", "AutoFarmCDKFlag", false, function(state)
-            _G.Settings.FarmingQuests["Auto Farm CDK"] = state
-            if not state then StopTween() end
-        end)
-
-        FarmingQuestsTab:CreateToggle("⚔️ أتمتة True Triple Katana بالكامل (Auto TTK)", "AutoFarmTTKFlag", false, function(state)
-            _G.Settings.FarmingQuests["Auto Farm TTK"] = state
-            if not state then StopTween() end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 6. TAB: RACE V2, V3, V4 & MIRAGE (النظام المستخرج الكامل)
-        ---------------------------------------------------------
-        RaceTab:CreateSection("ترقية الأجناس (Race V2 & V3 Quests)")
-
-        RaceTab:CreateToggle("🧬 أتمتة مهمة Race V2 (Auto Race V2 Quest)", "AutoRaceV2QuestFlag", false, function(state)
-            _G.Settings.Race["Auto Race V2 Quest"] = state
-            if not state then StopTween() end
-        end)
-
-        RaceTab:CreateDropdown("اختر مهمة Race V3", "RaceV3QuestDropdown", {"Human", "Fishman", "Skypian", "Mink", "Ghoul", "Cyborg"}, "Human", function(selected)
-            _G.Settings.Race["Selected Race V3"] = selected
-        end)
-
-        RaceTab:CreateToggle("🧬 أتمتة مهمة Race V3 (Auto Race V3 Quest)", "AutoRaceV3QuestFlag", false, function(state)
-            _G.Settings.Race["Auto Race V3 Quest"] = state
-            if not state then StopTween() end
-        end)
-
-        RaceTab:CreateToggle("تفعيل مهارة V3 تلقائياً (Auto Race V3 Ability)", "AutoV3AbilityFlag", false, function(state)
-            _G.Settings.Race["Auto Race V3 Ability"] = state
-            task.spawn(function()
-                while _G.Settings.Race["Auto Race V3 Ability"] do
-                    task.wait(1)
-                    if CommE then pcall(function() CommE:FireServer("ActivateAbility") end) end
-                end
-            end)
-        end)
-
-        RaceTab:CreateSection("حزمة الميراج و الترس الأزرق (Mirage Island Suite)")
-
-        RaceTab:CreateToggle("🏝️ البحث التلقائي عن Mirage Island والإبحار لها", "AutoFindMirageFlag", false, function(state)
-            _G.Settings.Race["Auto Find Mirage"] = state
-            if not state then StopTween() end
-        end)
-
-        RaceTab:CreateToggle("🏔️ الانتقال لقمة الميراج (Tween To Highest Mirage)", "TweenMirageFlag", false, function(state)
-            _G.Settings.Race["Tween To Highest Mirage"] = state
-            if not state then StopTween() end
-            task.spawn(function()
-                while _G.Settings.Race["Tween To Highest Mirage"] do
-                    task.wait()
-                    pcall(function()
-                        if workspace.Map:FindFirstChild("MysticIsland") then
-                            for _, v in pairs(workspace.Map.MysticIsland:GetDescendants()) do
-                                if v:IsA("MeshPart") and v.MeshId == "rbxassetid://6745037796" then
-                                    TweenPlayer(v.CFrame, Vector3.new(0, 212, 0))
-                                end
-                            end
-                        end
-                    end)
-                end
-            end)
-        end)
-
-        RaceTab:CreateToggle("⚙️ الانتقال وأخذ الترس الأزرق (Teleport to Gear)", "TeleportToGearFlag", false, function(state)
-            _G.Settings.Race["Teleport To Blue Gear"] = state
-            if not state then StopTween() end
-            task.spawn(function()
-                while _G.Settings.Race["Teleport To Blue Gear"] do
-                    task.wait(0.2)
-                    pcall(function()
-                        if workspace.Map:FindFirstChild("MysticIsland") then
-                            for _, v in pairs(workspace.Map.MysticIsland:GetChildren()) do
-                                if v:IsA("MeshPart") and (v.Material == Enum.Material.Neon or string.find(v.Name:lower(), "gear")) then
-                                    TweenPlayer(v.CFrame)
-                                    if (LocalPlayer.Character.HumanoidRootPart.Position - v.Position).Magnitude < 15 then
-                                        if CommF_ then CommF_:InvokeServer("InteractGear", v) end
-                                    end
-                                end
-                            end
-                        end
-                    end)
-                end
-            end)
-        end)
-
-        RaceTab:CreateToggle("🌕 النظر للقمر وتفعيل المهارة (Look Moon)", "LookMoonFlag", false, function(state)
-            _G.Settings.Race["Look Moon Ability"] = state
-            task.spawn(function()
-                while _G.Settings.Race["Look Moon Ability"] do
-                    task.wait()
-                    pcall(function()
-                        local moonDir = game.Lighting:GetMoonDirection()
-                        local lookAtPos = workspace.CurrentCamera.CFrame.p + moonDir * 100
-                        workspace.CurrentCamera.CFrame = CFrame.lookAt(workspace.CurrentCamera.CFrame.p, lookAtPos)
-                    end)
-                end
-            end)
-        end)
-
-        RaceTab:CreateToggle("🚪 الانتقال لباب الترايل تلقائياً (Teleport To Race Door)", "TPDoorFlag", false, function(state)
-            _G.Settings.Race["Teleport To Race Door"] = state
-            if not state then StopTween() end
-            if state then
-                local myRace = (LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Race")) and LocalPlayer.Data.Race.Value or "Human"
-                local raceDoors = {
-                    ["Human"] = CFrame.new(29221.82, 14890.97, -205.99),
-                    ["Skypian"] = CFrame.new(28960.15, 14919.62, 235.03),
-                    ["Fishman"] = CFrame.new(28231.17, 14890.97, -211.64),
-                    ["Cyborg"] = CFrame.new(28502.68, 14895.97, -423.72),
-                    ["Ghoul"] = CFrame.new(28674.24, 14890.67, 445.43),
-                    ["Mink"] = CFrame.new(29012.34, 14890.97, -380.14)
-                }
-                local char, hrp = GetCharacter()
-                if char and hrp then
-                    hrp.CFrame = CFrame.new(28286.35, 14895.30, 102.62)
-                    task.wait(0.3)
-                    if raceDoors[myRace] then TweenPlayer(raceDoors[myRace]) end
-                end
-            end
-        end)
-
-        RaceTab:CreateSection("التدريب واجتياز الترايل (Race V4 Train & Trial)")
-
-        RaceTab:CreateToggle("التدريب التلقائي للـ V4 (Auto Train)", "AutoTrainFlag", false, function(state)
-            _G.Settings.Race["Auto Train"] = state
-            if not state then StopTween() end
-        end)
-
-        RaceTab:CreateToggle("اجتياز الترايل تلقائياً (Auto Trial)", "AutoTrialFlag", false, function(state)
-            _G.Settings.Race["Auto Trial"] = state
-            if not state then StopTween() end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 7. TAB: SUB FARMING
-        ---------------------------------------------------------
-        SubFarmTab:CreateSection("صياد النخبة والعظام (Elite & Bones)")
-
-        SubFarmTab:CreateToggle("صياد النخبة التلقائي (Auto Elite Hunter)", "EliteFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Elite Hunter"] = state
-            if not state then StopTween() end
-        end)
-
-        SubFarmTab:CreateToggle("صياد النخبة مع السيرفر هوب (Elite Hop)", "EliteHopFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Elite Hunter Hop"] = state
-            if not state then StopTween() end
-        end)
-
-        SubFarmTab:CreateToggle("تجميع العظام التلقائي (Auto Farm Bones)", "BoneFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Farm Bone"] = state
-            if not state then StopTween() end
-        end)
-
-        SubFarmTab:CreateSection("تجميع الصناديق التلقائي (Auto Chests)")
-
-        SubFarmTab:CreateToggle("جمع الصناديق بالطيران (Chest Tween)", "ChestTweenFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Chest Tween"] = state
-            if not state then StopTween() end
-        end)
-
-        SubFarmTab:CreateToggle("جمع الصناديق الفوري (Chest Instant)", "ChestInstantFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Chest Instant"] = state
-            if not state then StopTween() end
-        end)
-
-        SubFarmTab:CreateToggle("توقف عند الحصول على دروب نادر (Stop on Items)", "StopItemsFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Stop Items"] = state
-        end)
-
-        SubFarmTab:CreateSection("تلفيل الماستري التلقائي (Auto Mastery)")
-
-        SubFarmTab:CreateToggle("تلفيل ماستري Melee (لـ 400)", "AutoMasteryMeleeFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Mastery Melee"] = state
-            if not state then StopTween() end
-        end)
-        SubFarmTab:CreateToggle("تلفيل ماستري Swords (لـ 400)", "AutoMasterySwordsFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Mastery Swords"] = state
-            if not state then StopTween() end
-        end)
-        SubFarmTab:CreateToggle("تلفيل ماستري Blox Fruits (لـ 400)", "AutoMasteryBloxFruitsFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Mastery Blox Fruits"] = state
-            if not state then StopTween() end
-        end)
-        SubFarmTab:CreateToggle("تلفيل ماستري Guns (لـ 400)", "AutoMasteryGunsFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Mastery Guns"] = state
-            if not state then StopTween() end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 8. TAB: CAKE PRINCE & DOUGH KING
-        ---------------------------------------------------------
-        CakeTab:CreateSection("الكيك برنس و دو كينغ")
-
-        CakeTab:CreateToggle("تلفيل وقتل الكاتكوري بالكامل (Auto Katakuri)", "KatakuriFlag", false, function(state)
-            _G.Settings.Cake["Auto Katakuri"] = state
-            if not state then StopTween() end
-        end)
-
-        CakeTab:CreateToggle("استدعاء الكيك برنس التلقائي (Auto Spawn Prince)", "SpawnPrinceFlag", false, function(state)
-            _G.Settings.Cake["Auto Spawn Cake Prince"] = state
-        end)
-
-        CakeTab:CreateToggle("قتل الكيك برنس فور ظهوره (Auto Kill Cake Prince)", "KillPrinceFlag", false, function(state)
-            _G.Settings.Cake["Auto Kill Cake Prince"] = state
-            if not state then StopTween() end
-        end)
-
-        CakeTab:CreateToggle("قتل دو كينغ فور ظهوره (Auto Kill Dough King)", "KillDoughFlag", false, function(state)
-            _G.Settings.Cake["Auto Kill Dough King"] = state
-            if not state then StopTween() end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 9. TAB: SEA FARMING (Prehistoric & Draco Trail)
-        ---------------------------------------------------------
-        SeaTab:CreateSection("الجزيرة القديمة وما قبل التاريخ (Prehistoric Engine)")
-
-        SeaTab:CreateButton("🏝️ Teleport Prehistoric Island (انتقال فوري)", function()
-            TweenPlayer(MobSpecificTeleports["Prehistoric Island"])
-            AetherUI:Notify({Title = "Teleport", Content = "جاري الانتقال إلى الجزيرة القديمة...", Duration = 2})
-        end)
-
-        SeaTab:CreateToggle("🦖 أتمتة الجزيرة القديمة (Auto Prehistoric Island)", "AutoPrehistoricFlag", false, function(state)
-            _G.Settings.Sea["Auto Prehistoric Island"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("🔥 إنهاء الجزيرة والشعلات (Auto Complete Prehistoric Island)", "AutoCompletePrehistoricFlag", false, function(state)
-            _G.Settings.Sea["Auto Complete Prehistoric Island"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("🐉 تدريب دراكو وقهر الوحوش (Auto Draco Trail)", "AutoDracoTrailFlag", false, function(state)
-            _G.Settings.Sea["Auto Draco Trail"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateSection("إبحار وأحداث البحر والبحث عن الجزر")
-
-        SeaTab:CreateDropdown("اختر القارب (Select Boat)", "BoatDropdownFlag", {"Guardian", "Beast Hunter", "PirateGrandBrigade", "MarineGrandBrigade"}, "Guardian", function(selected)
-            _G.Settings.Sea["Selected Boat"] = selected
-        end)
-
-        SeaTab:CreateDropdown("اختر منطقة الإبحار (Select Zone)", "ZoneDropdownFlag", {"Zone 1", "Zone 2", "Zone 3", "Zone 4", "Zone 5", "Zone 6", "Infinite"}, "Zone 5", function(selected)
-            _G.Settings.Sea["Selected Zone"] = selected
-        end)
-
-        SeaTab:CreateToggle("تفعيل الإبحار التلقائي (Sail Boat)", "SailBoatFlag", false, function(state)
-            _G.Settings.Sea["Sail Boat"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateSection("قتال مخلوقات وحوش البحر (Sea Mobs Farming)")
-
-        SeaTab:CreateToggle("🦈 قتل أسماك القرش (Auto Farm Shark)", "SharkFlag", false, function(state)
-            _G.Settings.Sea["Auto Farm Shark"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("🐟 قتل البيرانا (Auto Farm Piranha)", "PiranhaFlag", false, function(state)
-            _G.Settings.Sea["Auto Farm Piranha"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("🧜‍♂️ قتل طاقم الأسماك (Fish Crew Member)", "CrewFlag", false, function(state)
-            _G.Settings.Sea["Auto Farm Fish Crew Member"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("👻 قتل السفن الشبحية (Ghost Ship)", "GhostShipFlag", false, function(state)
-            _G.Settings.Sea["Auto Farm Ghost Ship"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("🦖 قتل التيرور شارك (Terrorshark)", "TerrorFlag", false, function(state)
-            _G.Settings.Sea["Auto Farm Terrorshark"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("🌊 قتل السي بيست (Seabeasts)", "SeabeastFlag", false, function(state)
-            _G.Settings.Sea["Auto Farm Seabeasts"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("🛡️ تفادي هجمات السي بيست (Dodge Seabeasts)", "DodgeSBFlag", true, function(state)
-            _G.Settings.Sea["Dodge Seabeasts Attack"] = state
-        end)
-
-        SeaTab:CreateToggle("🦊 البحث التلقائي عن Kitsune Island والإبحار لها", "AutoFindKitsuneIslandFlag", false, function(state)
-            _G.Settings.Sea["Auto Find Kitsune Island"] = state
-            if not state then StopTween() end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 10. TAB: AUTO QUESTS
-        ---------------------------------------------------------
-        AutoQuestsTab:CreateSection("أخذ وإنهاء المهمات المباشرة")
-
-        AutoQuestsTab:CreateButton("أخذ مهمة القرود (Jungle Quest 1)", function()
-            if CommF_ then CommF_:InvokeServer("StartQuest", "JungleQuest", 1) end
-        end)
-        AutoQuestsTab:CreateButton("أخذ مهمة القراصنة (Buggy Quest 1)", function()
-            if CommF_ then CommF_:InvokeServer("StartQuest", "BuggyQuest1", 1) end
-        end)
-        AutoQuestsTab:CreateButton("إلغاء المهمة الحالية (Abandon Quest)", function()
-            if CommF_ then CommF_:InvokeServer("AbandonQuest") end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 11. TAB: TELEPORTS (أزرار للبحار وتوغلات للجزر)
-        ---------------------------------------------------------
-        TeleportsTab:CreateSection("الانتقال بين البحار (Sea Travel Buttons)")
-
-        TeleportsTab:CreateButton("🌊 الانتقال إلى Sea 1 (World 1)", function()
-            if CommF_ then CommF_:InvokeServer("TravelMain") end
-        end)
-
-        TeleportsTab:CreateButton("🌊 الانتقال إلى Sea 2 (World 2)", function()
-            if CommF_ then CommF_:InvokeServer("TravelDressrosa") end
-        end)
-
-        TeleportsTab:CreateButton("🌊 الانتقال إلى Sea 3 (World 3)", function()
-            if CommF_ then CommF_:InvokeServer("TravelZou") end
-        end)
-
-        TeleportsTab:CreateSection("انتقالات جزر العالم الأول (Sea 1 Toggles)")
-        for islandName, cf in pairs(FullIslandLocations.Sea1) do
-            local key = "TP_" .. islandName
-            TeleportsTab:CreateToggle("📍 انتقال إلى " .. islandName, key, false, function(state)
-                _G.Settings.Teleports[key] = state
-                if state then
-                    TweenPlayer(cf)
-                    task.wait(1)
-                    _G.Settings.Teleports[key] = false
-                end
-            end)
-        end
-
-        TeleportsTab:CreateSection("انتقالات جزر العالم الثاني (Sea 2 Toggles)")
-        for islandName, cf in pairs(FullIslandLocations.Sea2) do
-            local key = "TP_" .. islandName
-            TeleportsTab:CreateToggle("📍 انتقال إلى " .. islandName, key, false, function(state)
-                _G.Settings.Teleports[key] = state
-                if state then
-                    TweenPlayer(cf)
-                    task.wait(1)
-                    _G.Settings.Teleports[key] = false
-                end
-            end)
-        end
-
-        TeleportsTab:CreateSection("انتقالات جزر العالم الثالث (Sea 3 Toggles)")
-        for islandName, cf in pairs(FullIslandLocations.Sea3) do
-            local key = "TP_" .. islandName
-            TeleportsTab:CreateToggle("📍 انتقال إلى " .. islandName, key, false, function(state)
-                _G.Settings.Teleports[key] = state
-                if state then
-                    TweenPlayer(cf)
-                    task.wait(1)
-                    _G.Settings.Teleports[key] = false
-                end
-            end)
-        end
-
-        ---------------------------------------------------------
-        -- 📌 12. TAB: VISUALS & ESP (جميع التوغلات Off افتراضياً)
-        ---------------------------------------------------------
-        VisualTab:CreateSection("كاشفات العناصر ورادار المسافات (All Toggles Off)")
-
-        VisualTab:CreateToggle("👤 ESP Players (كاشف اللاعبين)", "ESPPlayersFlag", false, function(state)
-            _G.Settings.Visuals["ESP Players"] = state
-        end)
-
-        VisualTab:CreateToggle("💀 ESP Bosses (كاشف الزعماء)", "ESPBossesFlag", false, function(state)
-            _G.Settings.Visuals["ESP Bosses"] = state
-        end)
-
-        VisualTab:CreateToggle("🍎 ESP Fruits (كاشف الفواكه)", "ESPFruitsFlag", false, function(state)
-            _G.Settings.Visuals["ESP Fruits"] = state
-        end)
-
-        VisualTab:CreateToggle("📦 ESP Chests (كاشف الصناديق)", "ESPChestsFlag", false, function(state)
-            _G.Settings.Visuals["ESP Chests"] = state
-        end)
-
-        VisualTab:CreateToggle("👾 ESP Enemies (كاشف الوحوش والأعداء)", "ESPEnemiesFlag", false, function(state)
-            _G.Settings.Visuals["ESP Enemies"] = state
-        end)
-
-        VisualTab:CreateToggle("🏝️ ESP Mirage Island", "ESPMirageFlag", false, function(state)
-            _G.Settings.Visuals["ESP Mirage Island"] = state
-        end)
-
-        VisualTab:CreateToggle("🦊 ESP Kitsune Island", "ESPKitsuneFlag", false, function(state)
-            _G.Settings.Visuals["ESP Kitsune Island"] = state
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 13. TAB: MISC (Auto Stats وحالة السيرفر)
-        ---------------------------------------------------------
-        MiscTab:CreateSection("توزيع النقاط التلقائي (Auto Stats Engine)")
-
-        MiscTab:CreateDropdown("اختر الخاصية (Select Stat)", "SelectStatDropdown", {"Melee", "Defense", "Sword", "Gun", "Demon Fruit"}, "Melee", function(selected)
-            _G.Settings.Stats["Selected Stat"] = selected
-        end)
-
-        MiscTab:CreateSlider("عدد النقاط لكل دورة (Points Per Tick)", "StatPointsSlider", 1, 100, 1, function(val)
-            _G.Settings.Stats["Points Per Tick"] = val
-        end)
-
-        MiscTab:CreateToggle("⚡ تفعيل توزيع النقاط التلقائي (Auto Stats)", "AutoStatsToggleFlag", false, function(state)
-            _G.Settings.Stats["Auto Stats"] = state
-        end)
-
-        MiscTab:CreateSection("حالة السيرفر والعدادات المباشرة (Server Status)")
-
-        local serverClockParagraph = MiscTab:CreateParagraph({
-            Title = "⏰ Server Clock Time (ساعة السيرفر)",
-            Desc = "جارٍ التحميل...",
-            Image = "rbxassetid://6034287594",
-            ImageSize = 20
-        })
-
-        local playerTimeParagraph = MiscTab:CreateParagraph({
-            Title = "⏱️ Time Connected In Server (مدة بقائك بالسيرفر)",
-            Desc = "0 Hours 0 Minutes 0 Seconds",
-            Image = "rbxassetid://6034287594",
-            ImageSize = 20
-        })
-
-        local cakePrinceCountParagraph = MiscTab:CreateParagraph({
-            Title = "👑 Cake Prince Status (عداد الأعداء المتبقي)",
-            Desc = "جارٍ جلب البيانات الحية...",
-            Image = "rbxassetid://6034834832",
-            ImageSize = 20
-        })
-
-        local mirageStatusParagraph = MiscTab:CreateParagraph({
-            Title = "🏝️ Mirage Island Status",
-            Desc = "جارٍ الفحص...",
-            Image = "rbxassetid://6034453535",
-            ImageSize = 20
-        })
-
-        local kitsuneStatusParagraph = MiscTab:CreateParagraph({
-            Title = "🦊 Kitsune Island Status",
-            Desc = "جارٍ الفحص...",
-            Image = "rbxassetid://6034453535",
-            ImageSize = 20
-        })
-
-        task.spawn(function()
-            while task.wait(1) do
-                pcall(function()
-                    local clockTime = game.Lighting.ClockTime
-                    local hours = math.floor(clockTime)
-                    local minutes = math.floor((clockTime - hours) * 60)
-                    serverClockParagraph:SetDesc(string.format("%02d:%02d", hours, minutes))
-
-                    local gameTime = math.floor(workspace.DistributedGameTime + 0.5)
-                    local sH = math.floor(gameTime / 3600) % 24
-                    local sM = math.floor(gameTime / 60) % 60
-                    local sS = math.floor(gameTime) % 60
-                    playerTimeParagraph:SetDesc(sH .. " Hours " .. sM .. " Minutes " .. sS .. " Seconds")
-
-                    if World3 and CommF_ then
-                        local princeData = CommF_:InvokeServer("CakePrinceSpawner")
-                        if typeof(princeData) == "string" then
-                            if string.find(princeData, "spawned") or string.find(princeData, "ready") then
-                                cakePrinceCountParagraph:SetDesc("👑 Cake Prince Is Spawned! (تم استدعاء الكيك برنس!)")
-                            else
-                                local rem = string.match(princeData, "%d+")
-                                cakePrinceCountParagraph:SetDesc(rem and ("⚔️ متبقي " .. rem .. " بوت/عدو لاستدعاء Cake Prince") or princeData)
-                            end
-                        end
-                    else
-                        cakePrinceCountParagraph:SetDesc("متوفر في العالم الثالث فقط (Sea 3 Only)")
-                    end
-
-                    local mirageIsland = workspace.Map:FindFirstChild("MysticIsland")
-                    if mirageIsland then
-                        local char, hrp = GetCharacter()
-                        local dist = hrp and math.floor((hrp.Position - mirageIsland.WorldPivot.Position).Magnitude) or 0
-                        mirageStatusParagraph:SetDesc("✅ ظهرت بالفعل! | المسافة: " .. dist .. "m")
-                    else
-                        mirageStatusParagraph:SetDesc("❌ لم تظهر بعد")
-                    end
-
-                    local kitsuneIsland = workspace.Map:FindFirstChild("KitsuneIsland")
-                    if kitsuneIsland then
-                        local char, hrp = GetCharacter()
-                        local dist = hrp and math.floor((hrp.Position - kitsuneIsland.WorldPivot.Position).Magnitude) or 0
-                        kitsuneStatusParagraph:SetDesc("✅ ظهرت بالفعل! | المسافة: " .. dist .. "m")
-                    else
-                        kitsuneStatusParagraph:SetDesc("❌ لم تظهر بعد")
-                    end
-                end)
-            end
-        end)
-
-        MiscTab:CreateSection("إعدادات الفريق والـ Haki")
-
-        MiscTab:CreateToggle("تفعيل الـ Ken (Buso Haki) تلقائياً", "AutoKenFlag", false, function(state)
-            _G.Settings.Misc["Auto Ken (Buso Haki)"] = state
-        end)
-
-        MiscTab:CreateToggle("الانضمام إلى فريق المارينز", "SetTeamMarinesFlag", false, function(state)
-            _G.Settings.Misc["Set Team to Marines"] = state
-            if state and CommF_ then CommF_:InvokeServer("SetTeam", "Marines") end
-        end)
-
-        MiscTab:CreateToggle("الانضمام إلى فريق القراصنة", "SetTeamPiratesFlag", false, function(state)
-            _G.Settings.Misc["Set Team to Pirates"] = state
-            if state and CommF_ then CommF_:InvokeServer("SetTeam", "Pirates") end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 14. TAB: SETTINGS
-        ---------------------------------------------------------
-        SettingsTab:CreateSection("إعدادات وتحكم السكربت")
-
-        SettingsTab:CreateButton("إعادة دخول السيرفر (Rejoin)", function()
-            TeleportService:Teleport(game.PlaceId, LocalPlayer)
-        end)
-
-        SettingsTab:CreateButton("إغلاق السكربت بالكامل (Destroy Hub)", function()
-            local master = game:GetService("CoreGui"):FindFirstChild("HaroonHub_Master") or game:GetService("Players").LocalPlayer.PlayerGui:FindFirstChild("HaroonHub_Master")
-            if master then master:Destroy() end
-        end)
-    end)
-end)
-
---------------------------------------------------------------------------------
--- 7. حلقة التلفيل الفردي والانتقال المباشر (Single-Target Master Loop)
---------------------------------------------------------------------------------
-task.spawn(function()
-    while task.wait(0.08) do
-        if _G.Settings.Main["Auto Farm Level"] then
-            pcall(function()
-                local char, hrp, hum = GetCharacter()
-                if not char or not hrp or not hum or hum.Health <= 0 then return end
-
-                CheckQuest()
-                AutoHaki()
-
-                local questGui = LocalPlayer.PlayerGui:FindFirstChild("Main") and LocalPlayer.PlayerGui.Main:FindFirstChild("Quest")
-
-                if not questGui or not questGui.Visible or not string.find(questGui.Container.QuestTitle.Title.Text, CurrentQuest.NameMon) then
-                    if CommF_ then CommF_:InvokeServer("AbandonQuest") end
-                    TweenPlayer(CurrentQuest.CFrameQuest, Vector3.new(0, 5, 0))
-
-                    if (hrp.Position - CurrentQuest.CFrameQuest.Position).Magnitude <= 20 then
-                        if CommF_ then CommF_:InvokeServer("StartQuest", CurrentQuest.NameQuest, CurrentQuest.LevelQuest) end
-                    end
-                else
-                    local targetMob = nil
-                    local closestDistance = math.huge
-
-                    for _, v in pairs(workspace.Enemies:GetChildren()) do
-                        if v:IsA("Model") and v.Name == CurrentQuest.Mon then
-                            local root = v:FindFirstChild("HumanoidRootPart")
-                            local mobHum = v:FindFirstChildOfClass("Humanoid")
-                            if root and mobHum and mobHum.Health > 0 then
-                                local dist = (hrp.Position - root.Position).Magnitude
-                                if dist < closestDistance then
-                                    closestDistance = dist
-                                    targetMob = v
-                                end
-                            end
-                        end
-                    end
-
-                    if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
-                        TweenPlayer(targetMob.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
-                        SmartAttackMob(targetMob)
-                    else
-                        TweenPlayer(CurrentQuest.CFrameMon, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
-                    end
-                end
-            end)
-        end
-    end
-end)
-
---------------------------------------------------------------------------------
--- 8. محرك الإبحار والقتال البحري والجزيرة القديمة (Sea & Prehistoric Engine)
---------------------------------------------------------------------------------
-local function GetMyBoat(boatName: string): Model?
-    if workspace:FindFirstChild("Boats") then
-        for _, b in pairs(workspace.Boats:GetChildren()) do
-            if b.Name == boatName and b:FindFirstChild("VehicleSeat") then
-                return b
-            end
-        end
-    end
-    return nil
-end
-
-task.spawn(function()
-    while task.wait(0.2) do
-        if World3 then
-            pcall(function()
-                local char, hrp, hum = GetCharacter()
-                if not char or not hrp or not hum then return end
-
-                -- 1. أتمتة الجزيرة القديمة وما قبل التاريخ Prehistoric Engine
-                if _G.Settings.Sea["Auto Prehistoric Island"] or _G.Settings.Sea["Auto Complete Prehistoric Island"] or _G.Settings.Sea["Auto Draco Trail"] then
-                    local targetPreMob = nil
-                    for _, mName in pairs({"Isle Outlaw", "Island Boy", "Sun-kissed Warrior", "Terrorshark"}) do
-                        local mob = workspace.Enemies:FindFirstChild(mName)
-                        if mob and mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChildOfClass("Humanoid") and mob.Humanoid.Health > 0 then
-                            targetPreMob = mob
-                            break
-                        end
-                    end
-
-                    if targetPreMob then
-                        AutoHaki()
-                        TweenPlayer(targetPreMob.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
-                        SmartAttackMob(targetPreMob)
-                        return
-                    else
-                        TweenPlayer(MobSpecificTeleports["Prehistoric Island"], Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
-                    end
-                end
-
-                -- 2. فحص وهجوم أعداء ومخلوقات البحر
-                local targetSeaEnemy = nil
-                local allowedEnemies = {}
-                if _G.Settings.Sea["Auto Farm Shark"] then table.insert(allowedEnemies, "Shark") end
-                if _G.Settings.Sea["Auto Farm Piranha"] then table.insert(allowedEnemies, "Piranha") end
-                if _G.Settings.Sea["Auto Farm Fish Crew Member"] then table.insert(allowedEnemies, "Fish Crew Member") end
-                if _G.Settings.Sea["Auto Farm Ghost Ship"] then table.insert(allowedEnemies, "Ghost Ship") table.insert(allowedEnemies, "FishBoat") end
-                if _G.Settings.Sea["Auto Farm Terrorshark"] then table.insert(allowedEnemies, "Terrorshark") end
-
-                if #allowedEnemies > 0 and workspace:FindFirstChild("Enemies") then
-                    for _, enemy in pairs(workspace.Enemies:GetChildren()) do
-                        if table.find(allowedEnemies, enemy.Name) and enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChildOfClass("Humanoid") and enemy.Humanoid.Health > 0 then
-                            targetSeaEnemy = enemy
-                            break
-                        end
-                    end
-                end
-
-                if targetSeaEnemy then
-                    if hum.Sit then hum.Sit = false end
-                    AutoHaki()
-                    TweenPlayer(targetSeaEnemy.HumanoidRootPart.CFrame, Vector3.new(0, 25, 0))
-                    SmartAttackMob(targetSeaEnemy)
-                    return
-                end
-
-                -- قتال السي بيست (SeaBeasts)
-                if _G.Settings.Sea["Auto Farm Seabeasts"] and workspace:FindFirstChild("SeaBeasts") then
-                    for _, sb in pairs(workspace.SeaBeasts:GetChildren()) do
-                        if sb:FindFirstChild("HumanoidRootPart") and sb:FindFirstChildOfClass("Humanoid") and sb.Humanoid.Health > 0 then
-                            if hum.Sit then hum.Sit = false end
-                            AutoHaki()
-                            local dodgeOffset = _G.Settings.Sea["Dodge Seabeasts Attack"] and Vector3.new(math.random(-50, 50), 55, math.random(-50, 50)) or Vector3.new(0, 55, 0)
-                            TweenPlayer(sb.HumanoidRootPart.CFrame, dodgeOffset)
-                            FastAttackTarget(sb)
-                            return
-                        end
-                    end
-                end
-
-                -- الفحص الفوري عن Mirage أو Kitsune Island
-                local mirage = workspace.Map:FindFirstChild("MysticIsland")
-                local kitsune = workspace.Map:FindFirstChild("KitsuneIsland")
-
-                if _G.Settings.Race["Auto Find Mirage"] and mirage then
-                    TweenPlayer(mirage.WorldPivot)
-                    return
-                end
-
-                if _G.Settings.Sea["Auto Find Kitsune Island"] and kitsune then
-                    TweenPlayer(kitsune.WorldPivot)
-                    return
-                end
-
-                -- الإبحار التلقائي بالقارب
-                if _G.Settings.Sea["Sail Boat"] or _G.Settings.Race["Auto Find Mirage"] or _G.Settings.Sea["Auto Find Kitsune Island"] then
-                    local boat = GetMyBoat(_G.Settings.Sea["Selected Boat"])
-                    if not boat then
-                        local buyPos = MobSpecificTeleports["Kitsune Island"]
-                        if (hrp.Position - buyPos.Position).Magnitude > 30 then
-                            TweenPlayer(buyPos)
-                        else
-                            if CommF_ then CommF_:InvokeServer("BuyBoat", _G.Settings.Sea["Selected Boat"]) end
-                        end
-                    else
-                        if not hum.Sit then
-                            hrp.CFrame = boat.VehicleSeat.CFrame * CFrame.new(0, 1.5, 0)
-                        else
-                            local targetZone = ZoneCFrames[_G.Settings.Sea["Selected Zone"]] or ZoneCFrames["Zone 5"]
-                            local dist = (boat.VehicleSeat.Position - targetZone.Position).Magnitude
-                            if dist > 100 then
-                                local tween = TweenService:Create(boat.VehicleSeat, TweenInfo.new(dist / _G.Settings.Sea["Boat Tween Speed"], Enum.EasingStyle.Linear), {CFrame = targetZone})
-                                tween:Play()
-                            end
-                        end
-                    end
-                end
-            end)
-        end
-    end
-end)
-
---------------------------------------------------------------------------------
--- 9. محرك تجميع وسرقة وتخزين الفواكه (Fruits Automation Loop)
---------------------------------------------------------------------------------
-task.spawn(function()
-    while task.wait(0.5) do
-        if _G.Settings.Fruits["Auto Store Fruit"] then
-            pcall(function()
-                local char = LocalPlayer.Character
-                if char then
-                    for _, tool in pairs(char:GetChildren()) do
-                        if tool:IsA("Tool") and (string.find(tool.Name, "Fruit") or tool.ToolTip == "Blox Fruit") then
-                            if CommF_ then CommF_:InvokeServer("StoreFruit", tool.Name, tool) end
-                        end
-                    end
-                end
-                for _, tool in pairs(LocalPlayer.Backpack:GetChildren()) do
-                    if tool:IsA("Tool") and (string.find(tool.Name, "Fruit") or tool.ToolTip == "Blox Fruit") then
-                        if CommF_ then CommF_:InvokeServer("StoreFruit", tool.Name, tool) end
-                    end
-                end
-            end)
-        end
-
-        if _G.Settings.Fruits["Fruit Sniper"] then
-            pcall(function()
-                local char, hrp = GetCharacter()
-                if not char or not hrp then return end
-
-                for _, obj in pairs(workspace:GetChildren()) do
-                    if obj:IsA("Tool") and (string.find(obj.Name, "Fruit") or string.find(obj.Name, "Blox")) then
-                        local handle = obj:FindFirstChild("Handle") or obj.PrimaryPart
-                        if handle then
-                            TweenPlayer(handle.CFrame)
-                            break
-                        end
-                    end
-                end
-            end)
-        end
-    end
-end)
-
---------------------------------------------------------------------------------
--- 10. محرك الـ Dungeon / Fruits Raid (مع Auto Next Island)
---------------------------------------------------------------------------------
-task.spawn(function()
-    while task.wait(0.5) do
-        if _G.Settings.Raid["Auto Dungeon / Raid"] or _G.Settings.Raid["Auto Buy Chip & Start"] or _G.Settings.Raid["Auto Clear Dungeon Waves"] or _G.Settings.Raid["Auto Next Island"] then
-            pcall(function()
-                local char, hrp, hum = GetCharacter()
-                if not char or not hrp or not hum then return end
-
-                -- شراء الشريحة وبدء الريد
-                if _G.Settings.Raid["Auto Buy Chip & Start"] then
-                    if CommF_ then
-                        CommF_:InvokeServer("RaidsNpc", "Select", _G.Settings.Raid["Selected Chip"])
-                        task.wait(0.5)
-                        CommF_:InvokeServer("RaidsNpc", "Start")
-                    end
-                end
-
-                -- تنظيف وتصفية وحوش الريد
-                if _G.Settings.Raid["Auto Clear Dungeon Waves"] and workspace:FindFirstChild("Enemies") then
-                    for _, mob in pairs(workspace.Enemies:GetChildren()) do
-                        if mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChildOfClass("Humanoid") and mob.Humanoid.Health > 0 then
-                            AutoHaki()
-                            TweenPlayer(mob.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
-                            SmartAttackMob(mob)
-                            break
-                        end
-                    end
-                end
-
-                -- الانتقال التلقائي للجزيرة التالية في الريد فور انتهاء الموجة
-                if _G.Settings.Raid["Auto Next Island"] and workspace:FindFirstChild("Locations") then
-                    for _, loc in pairs(workspace.Locations:GetChildren()) do
-                        if string.find(loc.Name:lower(), "island") or string.find(loc.Name:lower(), "raid") then
-                            TweenPlayer(loc.CFrame * CFrame.new(0, 30, 0))
-                            break
-                        end
-                    end
-                end
-
-                -- إيقاظ الفاكهة التلقائي
-                if _G.Settings.Raid["Auto Awaken"] and CommF_ then
-                    CommF_:InvokeServer("AwakeningExpert", "Awaken")
-                end
-            end)
-        end
-    end
-end)
-
---------------------------------------------------------------------------------
--- 11. محرك الـ Auto Stats
---------------------------------------------------------------------------------
-task.spawn(function()
-    while task.wait(0.5) do
-        if _G.Settings.Stats["Auto Stats"] then
-            pcall(function()
-                local points = LocalPlayer.Data.Points.Value
-                if points and points > 0 then
-                    local targetStat = _G.Settings.Stats["Selected Stat"]
-                    local addCount = math.min(points, _G.Settings.Stats["Points Per Tick"] or 1)
-                    if CommF_ then
-                        CommF_:InvokeServer("AddPoint", targetStat, addCount)
-                    end
-                end
-            end)
-        end
-    end
-end)
-
---------------------------------------------------------------------------------
--- 12. محرك ترقية الأجناس الاحترافي (Race V2 & V3 Master Loop)
---------------------------------------------------------------------------------
-task.spawn(function()
-    while task.wait(0.5) do
-        -- أتمتة Race V2 الكاملة (جمع الأزهار والتسليم)
-        if _G.Settings.Race["Auto Race V2 Quest"] and World2 then
-            pcall(function()
-                local char, hrp = GetCharacter()
-                if not char or not hrp then return end
-
-                local flowers = {"Flower1", "Flower2", "Flower3"}
-                local foundFlower = false
-
-                for _, fName in pairs(flowers) do
-                    local flowerObj = workspace:FindFirstChild(fName) or (workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild(fName))
-                    if flowerObj and flowerObj:IsA("BasePart") then
-                        foundFlower = true
-                        TweenPlayer(flowerObj.CFrame)
-                        break
-                    end
-                end
-
-                if not foundFlower then
-                    local alchemistPos = CFrame.new(-2440.79, 71.71, -3216.06)
-                    if (hrp.Position - alchemistPos.Position).Magnitude > 20 then
-                        TweenPlayer(alchemistPos)
-                    else
-                        if CommF_ then CommF_:InvokeServer("Alchemist", "1") end
-                    end
-                end
-            end)
-        end
-
-        -- أتمتة Race V3 الكاملة بحسب متطلبات الجنس
-        if _G.Settings.Race["Auto Race V3 Quest"] and World2 then
-            pcall(function()
-                local char, hrp = GetCharacter()
-                if not char or not hrp then return end
-
-                local selectedRace = _G.Settings.Race["Selected Race V3"]
-                local arouPos = CFrame.new(-2440.79, 71.71, -3216.06)
-
-                if selectedRace == "Human" then
-                    -- قتل الزعماء الثلاثة للـ Human V3
-                    for _, bossName in pairs({"Jeremy", "Diamond", "Fajita"}) do
-                        local boss = workspace.Enemies:FindFirstChild(bossName)
-                        if boss and boss:FindFirstChild("HumanoidRootPart") and boss:FindFirstChildOfClass("Humanoid") and boss.Humanoid.Health > 0 then
-                            AutoHaki()
-                            TweenPlayer(boss.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
-                            SmartAttackMob(boss)
-                            return
-                        end
-                    end
-                end
-
-                -- التحدث إلى NPC Arou
-                if (hrp.Position - arouPos.Position).Magnitude > 20 then
-                    TweenPlayer(arouPos)
-                else
-                    if CommF_ then CommF_:InvokeServer("Wenlocktoad", "1") end
-                end
-            end)
-        end
-    end
-end)
-
---------------------------------------------------------------------------------
--- 13. محرك السيوف الأسطورية المدمجة (CDK & TTK Auto Quests)
---------------------------------------------------------------------------------
-task.spawn(function()
-    while task.wait(0.5) do
-        -- أتمتة Cursed Dual Katana (CDK)
-        if _G.Settings.FarmingQuests["Auto Farm CDK"] and World3 then
-            pcall(function()
-                local char, hrp = GetCharacter()
-                if not char or not hrp then return end
-
-                local cryptPos = CFrame.new(-12471.16, 374.94, -7551.67)
-                if (hrp.Position - cryptPos.Position).Magnitude > 25 then
-                    TweenPlayer(cryptPos)
-                else
-                    if CommF_ then
-                        CommF_:InvokeServer("CDKQuest", "Start")
-                        CommF_:InvokeServer("CDKQuest", "Progress")
-                    end
-                end
-            end)
-        end
-
-        -- أتمتة True Triple Katana (TTK)
-        if _G.Settings.FarmingQuests["Auto Farm TTK"] and World2 then
-            pcall(function()
-                local char, hrp = GetCharacter()
-                if not char or not hrp then return end
-
-                local swordDealerPos = CFrame.new(-2448.53, 73.01, -3210.63)
-                if CommF_ then
-                    CommF_:InvokeServer("LegendarySwordDealer", "1")
-                    CommF_:InvokeServer("LegendarySwordDealer", "2")
-                    CommF_:InvokeServer("LegendarySwordDealer", "3")
-                end
-            end)
-        end
-    end
-end)
-
---------------------------------------------------------------------------------
--- 14. محرك الـ ESP المتكامل والحي (Advanced ESP Engine with Distance & HP)
---------------------------------------------------------------------------------
-local ESPCache = {}
-
-local function RemoveESP(obj)
-    if ESPCache[obj] then
-        ESPCache[obj]:Destroy()
-        ESPCache[obj] = nil
-    end
-end
-
-local function CreateUniversalESP(part: BasePart, text: string, color: Color3, showHP: boolean, maxHP: number?, currentHP: number?)
-    if not part then return end
-    if ESPCache[part] then RemoveESP(part) end
-
-    local bill = Instance.new("BillboardGui")
-    bill.Name = "HaroonESP"
-    bill.Adornee = part
-    bill.Size = UDim2.new(0, 150, 0, showHP and 45 or 28)
-    bill.AlwaysOnTop = true
-
-    local frame = Instance.new("Frame", bill)
-    frame.Size = UDim2.new(1, 0, 1, 0)
-    frame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-    frame.BackgroundTransparency = 0.25
-    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 4)
-
-    local txt = Instance.new("TextLabel", frame)
-    txt.Name = "ESPTitle"
-    txt.Size = UDim2.new(1, 0, 0, 14)
-    txt.BackgroundTransparency = 1
-    txt.Text = text
-    txt.TextColor3 = color
-    txt.Font = Enum.Font.GothamBold
-    txt.TextSize = 10
-
-    local distLabel = Instance.new("TextLabel", frame)
-    distLabel.Name = "ESPDist"
-    distLabel.Size = UDim2.new(1, 0, 0, 12)
-    distLabel.Position = UDim2.new(0, 0, 0, 13)
-    distLabel.BackgroundTransparency = 1
-    distLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-    distLabel.Font = Enum.Font.Gotham
-    distLabel.TextSize = 9
-    distLabel.Text = "Dist: ?m"
-
-    if showHP and maxHP and currentHP then
-        local hpBg = Instance.new("Frame", frame)
-        hpBg.Size = UDim2.new(1, -10, 0, 4)
-        hpBg.Position = UDim2.new(0, 5, 0, 28)
-        hpBg.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-        
-        local hpFill = Instance.new("Frame", hpBg)
-        hpFill.Name = "HPFill"
-        hpFill.Size = UDim2.new(math.clamp(currentHP / maxHP, 0, 1), 0, 1, 0)
-        hpFill.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
-    end
-
-    bill.Parent = part
-    ESPCache[part] = bill
-end
-
-task.spawn(function()
-    while task.wait(0.2) do
-        local char, hrp = GetCharacter()
-        if not char or not hrp then continue end
-
-        -- 1. Players ESP
-        if _G.Settings.Visuals["ESP Players"] then
-            for _, p in pairs(Players:GetPlayers()) do
-                if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChildOfClass("Humanoid") then
-                    local pHrp = p.Character.HumanoidRootPart
-                    local pHum = p.Character.Humanoid
-                    local dist = math.floor((hrp.Position - pHrp.Position).Magnitude)
-                    
-                    CreateUniversalESP(pHrp, p.Name, Color3.fromRGB(255, 85, 85), true, pHum.MaxHealth, pHum.Health)
-                    if ESPCache[pHrp] and ESPCache[pHrp]:FindFirstChild("Frame") then
-                        ESPCache[pHrp].Frame.ESPDist.Text = "Dist: " .. dist .. " Studs"
-                    end
-                end
-            end
-        end
-
-        -- 2. Fruits ESP
-        if _G.Settings.Visuals["ESP Fruits"] then
-            for _, v in pairs(workspace:GetChildren()) do
-                if v:IsA("Tool") and (string.find(v.Name, "Fruit") or string.find(v.Name, "Blox")) then
-                    local handle = v:FindFirstChild("Handle") or v.PrimaryPart
-                    if handle then
-                        local dist = math.floor((hrp.Position - handle.Position).Magnitude)
-                        CreateUniversalESP(handle, "🍎 " .. v.Name, Color3.fromRGB(255, 170, 0), false)
-                        if ESPCache[handle] and ESPCache[handle]:FindFirstChild("Frame") then
-                            ESPCache[handle].Frame.ESPDist.Text = "Dist: " .. dist .. " Studs"
-                        end
-                    end
-                end
-            end
-        end
-
-        -- 3. Chests ESP
-        if _G.Settings.Visuals["ESP Chests"] and workspace:FindFirstChild("ChestModels") then
-            for _, chest in pairs(workspace.ChestModels:GetChildren()) do
-                if chest:FindFirstChild("RootPart") then
-                    local dist = math.floor((hrp.Position - chest.RootPart.Position).Magnitude)
-                    CreateUniversalESP(chest.RootPart, "📦 " .. chest.Name, Color3.fromRGB(255, 255, 0), false)
-                    if ESPCache[chest.RootPart] and ESPCache[chest.RootPart]:FindFirstChild("Frame") then
-                        ESPCache[chest.RootPart].Frame.ESPDist.Text = "Dist: " .. dist .. " Studs"
-                    end
-                end
-            end
-        end
-
-        -- 4. Bosses & Enemies ESP
-        if (_G.Settings.Visuals["ESP Bosses"] or _G.Settings.Visuals["ESP Enemies"]) and workspace:FindFirstChild("Enemies") then
-            for _, enemy in pairs(workspace.Enemies:GetChildren()) do
-                if enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChildOfClass("Humanoid") then
-                    local eHrp = enemy.HumanoidRootPart
-                    local eHum = enemy.Humanoid
-                    if eHum.Health > 0 then
-                        local dist = math.floor((hrp.Position - eHrp.Position).Magnitude)
-                        CreateUniversalESP(eHrp, enemy.Name, Color3.fromRGB(255, 0, 127), true, eHum.MaxHealth, eHum.Health)
-                        if ESPCache[eHrp] and ESPCache[eHrp]:FindFirstChild("Frame") then
-                            ESPCache[eHrp].Frame.ESPDist.Text = "Dist: " .. dist .. " Studs"
-                        end
-                    end
-                end
-            end
-        end
-    end
-end)
-
---------------------------------------------------------------------------------
--- 15. حلقات الصناديق والماتيريال والزعماء المتبقية
---------------------------------------------------------------------------------
-
--- Chest Farm Loop
-task.spawn(function()
-    while task.wait(0.2) do
-        if _G.Settings.SubFarm["Auto Chest Tween"] or _G.Settings.SubFarm["Auto Chest Instant"] then
-            pcall(function()
-                local char, hrp = GetCharacter()
-                if not char or not hrp then return end
-
-                local closestChest = nil
-                local shortestDist = math.huge
-                if workspace:FindFirstChild("ChestModels") then
-                    for _, v in pairs(workspace.ChestModels:GetChildren()) do
-                        if string.find(v.Name, "Chest") and v:FindFirstChild("RootPart") then
-                            local dist = (hrp.Position - v.RootPart.Position).Magnitude
-                            if dist < shortestDist then
-                                shortestDist = dist
-                                closestChest = v
-                            end
-                        end
-                    end
-                end
-
-                if closestChest then
-                    if _G.Settings.SubFarm["Auto Chest Instant"] then
-                        hrp.CFrame = closestChest.RootPart.CFrame
-                    else
-                        TweenPlayer(closestChest.RootPart.CFrame)
-                    end
-                end
-            end)
-        end
-    end
-end)
-
--- Material Farm Loop
-task.spawn(function()
-    while task.wait(0.1) do
-        if _G.Settings.Main["Auto Farm Material"] then
-            pcall(function()
-                local char, hrp, hum = GetCharacter()
-                if not char or not hrp or not hum then return end
-
-                local mobs, pos = GetMaterialConfig(_G.Settings.Main["Selected Material"])
-                local found = false
-
-                for _, mName in pairs(mobs) do
-                    for _, v in pairs(workspace.Enemies:GetChildren()) do
-                        if v.Name == mName and v:FindFirstChild("HumanoidRootPart") and v:FindFirstChildOfClass("Humanoid") and v.Humanoid.Health > 0 then
-                            found = true
-                            AutoHaki()
-                            TweenPlayer(v.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
-                            SmartAttackMob(v)
-                            break
-                        end
-                    end
-                    if found then break end
-                end
-
-                if not found then
-                    TweenPlayer(pos, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
-                end
-            end)
-        end
-    end
-end)
-
--- Boss Farm Loop
-task.spawn(function()
-    while task.wait(0.1) do
-        if _G.Settings.Main["Auto Farm Boss"] or _G.Settings.Main["Auto Farm All Boss"] then
-            pcall(function()
-                local char, hrp, hum = GetCharacter()
-                if not char or not hrp or not hum then return end
-
-                local bTarget = _G.Settings.Main["Selected Boss"]
-                for _, v in pairs(workspace.Enemies:GetChildren()) do
-                    if (v.Name == bTarget or _G.Settings.Main["Auto Farm All Boss"]) and v:FindFirstChild("HumanoidRootPart") and v:FindFirstChildOfClass("Humanoid") and v.Humanoid.Health > 0 then
-                        AutoHaki()
-                        TweenPlayer(v.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
-                        SmartAttackMob(v)
-                        break
-                    end
-                end
-            end)
-        end
-    end
-end)        ["Teleport To Player"] = false,
-        ["Aimbot Gun"] = false
-    },
-    SubFarm = {
-        ["Auto Elite Hunter"] = false,
-        ["Auto Elite Hunter Hop"] = false,
-        ["Auto Farm Bone"] = false,
-        ["Auto Pirate Raid"] = false,
-        ["Auto Chest Tween"] = false,
-        ["Auto Chest Instant"] = false,
-        ["Auto Stop Items"] = false
-    },
-    Cake = {
-        ["Auto Katakuri"] = false,
-        ["Auto Spawn Cake Prince"] = false,
-        ["Auto Kill Cake Prince"] = false,
-        ["Auto Kill Dough King"] = false
-    },
-    Race = {
-        ["Auto Race V3"] = false,
-        ["Auto Train"] = false,
-        ["Tween To Highest Mirage"] = false,
-        ["Find Blue Gear"] = false,
-        ["Look Moon Ability"] = false,
-        ["Auto Trial"] = false,
-        ["Auto Buy Gear"] = false
-    },
-    Sea = {
-        ["Selected Boat"] = "Guardian",
-        ["Selected Zone"] = "Zone 5",
-        ["Boat Tween Speed"] = 200,
-        ["Sail Boat"] = false,
-        ["Auto Farm Shark"] = false,
-        ["Auto Farm Piranha"] = false,
-        ["Auto Farm Fish Crew Member"] = false,
-        ["Auto Farm Ghost Ship"] = false,
-        ["Auto Farm Terrorshark"] = false,
-        ["Auto Farm Seabeasts"] = false,
-        ["Dodge Seabeasts Attack"] = true
-    },
-    Raid = {
-        ["Selected Chip"] = "Flame",
-        ["Auto Raid"] = false,
-        ["Auto Awaken"] = false,
-        ["Law Raid"] = false
-    },
-    Visuals = {
-        ["ESP Enemies"] = false
-    }
-}
-
---------------------------------------------------------------------------------
--- 3. محرك الحماية والتثبيت الرأسي (Safe Anti-Fall & Simulation Shield)
---------------------------------------------------------------------------------
 local currentTween = nil
+local currentTweenTarget = nil
+local currentTweenOwner = nil
 
-local function GetCharacter()
-    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    local hrp = char:WaitForChild("HumanoidRootPart")
-    local hum = char:WaitForChild("Humanoid")
-    return char, hrp, hum
-end
-
--- رفع نطاق المحاكاة لحماية وصول الطلبات دون طرد
-task.spawn(function()
-    RunService.RenderStepped:Connect(function()
-        pcall(function()
-            if sethiddenproperty then
-                sethiddenproperty(LocalPlayer, "SimulationRadius", math.huge)
-            end
-        end)
-    end)
-end)
-
--- NoClip و حماية الجسم من السقوط والارتداد
-RunService.Stepped:Connect(function()
-    local active = _G.Settings.Main["Auto Farm Level"] or _G.Settings.Main["Auto Farm Material"] or 
-                   _G.Settings.Main["Auto Farm Boss"] or _G.Settings.Main["Auto Farm All Boss"] or 
-                   _G.Settings.SubFarm["Auto Farm Bone"] or _G.Settings.Cake["Auto Katakuri"] or 
-                   _G.Settings.Sea["Sail Boat"] or _G.Settings.SubFarm["Auto Chest Tween"] or 
-                   _G.Settings.Race["Auto Train"]
-
-    if active then
-        pcall(function()
-            local char = LocalPlayer.Character
-            if char then
-                for _, v in pairs(char:GetDescendants()) do
-                    if v:IsA("BasePart") then v.CanCollide = false end
-                end
-                if char:FindFirstChild("HumanoidRootPart") then
-                    local hrp = char.HumanoidRootPart
-                    if not hrp:FindFirstChild("HaroonBV") then
-                        local bv = Instance.new("BodyVelocity")
-                        bv.Name = "HaroonBV"
-                        bv.Parent = hrp
-                        bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
-                        bv.Velocity = Vector3.zero
-                    end
-                end
-            end
-        end)
-    else
-        pcall(function()
-            local char = LocalPlayer.Character
-            if char and char:FindFirstChild("HumanoidRootPart") and char.HumanoidRootPart:FindFirstChild("HaroonBV") then
-                char.HumanoidRootPart.HaroonBV:Destroy()
-            end
-        end)
-    end
-end)
-
-local function TweenPlayer(pos)
+local function TweenPlayer(pos: CFrame | Vector3 | BasePart, offset: Vector3?, owner: string?)
     local char, hrp, hum = GetCharacter()
+    if not char or not hrp or not hum or hum.Health <= 0 then return nil end
     if hum.Sit then hum.Sit = false end
 
-    local targetCFrame = (typeof(pos) == "CFrame" and pos) or (typeof(pos) == "Vector3" and CFrame.new(pos)) or (pos:IsA("BasePart") and pos.CFrame)
-    if not targetCFrame then return end
+    local targetCFrame
+    if typeof(pos) == "CFrame" then
+        targetCFrame = pos
+    elseif typeof(pos) == "Vector3" then
+        targetCFrame = CFrame.new(pos)
+    elseif typeof(pos) == "Instance" and pos:IsA("BasePart") then
+        targetCFrame = pos.CFrame
+    else
+        return nil
+    end
+
+    if offset then
+        targetCFrame = targetCFrame * CFrame.new(offset)
+    end
 
     local distance = (hrp.Position - targetCFrame.Position).Magnitude
-    local uprightCFrame = CFrame.new(targetCFrame.Position, targetCFrame.Position + Vector3.new(targetCFrame.LookVector.X, 0, targetCFrame.LookVector.Z))
-
     if distance <= 25 then
-        hrp.CFrame = uprightCFrame
-        if currentTween then currentTween:Cancel() end
+        if currentTween then
+            currentTween:Cancel()
+            currentTween = nil
+        end
+        currentTweenTarget = nil
+        currentTweenOwner = nil
+        hrp.CFrame = targetCFrame
+        return nil
+    end
+
+    -- Do not restart the same tween every 0.1–0.2s. This was causing
+    -- movement to reset/reverse when several feature loops were active.
+    if currentTween and currentTween.PlaybackState == Enum.PlaybackState.Playing
+        and currentTweenTarget
+        and (currentTweenTarget.Position - targetCFrame.Position).Magnitude < 8 then
+        currentTweenOwner = owner or currentTweenOwner
+        return currentTween
+    end
+
+    if currentTween then
+        currentTween:Cancel()
+        currentTween = nil
+    end
+
+    local speed = math.max(50, tonumber(_G.Settings.Main["Player Tween Speed"]) or 180)
+    local tweenInfo = TweenInfo.new(distance / speed, Enum.EasingStyle.Linear)
+    currentTweenTarget = targetCFrame
+    currentTweenOwner = owner
+
+    currentTween = TweenService:Create(hrp, tweenInfo, {CFrame = targetCFrame})
+    currentTween.Completed:Connect(function()
+        if currentTweenTarget == targetCFrame then
+            currentTween = nil
+            currentTweenTarget = nil
+            currentTweenOwner = nil
+        end
+    end)
+    currentTween:Play()
+    return currentTween
+end
+
+local function AnyMovementFeatureActive()
+    local S = _G.Settings
+    return S.Main["Auto Farm Level"] or S.Main["Auto Farm Material"]
+        or S.Main["Auto Farm Boss"] or S.Main["Auto Farm All Boss"]
+        or S.SubFarm["Auto Farm Bone"] or S.SubFarm["Auto Elite Hunter"]
+        or S.SubFarm["Auto Chest Tween"] or S.SubFarm["Auto Chest Instant"]
+        or S.SubFarm["Auto Farm Leviathan"]
+        or S.SubFarm["Auto Mastery Melee (Tiki)"] or S.SubFarm["Auto Mastery Swords"]
+        or S.SubFarm["Auto Mastery Blox Fruits"] or S.SubFarm["Auto Mastery Guns"]
+        or S.Raid["Auto Dungeon / Raid"] or S.Raid["Auto Clear Dungeon Waves"]
+        or S.Raid["Auto Next Island"] or S.Raid["Law Raid"]
+        or S.ItemsQuests["Auto Sword Quest"] or S.ItemsQuests["Auto Farm CDK"]
+        or S.ItemsQuests["Auto Farm TTK"] or S.Race["Auto Find Mirage"]
+        or S.Race["Auto Race V2 Quest"] or S.Race["Auto Race V3 Quest"]
+        or S.Sea["Auto Find Kitsune Island"] or S.Sea["Auto Prehistoric Island"]
+        or S.Sea["Auto Complete Prehistoric Island"] or S.Sea["Auto Draco Trail"]
+        or S.Combat["Auto PvP Escape"] or S.Fruits["Fruit Sniper"]
+end
+
+local function StopTween(owner: string?)
+    -- If another movement feature is still active, never kill its movement.
+    if owner and currentTweenOwner and currentTweenOwner ~= owner and AnyMovementFeatureActive() then
         return
     end
 
-    local speed = _G.Settings.Main["Player Tween Speed"] or 180
-    local tweenInfo = TweenInfo.new(distance / speed, Enum.EasingStyle.Linear)
+    if currentTween then
+        currentTween:Cancel()
+        currentTween = nil
+    end
+    currentTweenTarget = nil
+    currentTweenOwner = nil
 
-    if currentTween then currentTween:Cancel() end
-    currentTween = TweenService:Create(hrp, tweenInfo, {CFrame = uprightCFrame})
-    currentTween:Play()
-    return currentTween
-end
-
-local function AutoHaki()
-    if LocalPlayer.Character and not LocalPlayer.Character:FindFirstChild("HasBuso") and CommF_ then
-        CommF_:InvokeServer("Buso")
+    local _, hrp = GetCharacter()
+    if hrp and hrp:FindFirstChild("HaroonBV") then
+        hrp.HaroonBV:Destroy()
     end
 end
 
-local function EquipWeapon(weaponType)
+local function AutoHaki()
+    local char = LocalPlayer.Character
+    if char and not CollectionService:HasTag(char, "Ken") then
+        if CommE then pcall(function() CommE:FireServer("Ken", true) end) end
+    end
+end
+
+local function EquipWeapon(weaponType: string)
     pcall(function()
         local char, _, hum = GetCharacter()
         local backpack = LocalPlayer:FindFirstChild("Backpack")
-        if not backpack or not hum then return end
+        if not backpack or not hum or not char then return end
 
         for _, tool in pairs(char:GetChildren()) do
-            if tool:IsA("Tool") and (tool.ToolTip == weaponType or (weaponType == "Melee" and tool.ToolTip == "Melee") or (weaponType == "Blox Fruit" and tool.ToolTip == "Blox Fruit")) then
+            if tool:IsA("Tool") and (tool.ToolTip == weaponType or (weaponType == "Melee" and tool.ToolTip == "Melee") or (weaponType == "Blox Fruit" and tool.ToolTip == "Blox Fruit") or (weaponType == "Gun" and tool.ToolTip == "Gun") or (weaponType == "Sword" and tool.ToolTip == "Sword")) then
                 return
             end
         end
 
         for _, tool in pairs(backpack:GetChildren()) do
-            if tool:IsA("Tool") and (tool.ToolTip == weaponType or (weaponType == "Melee" and tool.ToolTip == "Melee") or (weaponType == "Blox Fruit" and tool.ToolTip == "Blox Fruit")) then
+            if tool:IsA("Tool") and (tool.ToolTip == weaponType or (weaponType == "Melee" and tool.ToolTip == "Melee") or (weaponType == "Blox Fruit" and tool.ToolTip == "Blox Fruit") or (weaponType == "Gun" and tool.ToolTip == "Gun") or (weaponType == "Sword" and tool.ToolTip == "Sword")) then
                 hum:EquipTool(tool)
                 break
             end
@@ -6059,67 +450,88 @@ local function EquipWeapon(weaponType)
 end
 
 --------------------------------------------------------------------------------
--- 4. المحرك الذكي للهجوم والمهارات (Smart Fast Attack Engine)
+-- 5. Combat & Fast Attack Engine
 --------------------------------------------------------------------------------
-local function FastAttackTarget(targetEnemy)
+local function AimAtTarget(targetPosition: Vector3)
+    pcall(function()
+        local cam = workspace.CurrentCamera
+        if cam then
+            cam.CFrame = CFrame.lookAt(cam.CFrame.Position, targetPosition)
+        end
+    end)
+end
+
+local function FastAttackTarget(targetEnemy: Model)
     if not targetEnemy or not targetEnemy:FindFirstChild("HumanoidRootPart") then return end
     local head = targetEnemy:FindFirstChild("Head") or targetEnemy.HumanoidRootPart
 
     if RegisterAttack then
-        RegisterAttack:FireServer(0)
-        RegisterAttack:FireServer(1)
-        RegisterAttack:FireServer(2)
-        RegisterAttack:FireServer(3)
+        pcall(function()
+            RegisterAttack:FireServer(0)
+            RegisterAttack:FireServer(1)
+            RegisterAttack:FireServer(2)
+            RegisterAttack:FireServer(3)
+        end)
     end
-    if typeof(RegisterHit) == "thread" or typeof(RegisterHit) == "function" then
-        coroutine.resume(RegisterHit, head, {})
-    elseif typeof(RegisterHit) == "Instance" then
-        RegisterHit:FireServer(head, {})
+
+    if RegisterHit then
+        pcall(function()
+            if typeof(RegisterHit) == "thread" or typeof(RegisterHit) == "function" then
+                coroutine.resume(RegisterHit, head, {})
+            elseif typeof(RegisterHit) == "Instance" then
+                RegisterHit:FireServer(head, {})
+            end
+        end)
     end
 end
 
-local function SmartAttackMob(targetMob)
-    local selectedWep = _G.Settings.Main["Select Weapon"]
+local function SmartAttackMob(targetMob: Model, weaponOverride: string?): boolean
+    local selectedWep = weaponOverride or _G.Settings.Main["Select Weapon"]
     local mobHum = targetMob:FindFirstChildOfClass("Humanoid")
-    if not mobHum or mobHum.Health <= 0 then return end
+    local mobRoot = targetMob:FindFirstChild("HumanoidRootPart") or targetMob:FindFirstChild("Head")
+    if not mobHum or mobHum.Health <= 0 or not mobRoot then return false end
 
-    local hpRatio = mobHum.Health / mobHum.MaxHealth
+    local hpPercent = mobHum.Health / mobHum.MaxHealth
 
-    if selectedWep == "Blox Fruit" then
-        if hpRatio > 0.25 then
+    if selectedWep == "Blox Fruit" or selectedWep == "Gun" then
+        if hpPercent > (_G.Settings.SubFarm["Mastery Target HP %"] / 100) then
             EquipWeapon("Melee")
-            if _G.Settings.Main["Fast Attack"] then FastAttackTarget(targetMob) end
+            FastAttackTarget(targetMob)
         else
-            EquipWeapon("Blox Fruit")
-            for _, key in pairs({Enum.KeyCode.Z, Enum.KeyCode.X, Enum.KeyCode.C, Enum.KeyCode.V}) do
-                VirtualInputManager:SendKeyEvent(true, key, false, game)
-                task.wait(0.04)
-                VirtualInputManager:SendKeyEvent(false, key, false, game)
+            EquipWeapon(selectedWep)
+            AimAtTarget(mobRoot.Position)
+
+            if selectedWep == "Blox Fruit" then
+                for _, key in pairs({Enum.KeyCode.Z, Enum.KeyCode.X, Enum.KeyCode.C, Enum.KeyCode.V, Enum.KeyCode.F}) do
+                    VirtualInputManager:SendKeyEvent(true, key, false, game)
+                    task.wait(0.02)
+                    VirtualInputManager:SendKeyEvent(false, key, false, game)
+                end
+            elseif selectedWep == "Gun" then
+                for _, key in pairs({Enum.KeyCode.Z, Enum.KeyCode.X}) do
+                    VirtualInputManager:SendKeyEvent(true, key, false, game)
+                    task.wait(0.02)
+                    VirtualInputManager:SendKeyEvent(false, key, false, game)
+                end
+                if ShootGunEvent then
+                    pcall(function() ShootGunEvent:FireServer(mobRoot.Position, {mobRoot}) end)
+                end
             end
-        end
-    elseif selectedWep == "Gun" then
-        if hpRatio > 0.25 then
-            EquipWeapon("Melee")
-            if _G.Settings.Main["Fast Attack"] then FastAttackTarget(targetMob) end
-        else
-            EquipWeapon("Gun")
-            for _, key in pairs({Enum.KeyCode.Z, Enum.KeyCode.X}) do
-                VirtualInputManager:SendKeyEvent(true, key, false, game)
-                task.wait(0.04)
-                VirtualInputManager:SendKeyEvent(false, key, false, game)
-            end
-            if ShootGunEvent then
-                ShootGunEvent:FireServer(targetMob.HumanoidRootPart.Position, {targetMob.HumanoidRootPart})
-            end
+
+            VirtualInputManager:SendMouseButtonEvent(mobRoot.Position.X, mobRoot.Position.Y, 0, true, game, 0)
+            VirtualInputManager:SendMouseButtonEvent(mobRoot.Position.X, mobRoot.Position.Y, 0, false, game, 0)
+            FastAttackTarget(targetMob)
         end
     else
         EquipWeapon(selectedWep)
-        if _G.Settings.Main["Fast Attack"] then FastAttackTarget(targetMob) end
+        FastAttackTarget(targetMob)
     end
+
+    return true
 end
 
 --------------------------------------------------------------------------------
--- 5. جداول المهمات والتنقلات (Quests & Teleports Database)
+-- 6. Quests & Islands Database
 --------------------------------------------------------------------------------
 local CurrentQuest = {
     Mon = "Bandit",
@@ -6309,18 +721,14 @@ local function CheckQuest()
             CurrentQuest = {Mon = "Isle Outlaw", LevelQuest = 1, NameQuest = "TikiQuest1", NameMon = "Isle Outlaw", CFrameQuest = CFrame.new(-16547.74, 61.13, -173.41), CFrameMon = CFrame.new(-16442.81, 116.13, -264.46)}
         elseif MyLevel <= 2524 then
             CurrentQuest = {Mon = "Island Boy", LevelQuest = 2, NameQuest = "TikiQuest1", NameMon = "Island Boy", CFrameQuest = CFrame.new(-16547.74, 61.13, -173.41), CFrameMon = CFrame.new(-16901.26, 84.06, -192.88)}
-        elseif MyLevel <= 2549 then
-            CurrentQuest = {Mon = "Isle Champion", LevelQuest = 2, NameQuest = "TikiQuest2", NameMon = "Isle Champion", CFrameQuest = CFrame.new(-16539.07, 55.68, 1051.57), CFrameMon = CFrame.new(-16641.67, 235.78, 1031.28)}
-        elseif MyLevel <= 2574 then
-            CurrentQuest = {Mon = "Serpent Hunter", LevelQuest = 1, NameQuest = "TikiQuest3", NameMon = "Serpent Hunter", CFrameQuest = CFrame.new(-16661.89, 105.28, 1576.69), CFrameMon = CFrame.new(-16587.89, 154.21, 1533.40)}
         else
             CurrentQuest = {Mon = "Skull Slayer", LevelQuest = 2, NameQuest = "TikiQuest3", NameMon = "Skull Slayer", CFrameQuest = CFrame.new(-16661.89, 105.28, 1576.69), CFrameMon = CFrame.new(-16885.20, 114.12, 1627.94)}
         end
     end
 end
 
-local IslandTeleports = {
-    World1 = {
+local FullIslandLocations = {
+    Sea1 = {
         ["Windmill"] = CFrame.new(979.79, 16.51, 1429.04),
         ["Jungle"] = CFrame.new(-1612.79, 36.85, 149.12),
         ["Pirate Village"] = CFrame.new(-1181.30, 4.75, 3803.54),
@@ -6331,75 +739,126 @@ local IslandTeleports = {
         ["Sky Island"] = CFrame.new(-4869.10, 733.46, -2667.01),
         ["Prison"] = CFrame.new(4875.33, 5.65, 734.85),
         ["Magma Village"] = CFrame.new(-5247.71, 12.88, 8504.96),
+        ["Fountain City"] = CFrame.new(5259.81, 37.35, 4050.02),
     },
-    World2 = {
+    Sea2 = {
         ["Cafe"] = CFrame.new(-380.47, 77.22, 255.82),
         ["Green Zone"] = CFrame.new(-2448.53, 73.01, -3210.63),
         ["Cursed Ship"] = CFrame.new(923.40, 125.05, 32885.87),
         ["Ice Castle"] = CFrame.new(6148.41, 294.38, -6741.11),
+        ["Hot & Cold"] = CFrame.new(-5428.03, 15.06, -5299.43),
+        ["Snow Mountain"] = CFrame.new(609.85, 400.11, -5372.25),
+        ["Graveyard"] = CFrame.new(-5497.06, 47.59, -795.23),
+        ["Factory"] = CFrame.new(632.69, 73.10, 918.66),
+        ["Colosseum Sea 2"] = CFrame.new(-1580.04, 6.35, -2986.47),
+        ["Dark Arena"] = CFrame.new(1000, 100, 1000),
     },
-    World3 = {
+    Sea3 = {
         ["Mansion"] = CFrame.new(-12471.16, 374.94, -7551.67),
         ["Port Town"] = CFrame.new(-290.73, 6.72, 5343.55),
         ["Hydra Island"] = CFrame.new(5291.24, 1005.44, 393.76),
         ["Floating Turtle"] = CFrame.new(-13274.52, 531.82, -7579.22),
         ["Haunted Castle"] = CFrame.new(-9515.37, 164.00, 5786.06),
-        ["Tiki Outpost"] = CFrame.new(-16218.68, 9.08, 445.61)
+        ["Tiki Outpost"] = CFrame.new(-16218.68, 9.08, 445.61),
+        ["Great Tree"] = CFrame.new(2180.54, 27.81, -6741.54),
+        ["Castle on the Sea"] = CFrame.new(-5039.58, 27.35, 4324.68),
+        ["Cake Land"] = CFrame.new(-2021.32, 37.79, -12028.72),
+        ["Peanut Island"] = CFrame.new(-2104.39, 38.10, -10194.21),
     }
 }
 
-local NpcTeleports = {
-    World1 = {
-        ["Random Devil Fruit"] = CFrame.new(-1436.19, 61.87, 4.75),
-        ["Blox Fruits Dealer"] = CFrame.new(-923.25, 7.67, 1608.61),
-        ["Ability Teacher"] = CFrame.new(-1057.67, 9.65, 1799.49)
-    },
-    World2 = {
-        ["Dargon Breath"] = CFrame.new(703.37, 186.98, 654.52),
-        ["Mysterious Man"] = CFrame.new(-2574.43, 1627.92, -3739.35),
-        ["Awakening Expert"] = CFrame.new(-408.09, 16.04, 247.43)
-    },
-    World3 = {
-        ["Elite Hunter"] = CFrame.new(-5420, 314, -2828),
-        ["Player Hunter"] = CFrame.new(-5559, 314, -2840),
-        ["Uzoth"] = CFrame.new(-9785, 852, 6667)
-    }
+local DungeonChips = {
+    "Flame", "Ice", "Quake", "Light", "Dark", "Spider", "Rumble", "Magma", "Buddha", "Dough"
 }
 
-local MaterialList = (World1 and {"Magma Ore", "Angel Wings", "Leather", "Scrap Metal"}) or (World2 and {"Radioactive", "Mystic Droplet", "Magma Ore", "Leather", "Ectoplasm", "Scrap Metal"}) or {"Leather", "Scrap Metal", "Conjured Cocoa", "Dragon Scale", "Gunpowder", "Fish Tail", "Mini Tusk"}
+local BossList = (World1 and {
+    "The Gorilla King", "Bobby", "The Saw", "Yeti", "Mob Leader", "Vice Admiral",
+    "Saber Expert", "Warden", "Chief Warden", "Swan", "Magma Admiral", "Fishman Lord",
+    "Wysper", "Thunder God", "Cyborg", "Ice Admiral", "Greybeard", "Darkbeard"
+}) or (World2 and {
+    "Diamond", "Jeremy", "Fajita", "Don Swan", "Smoke Admiral", "Awakened Ice Admiral",
+    "Tide Keeper", "Darkbeard", "Cursed Captain", "Order"
+}) or (World3 and {
+    "Stone", "Hydra Leader", "Kilo Admiral", "Captain Elephant", "Beautiful Pirate",
+    "Cake Queen", "Longma", "Soul Reaper", "Dough King", "Katakuri", "Island Boy"
+})
 
-local function GetMaterialConfig(mat)
-    if mat == "Radioactive" and World2 then return {"Factory Staff"}, CFrame.new(-507.78, 72.99, -126.45)
+local MaterialList = (World1 and {
+    "Leather + Scrap Metal", "Angel Wings", "Magma Ore", "Fish Tail", "Wood Planks"
+}) or (World2 and {
+    "Leather + Scrap Metal", "Radioactive Material", "Ectoplasm", "Mystic Droplet",
+    "Magma Ore", "Vampire Fang"
+}) or (World3 and {
+    "Scrap Metal", "Demonic Wisp", "Conjured Cocoa", "Dragon Scale", "Gunpowder",
+    "Fish Tail", "Mini Tusk", "Azure Ember"
+})
+
+local MobSpecificTeleports = {
+    ["Darkbeard"] = CFrame.new(1000, 100, 1000),
+    ["Longma"] = CFrame.new(-13510, 584, -6987),
+    ["Terrorshark"] = CFrame.new(-40000, 30, -2000),
+    ["Leviathan"] = CFrame.new(-148073.35, 9.00, 7721.05),
+    ["Tide Keeper"] = CFrame.new(6148.41, 294.38, -6741.11),
+    ["Thunder God"] = CFrame.new(-4869.10, 733.46, -2667.01),
+    ["Don Swan"] = CFrame.new(638.43, 71.76, 918.28),
+    ["Cursed Captain"] = CFrame.new(923.40, 125.05, 32885.87),
+    ["Order"] = CFrame.new(-408.09, 16.04, 247.43),
+    ["Indra"] = CFrame.new(-12471.16, 374.94, -7551.67),
+    ["Kitsune Island"] = CFrame.new(-16526, 108, 752),
+    ["Mirage Island"] = CFrame.new(29221.82, 14890.97, -205.99),
+    ["Prehistoric Island"] = CFrame.new(-16471, 528, 539),
+    ["Tiki Mastery Farm"] = CFrame.new(-16547.74, 61.13, -173.41),
+}
+
+local ZoneCFrames = {
+    ["Zone 1"] = CFrame.new(-21998.37, 30.00, -682.30),
+    ["Zone 2"] = CFrame.new(-26779.52, 30.00, -822.85),
+    ["Zone 3"] = CFrame.new(-31171.95, 30.00, -2256.93),
+    ["Zone 4"] = CFrame.new(-34054.68, 30.21, -2560.12),
+    ["Zone 5"] = CFrame.new(-38887.55, 30.00, -2162.99),
+    ["Zone 6"] = CFrame.new(-44541.76, 30.00, -1244.85),
+    ["Infinite"] = CFrame.new(-148073.35, 9.00, 7721.05)
+}
+
+local function GetMaterialConfig(mat: string): ({string}, CFrame)
+    if mat == "Radioactive Material" and World2 then return {"Factory Staff"}, CFrame.new(-507.78, 72.99, -126.45)
     elseif mat == "Mystic Droplet" and World2 then return {"Water Fighter"}, CFrame.new(-3352.90, 285.01, -10534.84)
     elseif mat == "Magma Ore" and World1 then return {"Military Spy"}, CFrame.new(-5850.28, 77.28, 8848.67)
     elseif mat == "Magma Ore" and World2 then return {"Lava Pirate"}, CFrame.new(-5234.60, 51.95, -4732.27)
     elseif mat == "Angel Wings" and World1 then return {"Royal Soldier"}, CFrame.new(-7827.15, 5606.91, -1705.58)
-    elseif mat == "Leather" and World1 then return {"Pirate"}, CFrame.new(-1211.87, 4.78, 3916.83)
-    elseif mat == "Leather" and World2 then return {"Marine Captain"}, CFrame.new(-2010.50, 73.00, -3326.62)
-    elseif mat == "Leather" and World3 then return {"Jungle Pirate"}, CFrame.new(-11975.78, 331.77, -10620.03)
-    elseif mat == "Ectoplasm" and World2 then return {"Ship Deckhand", "Ship Engineer", "Ship Steward", "Ship Officer"}, CFrame.new(911.35, 125.95, 33159.53)
-    elseif mat == "Scrap Metal" and World1 then return {"Brute"}, CFrame.new(-1132.42, 14.84, 4293.30)
-    elseif mat == "Scrap Metal" and World2 then return {"Mercenary"}, CFrame.new(-972.30, 73.04, 1419.29)
+    elseif mat == "Leather + Scrap Metal" and World1 then return {"Pirate", "Brute"}, CFrame.new(-1211.87, 4.78, 3916.83)
+    elseif mat == "Leather + Scrap Metal" and World2 then return {"Marine Captain", "Mercenary"}, CFrame.new(-2010.50, 73.00, -3326.62)
     elseif mat == "Scrap Metal" and World3 then return {"Pirate Millionaire"}, CFrame.new(-289.63, 43.82, 5583.66)
+    elseif mat == "Ectoplasm" and World2 then return {"Ship Deckhand", "Ship Engineer", "Ship Steward", "Ship Officer"}, CFrame.new(911.35, 125.95, 33159.53)
     elseif mat == "Conjured Cocoa" and World3 then return {"Chocolate Bar Battler"}, CFrame.new(744.79, 24.76, -12637.72)
     elseif mat == "Dragon Scale" and World3 then return {"Dragon Crew Warrior"}, CFrame.new(5824.06, 51.38, -1106.69)
     elseif mat == "Gunpowder" and World3 then return {"Pistol Billionaire"}, CFrame.new(-379.61, 73.84, 5928.52)
     elseif mat == "Fish Tail" and World3 then return {"Fishman Captain"}, CFrame.new(-10961.01, 331.79, -8914.29)
     elseif mat == "Mini Tusk" and World3 then return {"Mythological Pirate"}, CFrame.new(-13516.04, 469.81, -6899.16)
+    elseif mat == "Vampire Fang" and World2 then return {"Vampire"}, CFrame.new(-6037.66, 32.18, -1340.65)
+    elseif mat == "Demonic Wisp" and World3 then return {"Demonic Soul"}, CFrame.new(-9579, 6, 6194)
+    elseif mat == "Wood Planks" and World3 then return {"Tree"}, CFrame.new(-16471, 528, 539)
+    elseif mat == "Azure Ember" and World3 then return {"Kitsune Shrine"}, CFrame.new(-16526, 108, 752)
     end
     return {}, CFrame.new(0,0,0)
 end
 
-local BossList = (World1 and {"The Gorilla King", "Bobby", "Yeti", "Mob Leader", "Vice Admiral", "Warden", "Chief Warden", "Swan", "Magma Admiral", "Fishman Lord", "Wysper", "Thunder God", "Cyborg", "Saber Expert"}) or (World2 and {"Diamond", "Jeremy", "Fajita", "Don Swan", "Smoke Admiral", "Cursed Captain", "Darkbeard", "Order", "Awakened Ice Admiral", "Tide Keeper"}) or {"Stone", "Island Empress", "Kilo Admiral", "Captain Elephant", "Beautiful Pirate", "rip_indra True Form", "Longma", "Soul Reaper", "Cake Queen"}
-
 --------------------------------------------------------------------------------
--- 6. دمج واجهة AetherUI والتابات الكاملة
+-- 7. AetherUI Framework Integration (100% Full English Interface)
 --------------------------------------------------------------------------------
-local AetherUI = loadstring(game:HttpGet("https://pastebin.com/raw/yeULgMe0"))()
+local AetherUI = nil
+local success_ui, err_ui = pcall(function()
+    AetherUI = loadstring(game:HttpGet("https://pastebin.com/raw/yeULgMe0"))()
+end)
 
-AetherUI:InitLoadingScreen("Haroon Hub V12 Ultimate", "Configuring Protection & Sea Engines...", function()
+if not success_ui or not AetherUI then
+    warn("Haroon Hub: Failed to load AetherUI library. Error:", err_ui)
+    return
+end
+
+AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Modules & Auto Engines...", function()
     AetherUI:InitKeySystem({"HAROON-2025-VIP", "HAROON-KEY-100"}, function()
-        AetherUI:Notify({Title = "🔥 Haroon Hub V12 Active", Content = "تم بنجاح تشغيل جميع الأنظمة مع الحماية القصوى!", Duration = 4})
+        AetherUI:Notify({Title = "Haroon Hub V12 Active", Content = "Successfully loaded all modules in 100% English!", Duration = 4})
 
         local Window = AetherUI:CreateWindow({
             Title = "Haroon Hub | Blox Fruits Master",
@@ -6407,138 +866,401 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Ultimate", "Configuring Protection & 
             ToggleKey = Enum.KeyCode.RightControl
         })
 
-        local MainTab = Window:CreateTab("Main", "rbxassetid://6034287594")
-        local CombatTab = Window:CreateTab("Combat", "rbxassetid://6034834832")
-        local RaceTab = Window:CreateTab("Race V4", "rbxassetid://6034453535")
-        local SubFarmTab = Window:CreateTab("Sub Farming", "rbxassetid://6034834832")
-        local CakeTab = Window:CreateTab("Cake & Dough", "rbxassetid://6034453535")
-        local SeaTab = Window:CreateTab("Sea Farming", "rbxassetid://6034453535")
-        local RaidTab = Window:CreateTab("Raids", "rbxassetid://6034834832")
-        local AutoQuestsTab = Window:CreateTab("Auto Quests", "rbxassetid://6034453535")
+        local MainTab = Window:CreateTab("Main Farm", "rbxassetid://6034287594")
+        local QuestsTab = Window:CreateTab("All Quests", "rbxassetid://6034453535")
+        local ShopTab = Window:CreateTab("Shop & Upgrades", "rbxassetid://6031280882")
+        local SubFarmTab = Window:CreateTab("Subs Farm", "rbxassetid://6034834832")
+        local RaidTab = Window:CreateTab("Dungeons & Raids", "rbxassetid://6034834832")
+        local SeaTab = Window:CreateTab("Sea Events & Prehistoric", "rbxassetid://6034453535")
+        local RaceTab = Window:CreateTab("Race V4 & Mirage", "rbxassetid://6034453535")
+        local ItemsTab = Window:CreateTab("Items & Swords", "rbxassetid://6034834832")
+        local FruitsTab = Window:CreateTab("Fruits & Sniper", "rbxassetid://6034453535")
+        local DragonDojoTab = Window:CreateTab("Dragon Dojo", "rbxassetid://6034453535")
+        local CombatTab = Window:CreateTab("Combat & PVP", "rbxassetid://6034834832")
+        local CraftingTab = Window:CreateTab("Crafting", "rbxassetid://6034834832")
         local TeleportsTab = Window:CreateTab("Teleports", "rbxassetid://6034453535")
-        local VisualTab = Window:CreateTab("Visuals", "rbxassetid://6034453535")
-        local MiscTab = Window:CreateTab("Misc", "rbxassetid://6031280882")
+        local VisualTab = Window:CreateTab("Visuals & ESP", "rbxassetid://6034453535")
+        local MiscTab = Window:CreateTab("Misc & Server Status", "rbxassetid://6031280882")
         local SettingsTab = Window:CreateTab("Settings", "rbxassetid://6031280882")
 
         ---------------------------------------------------------
-        -- 📌 1. TAB: MAIN
+        -- 📌 1. TAB: MAIN FARM
         ---------------------------------------------------------
-        MainTab:CreateSection("خيارات التلفيل الأساسية (Level Farm)")
+        MainTab:CreateSection("Level Farm Configuration")
 
-        MainTab:CreateToggle("تفعيل التجميع التلقائي (Auto Farm Level)", "AutoFarmFlag", false, function(state)
+        MainTab:CreateToggle("Auto Farm Level", "AutoFarmFlag", false, function(state)
             _G.Settings.Main["Auto Farm Level"] = state
+            if not state then StopTween("AutoFarmLevel") end
         end)
 
-        MainTab:CreateToggle("تضمين مهمات الزعماء بالتلفيل (Include Bosses)", "IncludeBossQuestFlag", false, function(state)
+        MainTab:CreateToggle("Include Boss Quests", "IncludeBossQuestFlag", false, function(state)
             _G.Settings.Main["Include Boss Quests"] = state
         end)
 
-        MainTab:CreateDropdown("اختر السلاح الفعال (Weapon)", "WeaponFlag", {"Melee", "Sword", "Blox Fruit", "Gun"}, "Melee", function(selected)
+        MainTab:CreateDropdown("Select Farm Weapon", "WeaponFlag", {"Melee", "Sword", "Blox Fruit", "Gun"}, "Melee", function(selected)
             _G.Settings.Main["Select Weapon"] = selected
         end)
 
-        MainTab:CreateSlider("ارتفاع الطيران فوق العدو (Farm Distance)", "FarmDistFlag", 10, 50, 28, function(val)
+        MainTab:CreateSlider("Farm Distance Above Target", "FarmDistFlag", 10, 50, 28, function(val)
             _G.Settings.Main["Farm Distance"] = val
         end)
 
-        MainTab:CreateSlider("سرعة الانتقال الآمنة (Safe Tween Speed)", "TweenSpeedFlag", 100, 300, 180, function(val)
+        MainTab:CreateSlider("Player Tween Speed", "TweenSpeedFlag", 100, 300, 180, function(val)
             _G.Settings.Main["Player Tween Speed"] = val
         end)
 
-        MainTab:CreateToggle("الضرب السريع الخارق (Fast Attack)", "FastAttackFlag", false, function(state)
+        MainTab:CreateToggle("Fast Attack Speed", "FastAttackFlag", false, function(state)
             _G.Settings.Main["Fast Attack"] = state
         end)
 
-        MainTab:CreateSection("تجميع الماتيريال (Auto Farm Materials)")
+        MainTab:CreateSection("Materials Farming")
 
-        MainTab:CreateDropdown("اختر الماتيريال (Select Material)", "MatDropdownFlag", MaterialList, MaterialList[1], function(selected)
+        MainTab:CreateDropdown("Select Material", "MatDropdownFlag", MaterialList, MaterialList[1], function(selected)
             _G.Settings.Main["Selected Material"] = selected
         end)
 
-        MainTab:CreateToggle("تفعيل تجميع الماتيريال (Farm Material)", "FarmMatFlag", false, function(state)
+        MainTab:CreateToggle("Auto Farm Material", "FarmMatFlag", false, function(state)
             _G.Settings.Main["Auto Farm Material"] = state
+            if not state then StopTween("AutoFarmMaterial") end
         end)
 
-        MainTab:CreateSection("قتل الزعماء (Auto Farm Bosses)")
+        MainTab:CreateSection("Boss Farming")
 
-        MainTab:CreateDropdown("اختر البوس (Select Boss)", "BossDropdownFlag", BossList, BossList[1], function(selected)
+        MainTab:CreateDropdown("Select Target Boss", "BossDropdownFlag", BossList, BossList[1], function(selected)
             _G.Settings.Main["Selected Boss"] = selected
         end)
 
-        MainTab:CreateToggle("تفعيل قتل البوس المحدد (Auto Farm Boss)", "FarmBossFlag", false, function(state)
+        MainTab:CreateToggle("Auto Farm Selected Boss", "FarmBossFlag", false, function(state)
             _G.Settings.Main["Auto Farm Boss"] = state
+            if not state then StopTween("AutoFarmBoss") end
         end)
 
-        MainTab:CreateToggle("تفعيل قتل جميع البوسات المتوفرة (Farm All Bosses)", "FarmAllBossFlag", false, function(state)
+        MainTab:CreateToggle("Auto Farm All Available Bosses", "FarmAllBossFlag", false, function(state)
             _G.Settings.Main["Auto Farm All Boss"] = state
+            if not state then StopTween("AutoFarmAllBoss") end
         end)
 
         ---------------------------------------------------------
-        -- 📌 2. TAB: COMBAT (PVP)
+        -- 📌 2. TAB: ALL QUESTS (Including Citizen Quests)
         ---------------------------------------------------------
-        CombatTab:CreateSection("قتال اللاعبين والـ PVP")
+        QuestsTab:CreateSection("Quest Controller")
 
-        local playerList = {}
-        for _, p in pairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer then table.insert(playerList, p.Name) end
-        end
-
-        CombatTab:CreateDropdown("اختر اللاعب المستهدف", "PVPPlayerDropdown", playerList, playerList[1] or "None", function(selected)
-            _G.Settings.Combat["Selected Player"] = selected
+        QuestsTab:CreateButton("Accept Current Level Quest", function()
+            CheckQuest()
+            if CommF_ then CommF_:InvokeServer("StartQuest", CurrentQuest.NameQuest, CurrentQuest.LevelQuest) end
+            AetherUI:Notify({Title = "Quests", Content = "Accepted quest: " .. CurrentQuest.NameMon, Duration = 2})
         end)
 
-        CombatTab:CreateToggle("مراقبة اللاعب (Spectate Player)", "SpectateFlag", false, function(state)
-            _G.Settings.Combat["Spectate Player"] = state
-            if state and _G.Settings.Combat["Selected Player"] then
-                local target = Players:FindFirstChild(_G.Settings.Combat["Selected Player"])
-                if target and target.Character and target.Character:FindFirstChild("Humanoid") then
-                    workspace.CurrentCamera.CameraSubject = target.Character.Humanoid
-                end
-            else
-                workspace.CurrentCamera.CameraSubject = LocalPlayer.Character.Humanoid
+        QuestsTab:CreateButton("Abandon Current Quest", function()
+            if CommF_ then CommF_:InvokeServer("AbandonQuest") end
+            AetherUI:Notify({Title = "Quests", Content = "Current quest abandoned!", Duration = 2})
+        end)
+
+        QuestsTab:CreateSection("Citizen Quests Module")
+
+        QuestsTab:CreateToggle("Auto Citizen Quest Complete", "CitizenQuestFlag", false, function(state)
+            _G.Settings.Quests["Auto Citizen Quest"] = state
+            if not state then StopTween("Citizen") end
+        end)
+
+        QuestsTab:CreateButton("Start Citizen Quest Immediately", function()
+            if CommF_ then
+                CommF_:InvokeServer("CitizenQuestProgress", "Citizen")
+                CommF_:InvokeServer("StartQuest", "CitizenQuest", 1)
+                AetherUI:Notify({Title = "Citizen Quest", Content = "Citizen Quest Started!", Duration = 2})
             end
         end)
 
-        CombatTab:CreateToggle("الانتقال إلى اللاعب (Teleport To Player)", "TPPlayerFlag", false, function(state)
-            _G.Settings.Combat["Teleport To Player"] = state
-            task.spawn(function()
-                while _G.Settings.Combat["Teleport To Player"] do
-                    task.wait()
-                    pcall(function()
-                        local target = Players:FindFirstChild(_G.Settings.Combat["Selected Player"])
-                        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-                            TweenPlayer(target.Character.HumanoidRootPart.CFrame)
-                        end
-                    end)
-                end
-            end)
+        QuestsTab:CreateSection("Puzzles & Special Challenges")
+        QuestsTab:CreateToggle("Auto Yama Puzzle", "YamaPuzzleFlag", false, function(s) _G.Settings.Quests["Auto Yama Puzzle"] = s end)
+        QuestsTab:CreateToggle("Auto Tushita Puzzle", "TushitaPuzzleFlag", false, function(s) _G.Settings.Quests["Auto Tushita Puzzle"] = s end)
+        QuestsTab:CreateToggle("Auto Colosseum Puzzle", "ColosseumPuzzleFlag", false, function(s) _G.Settings.Quests["Auto Colosseum Puzzle"] = s end)
+        QuestsTab:CreateToggle("Auto Dough / Cake Challenges", "DoughChallengeFlag", false, function(s) _G.Settings.Quests["Auto Dough Challenges"] = s end)
+        QuestsTab:CreateToggle("Auto Soul Guitar Puzzle", "SoulGuitarPuzzleFlag", false, function(s) _G.Settings.Quests["Auto Soul Guitar Puzzle"] = s end)
+
+        ---------------------------------------------------------
+        -- 📌 3. TAB: SHOP & UPGRADES (Full Extracted Shop)
+        ---------------------------------------------------------
+        ShopTab:CreateSection("Sea Travel & Teleports")
+        ShopTab:CreateButton("Travel to First Sea", function() if CommF_ then CommF_:InvokeServer("TravelMain") end end)
+        ShopTab:CreateButton("Travel to Second Sea", function() if CommF_ then CommF_:InvokeServer("TravelDressrosa") end end)
+        ShopTab:CreateButton("Travel to Third Sea", function() if CommF_ then CommF_:InvokeServer("TravelZou") end end)
+
+        ShopTab:CreateSection("General Shop Items")
+        ShopTab:CreateButton("Buy Dual Flintlock", function() if CommF_ then CommF_:InvokeServer("BuyItem", "Dual Flintlock") end end)
+        ShopTab:CreateButton("Reroll Race (Beli/Fragments)", function()
+            if CommF_ then
+                CommF_:InvokeServer("BlackbeardReward", "Reroll", "1")
+                CommF_:InvokeServer("BlackbeardReward", "Reroll", "2")
+            end
+        end)
+        ShopTab:CreateButton("Reset Stats Refund", function()
+            if CommF_ then
+                CommF_:InvokeServer("BlackbeardReward", "Refund", "1")
+                CommF_:InvokeServer("BlackbeardReward", "Refund", "2")
+            end
+        end)
+        ShopTab:CreateButton("Buy Ghoul Race", function()
+            if CommF_ then
+                CommF_:InvokeServer("Ectoplasm", "BuyCheck", 4)
+                CommF_:InvokeServer("Ectoplasm", "Change", 4)
+            end
+        end)
+        ShopTab:CreateButton("Buy Cyborg Race", function() if CommF_ then CommF_:InvokeServer("CyborgTrainer", "Buy") end end)
+
+        ShopTab:CreateSection("Fighting Styles Shop")
+        ShopTab:CreateButton("Buy Black Leg ($150,000)", function() if CommF_ then CommF_:InvokeServer("BuyBlackLeg") end end)
+        ShopTab:CreateButton("Buy Fishman Karate ($750,000)", function() if CommF_ then CommF_:InvokeServer("BuyFishmanKarate") end end)
+        ShopTab:CreateButton("Buy Electro ($500,000)", function() if CommF_ then CommF_:InvokeServer("BuyElectro") end end)
+        ShopTab:CreateButton("Buy Dragon Breath (1,500 Frags)", function() if CommF_ then CommF_:InvokeServer("BlackbeardReward", "DragonClaw", "2") end end)
+        ShopTab:CreateButton("Buy Superhuman ($3,000,000)", function() if CommF_ then CommF_:InvokeServer("BuySuperhuman") end end)
+        ShopTab:CreateButton("Buy Death Step ($2,500,000 + 5k Frags)", function() if CommF_ then CommF_:InvokeServer("BuyDeathStep") end end)
+        ShopTab:CreateButton("Buy Sharkman Karate ($2,500,000 + 5k Frags)", function() if CommF_ then CommF_:InvokeServer("BuySharkmanKarate") end end)
+        ShopTab:CreateButton("Buy Electric Claw ($3,000,000 + 3k Frags)", function() if CommF_ then CommF_:InvokeServer("BuyElectricClaw") end end)
+        ShopTab:CreateButton("Buy Dragon Talon ($3,000,000 + 5k Frags)", function() if CommF_ then CommF_:InvokeServer("BuyDragonTalon") end end)
+        ShopTab:CreateButton("Buy Godhuman ($5,000,000 + 5k Frags)", function() if CommF_ then CommF_:InvokeServer("BuyGodhuman") end end)
+        ShopTab:CreateButton("Buy Sanguine Art ($5,000,000 + 5k Frags)", function() if CommF_ then CommF_:InvokeServer("BuySanguineArt") end end)
+
+        ShopTab:CreateSection("Ability & Haki Shop")
+        ShopTab:CreateButton("Buy Skyjump / Geppo ($10,000)", function() if CommF_ then CommF_:InvokeServer("BuyHaki", "Geppo") end end)
+        ShopTab:CreateButton("Buy Buso Haki ($25,000)", function() if CommF_ then CommF_:InvokeServer("BuyHaki", "Buso") end end)
+        ShopTab:CreateButton("Buy Observation Haki ($750,000)", function() if CommF_ then CommF_:InvokeServer("KenTalk", "Buy") end end)
+        ShopTab:CreateButton("Buy Soru ($100,000)", function() if CommF_ then CommF_:InvokeServer("BuyHaki", "Soru") end end)
+
+        ShopTab:CreateSection("Auto Buy Upgrades")
+        ShopTab:CreateToggle("Auto Buy Legendary Swords", "AutoBuyLegSwordsFlag", false, function(s) _G.Settings.ItemsQuests["Auto Buy Legendary Swords"] = s end)
+
+        ---------------------------------------------------------
+        -- 📌 4. TAB: SUBS FARM
+        ---------------------------------------------------------
+        SubFarmTab:CreateSection("Smart Mastery Engine")
+
+        SubFarmTab:CreateToggle("Melee Mastery (Tiki Outpost)", "AutoMasteryMeleeFlag", false, function(state)
+            _G.Settings.SubFarm["Auto Mastery Melee (Tiki)"] = state
+            if not state then StopTween() end
         end)
 
-        CombatTab:CreateToggle("تصويب المسدسات التلقائي (Aimbot Gun)", "AimbotGunFlag", false, function(state)
-            _G.Settings.Combat["Aimbot Gun"] = state
+        SubFarmTab:CreateToggle("Swords Mastery", "AutoMasterySwordsFlag", false, function(state)
+            _G.Settings.SubFarm["Auto Mastery Swords"] = state
+            if not state then StopTween() end
+        end)
+
+        SubFarmTab:CreateToggle("Blox Fruits Mastery", "AutoMasteryBloxFruitsFlag", false, function(state)
+            _G.Settings.SubFarm["Auto Mastery Blox Fruits"] = state
+            if not state then StopTween() end
+        end)
+
+        SubFarmTab:CreateToggle("Guns Mastery", "AutoMasteryGunsFlag", false, function(state)
+            _G.Settings.SubFarm["Auto Mastery Guns"] = state
+            if not state then StopTween() end
+        end)
+
+        SubFarmTab:CreateSlider("Target HP % to Switch Weapon Skills", "MasteryHPSlider", 10, 50, 25, function(val)
+            _G.Settings.SubFarm["Mastery Target HP %"] = val
+        end)
+
+        SubFarmTab:CreateSection("Elite Hunter & Bone Farming")
+
+        SubFarmTab:CreateToggle("Auto Farm Bones", "AutoFarmBoneFlag", false, function(state)
+            _G.Settings.SubFarm["Auto Farm Bone"] = state
+            if not state then StopTween("AutoBone") end
+        end)
+
+        SubFarmTab:CreateToggle("Auto Accept Bone Quest", "AutoAcceptBoneQuestFlag", false, function(state)
+            _G.Settings.SubFarm["Auto Accept Bone Quest"] = state
+        end)
+
+        SubFarmTab:CreateToggle("Auto Random Surprise (Death King)", "AutoRandomSurpriseFlag", false, function(state)
+            _G.Settings.SubFarm["Auto Random Surprise"] = state
+        end)
+
+        SubFarmTab:CreateToggle("Auto Elite Hunter", "EliteFlag", false, function(state)
+            _G.Settings.SubFarm["Auto Elite Hunter"] = state
+            if not state then StopTween("AutoElite") end
+        end)
+
+        SubFarmTab:CreateToggle("Auto Elite Hunter Hop", "EliteHopFlag", false, function(state)
+            _G.Settings.SubFarm["Auto Elite Hunter Hop"] = state
+            if not state then StopTween("AutoEliteHop") end
+        end)
+
+        SubFarmTab:CreateSection("Chests Farming")
+
+        SubFarmTab:CreateToggle("Auto Chest (Tween)", "ChestTweenFlag", false, function(state)
+            _G.Settings.SubFarm["Auto Chest Tween"] = state
+            if not state then StopTween("AutoChestTween") end
+        end)
+
+        SubFarmTab:CreateToggle("Auto Chest (Instant)", "ChestInstantFlag", false, function(state)
+            _G.Settings.SubFarm["Auto Chest Instant"] = state
+            if not state then StopTween("AutoChestInstant") end
         end)
 
         ---------------------------------------------------------
-        -- 📌 3. TAB: RACE V4
+        -- 📌 5. TAB: DUNGEONS & RAIDS (Enhanced Auto Next Island - 5 Islands Check)
         ---------------------------------------------------------
-        RaceTab:CreateSection("ترقية الأجناس وتفعيل Race V3 & V4")
+        RaidTab:CreateSection("Dungeon & Fruits Raid Controller")
 
-        RaceTab:CreateToggle("تفعيل مهارة V3 تلقائياً (Auto Race V3)", "AutoV3Flag", false, function(state)
-            _G.Settings.Race["Auto Race V3"] = state
+        RaidTab:CreateDropdown("Select Raid Chip", "DungeonChipDropdown", DungeonChips, DungeonChips[1], function(selected)
+            _G.Settings.Raid["Selected Chip"] = selected
+        end)
+
+        RaidTab:CreateToggle("Auto Dungeon / Fruits Raid", "AutoDungeonFlag", false, function(state)
+            _G.Settings.Raid["Auto Dungeon / Raid"] = state
+            if not state then StopTween("AutoRaid") end
+        end)
+
+        RaidTab:CreateToggle("Auto Buy Chip & Start Raid", "AutoBuyStartRaidFlag", false, function(state)
+            _G.Settings.Raid["Auto Buy Chip & Start"] = state
+        end)
+
+        RaidTab:CreateToggle("Auto Clear Dungeon Waves", "AutoClearDungeonFlag", false, function(state)
+            _G.Settings.Raid["Auto Clear Dungeon Waves"] = state
+            if not state then StopTween("RaidClear") end
+        end)
+
+        RaidTab:CreateToggle("Auto Next Island (5 Islands Full Scanner)", "AutoNextIslandFlag", false, function(state)
+            _G.Settings.Raid["Auto Next Island"] = state
+            if not state then StopTween("RaidNextIsland") end
+        end)
+
+        RaidTab:CreateToggle("Auto Awaken Skills", "AutoAwakenSkillsFlag", false, function(state)
+            _G.Settings.Raid["Auto Awaken"] = state
+        end)
+
+        RaidTab:CreateToggle("Auto Law Raid", "LawRaidFlag", false, function(state)
+            _G.Settings.Raid["Law Raid"] = state
+            if not state then StopTween("LawRaid") end
+        end)
+
+        ---------------------------------------------------------
+        -- 📌 6. TAB: SEA EVENTS & PREHISTORIC
+        ---------------------------------------------------------
+        SeaTab:CreateSection("Prehistoric Island Engine")
+
+        SeaTab:CreateButton("Teleport to Prehistoric Island", function()
+            TweenPlayer(MobSpecificTeleports["Prehistoric Island"])
+            AetherUI:Notify({Title = "Teleport", Content = "Teleporting to Prehistoric Island...", Duration = 2})
+        end)
+
+        SeaTab:CreateToggle("Auto Prehistoric Island", "AutoPrehistoricFlag", false, function(state)
+            _G.Settings.Sea["Auto Prehistoric Island"] = state
+            if not state then StopTween("Prehistoric") end
+        end)
+
+        SeaTab:CreateToggle("Auto Complete Prehistoric Torches", "AutoCompletePrehistoricFlag", false, function(state)
+            _G.Settings.Sea["Auto Complete Prehistoric Island"] = state
+            if not state then StopTween("PrehistoricTorches") end
+        end)
+
+        SeaTab:CreateToggle("Auto Draco Trail", "AutoDracoTrailFlag", false, function(state)
+            _G.Settings.Sea["Auto Draco Trail"] = state
+            if not state then StopTween("Draco") end
+        end)
+
+        SeaTab:CreateSection("Sailing & Boat Controls")
+
+        SeaTab:CreateDropdown("Select Boat", "BoatDropdownFlag", {"Guardian", "Beast Hunter", "PirateGrandBrigade", "MarineGrandBrigade"}, "Guardian", function(selected)
+            _G.Settings.Sea["Selected Boat"] = selected
+        end)
+
+        SeaTab:CreateDropdown("Select Sailing Zone", "ZoneDropdownFlag", {"Zone 1", "Zone 2", "Zone 3", "Zone 4", "Zone 5", "Zone 6", "Infinite"}, "Zone 5", function(selected)
+            _G.Settings.Sea["Selected Zone"] = selected
+        end)
+
+        SeaTab:CreateToggle("Auto Set Sail", "SailBoatFlag", false, function(state)
+            _G.Settings.Sea["Sail Boat"] = state
+            if not state then StopTween() end
+        end)
+
+        SeaTab:CreateToggle("Ship Noclip", "ShipNoclipFlag", false, function(state)
+            _G.Settings.Sea["Ship Noclip"] = state
+        end)
+
+        SeaTab:CreateSection("Sea Mobs Combat")
+
+        SeaTab:CreateToggle("Auto Attack Sea Events", "AutoAttackSeaFlag", false, function(state)
+            _G.Settings.Sea["Auto Attack Sea Events"] = state
+        end)
+
+        SeaTab:CreateToggle("Auto Farm Shark", "SharkFlag", false, function(state)
+            _G.Settings.Sea["Auto Farm Shark"] = state
+            if not state then StopTween() end
+        end)
+
+        SeaTab:CreateToggle("Auto Farm Piranha", "PiranhaFlag", false, function(state)
+            _G.Settings.Sea["Auto Farm Piranha"] = state
+            if not state then StopTween() end
+        end)
+
+        SeaTab:CreateToggle("Auto Farm Fish Crew Member", "CrewFlag", false, function(state)
+            _G.Settings.Sea["Auto Farm Fish Crew Member"] = state
+            if not state then StopTween() end
+        end)
+
+        SeaTab:CreateToggle("Auto Farm Ghost Ship", "GhostShipFlag", false, function(state)
+            _G.Settings.Sea["Auto Farm Ghost Ship"] = state
+            if not state then StopTween() end
+        end)
+
+        SeaTab:CreateToggle("Auto Farm Terrorshark", "TerrorFlag", false, function(state)
+            _G.Settings.Sea["Auto Farm Terrorshark"] = state
+            if not state then StopTween() end
+        end)
+
+        SeaTab:CreateToggle("Auto Farm Seabeasts", "SeabeastFlag", false, function(state)
+            _G.Settings.Sea["Auto Farm Seabeasts"] = state
+            if not state then StopTween() end
+        end)
+
+        SeaTab:CreateToggle("Auto Find Kitsune Island", "AutoFindKitsuneIslandFlag", false, function(state)
+            _G.Settings.Sea["Auto Find Kitsune Island"] = state
+            if not state then StopTween() end
+        end)
+
+        ---------------------------------------------------------
+        -- 📌 7. TAB: RACE V4 & MIRAGE
+        ---------------------------------------------------------
+        RaceTab:CreateSection("Race Upgrades (V1-V4)")
+
+        RaceTab:CreateToggle("Auto Collect Flowers", "AutoCollectFlowersFlag", false, function(state)
+            _G.Settings.Race["Auto Collect Flowers"] = state
+        end)
+
+        RaceTab:CreateToggle("Auto Race V2 Quest", "AutoRaceV2QuestFlag", false, function(state)
+            _G.Settings.Race["Auto Race V2 Quest"] = state
+            if not state then StopTween() end
+        end)
+
+        RaceTab:CreateDropdown("Select Race V3 Quest", "RaceV3QuestDropdown", {"Human", "Fishman", "Skypian", "Mink", "Ghoul", "Cyborg"}, "Human", function(selected)
+            _G.Settings.Race["Selected Race V3"] = selected
+        end)
+
+        RaceTab:CreateToggle("Auto Race V3 Quest", "AutoRaceV3QuestFlag", false, function(state)
+            _G.Settings.Race["Auto Race V3 Quest"] = state
+            if not state then StopTween() end
+        end)
+
+        RaceTab:CreateToggle("Auto Activate Race V3 Ability", "AutoV3AbilityFlag", false, function(state)
+            _G.Settings.Race["Auto Race V3 Ability"] = state
             task.spawn(function()
-                while _G.Settings.Race["Auto Race V3"] do
+                while _G.Settings.Race["Auto Race V3 Ability"] do
                     task.wait(1)
-                    if CommE then CommE:FireServer("ActivateAbility") end
+                    if CommE then pcall(function() CommE:FireServer("ActivateAbility") end) end
                 end
             end)
         end)
 
-        RaceTab:CreateToggle("التدريب التلقائي للـ V4 (Auto Train)", "AutoTrainFlag", false, function(state)
-            _G.Settings.Race["Auto Train"] = state
+        RaceTab:CreateSection("Mirage Island & Gear Suite")
+
+        RaceTab:CreateToggle("Auto Find Mirage Island", "AutoFindMirageFlag", false, function(state)
+            _G.Settings.Race["Auto Find Mirage"] = state
+            if not state then StopTween() end
         end)
 
-        RaceTab:CreateToggle("الانتقال لقمة الميراج (Tween To Highest Mirage)", "TweenMirageFlag", false, function(state)
+        RaceTab:CreateToggle("Tween To Highest Mirage Point", "TweenMirageFlag", false, function(state)
             _G.Settings.Race["Tween To Highest Mirage"] = state
+            if not state then StopTween() end
             task.spawn(function()
                 while _G.Settings.Race["Tween To Highest Mirage"] do
                     task.wait()
@@ -6546,7 +1268,7 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Ultimate", "Configuring Protection & 
                         if workspace.Map:FindFirstChild("MysticIsland") then
                             for _, v in pairs(workspace.Map.MysticIsland:GetDescendants()) do
                                 if v:IsA("MeshPart") and v.MeshId == "rbxassetid://6745037796" then
-                                    TweenPlayer(v.CFrame * CFrame.new(0, 212, 0))
+                                    TweenPlayer(v.CFrame, Vector3.new(0, 212, 0))
                                 end
                             end
                         end
@@ -6555,16 +1277,20 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Ultimate", "Configuring Protection & 
             end)
         end)
 
-        RaceTab:CreateToggle("البحث عن الترس الأزرق (Find Blue Gear)", "FindGearFlag", false, function(state)
-            _G.Settings.Race["Find Blue Gear"] = state
+        RaceTab:CreateToggle("Teleport To Blue Gear", "TeleportToGearFlag", false, function(state)
+            _G.Settings.Race["Teleport To Blue Gear"] = state
+            if not state then StopTween() end
             task.spawn(function()
-                while _G.Settings.Race["Find Blue Gear"] do
+                while _G.Settings.Race["Teleport To Blue Gear"] do
                     task.wait(0.2)
                     pcall(function()
                         if workspace.Map:FindFirstChild("MysticIsland") then
                             for _, v in pairs(workspace.Map.MysticIsland:GetChildren()) do
-                                if v:IsA("MeshPart") and v.Material == Enum.Material.Neon then
+                                if v:IsA("MeshPart") and (v.Material == Enum.Material.Neon or string.find(v.Name:lower(), "gear")) then
                                     TweenPlayer(v.CFrame)
+                                    if (LocalPlayer.Character.HumanoidRootPart.Position - v.Position).Magnitude < 15 then
+                                        if CommF_ then CommF_:InvokeServer("InteractGear", v) end
+                                    end
                                 end
                             end
                         end
@@ -6573,7 +1299,7 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Ultimate", "Configuring Protection & 
             end)
         end)
 
-        RaceTab:CreateToggle("النظر للقمر وتفعيل المهارة (Look Moon)", "LookMoonFlag", false, function(state)
+        RaceTab:CreateToggle("Auto Look Moon Ability", "LookMoonFlag", false, function(state)
             _G.Settings.Race["Look Moon Ability"] = state
             task.spawn(function()
                 while _G.Settings.Race["Look Moon Ability"] do
@@ -6587,361 +1313,534 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Ultimate", "Configuring Protection & 
             end)
         end)
 
-        RaceTab:CreateToggle("اجتياز الترايل تلقائياً (Auto Trial)", "AutoTrialFlag", false, function(state)
+        RaceTab:CreateToggle("Teleport To Race Door", "TPDoorFlag", false, function(state)
+            _G.Settings.Race["Teleport To Race Door"] = state
+            if not state then StopTween() end
+            if state then
+                local myRace = (LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Race")) and LocalPlayer.Data.Race.Value or "Human"
+                local raceDoors = {
+                    ["Human"] = CFrame.new(29221.82, 14890.97, -205.99),
+                    ["Skypian"] = CFrame.new(28960.15, 14919.62, 235.03),
+                    ["Fishman"] = CFrame.new(28231.17, 14890.97, -211.64),
+                    ["Cyborg"] = CFrame.new(28502.68, 14895.97, -423.72),
+                    ["Ghoul"] = CFrame.new(28674.24, 14890.67, 445.43),
+                    ["Mink"] = CFrame.new(29012.34, 14890.97, -380.14)
+                }
+                local char, hrp = GetCharacter()
+                if char and hrp then
+                    hrp.CFrame = CFrame.new(28286.35, 14895.30, 102.62)
+                    task.wait(0.3)
+                    if raceDoors[myRace] then TweenPlayer(raceDoors[myRace]) end
+                end
+            end
+        end)
+
+        RaceTab:CreateToggle("Auto V4 Training", "AutoTrainFlag", false, function(state)
+            _G.Settings.Race["Auto Train"] = state
+            if not state then StopTween() end
+        end)
+
+        RaceTab:CreateToggle("Auto Complete Trial", "AutoTrialFlag", false, function(state)
             _G.Settings.Race["Auto Trial"] = state
-        end)
-
-        RaceTab:CreateButton("شراء ترقية التروس (Buy Gear Upgrade)", function()
-            if CommF_ then CommF_:InvokeServer("UpgradeRace", "Buy") end
-        end)
-
-        RaceTab:CreateButton("الانتقال إلى باب الترايل (Teleport To Race Door)", function()
-            local myRace = (LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Race")) and LocalPlayer.Data.Race.Value or "Human"
-            local raceDoors = {
-                ["Human"] = CFrame.new(29221.82, 14890.97, -205.99),
-                ["Skypiea"] = CFrame.new(28960.15, 14919.62, 235.03),
-                ["Fishman"] = CFrame.new(28231.17, 14890.97, -211.64),
-                ["Cyborg"] = CFrame.new(28502.68, 14895.97, -423.72),
-                ["Ghoul"] = CFrame.new(28674.24, 14890.67, 445.43),
-                ["Mink"] = CFrame.new(29012.34, 14890.97, -380.14)
-            }
-            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(28286.35, 14895.30, 102.62)
-            task.wait(0.3)
-            if raceDoors[myRace] then TweenPlayer(raceDoors[myRace]) end
+            if not state then StopTween() end
         end)
 
         ---------------------------------------------------------
-        -- 📌 4. TAB: SUB FARMING
+        -- 📌 8. TAB: ITEMS & SWORDS
         ---------------------------------------------------------
-        SubFarmTab:CreateSection("صياد النخبة والعظام (Elite & Bones)")
+        ItemsTab:CreateSection("Legendary Items & Weapons")
 
-        SubFarmTab:CreateToggle("صياد النخبة التلقائي (Auto Elite Hunter)", "EliteFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Elite Hunter"] = state
+        ItemsTab:CreateDropdown("Select CDK Method", "CDKMethodDropdown", {"Quest Yama", "Quest Tushita", "Last Quest"}, "Quest Yama", function(selected)
+            _G.Settings.ItemsQuests["CDK Trial Type"] = selected
         end)
 
-        SubFarmTab:CreateToggle("صياد النخبة مع السيرفر هوب (Elite Hop)", "EliteHopFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Elite Hunter Hop"] = state
+        ItemsTab:CreateToggle("Auto Cursed Dual Katana (CDK)", "AutoFarmCDKFlag", false, function(state)
+            _G.Settings.ItemsQuests["Auto Farm CDK"] = state
+            if not state then StopTween() end
         end)
 
-        SubFarmTab:CreateToggle("تجميع العظام التلقائي (Auto Farm Bones)", "BoneFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Farm Bone"] = state
+        ItemsTab:CreateToggle("Auto True Triple Katana (TTK)", "AutoFarmTTKFlag", false, function(state)
+            _G.Settings.ItemsQuests["Auto Farm TTK"] = state
+            if not state then StopTween() end
         end)
 
-        SubFarmTab:CreateButton("شراء رول العظام (Random Surprise)", function()
-            if CommF_ then CommF_:InvokeServer("Bones", "Buy", 1, 1) end
+        ItemsTab:CreateToggle("Auto Soul Guitar", "AutoSoulGuitarFlag", false, function(state)
+            _G.Settings.ItemsQuests["Auto Soul Guitar"] = state
+            if not state then StopTween() end
         end)
 
-        SubFarmTab:CreateSection("تجميع الصناديق التلقائي (Auto Chests)")
-
-        SubFarmTab:CreateToggle("جمع الصناديق بالطيران (Chest Tween)", "ChestTweenFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Chest Tween"] = state
-        end)
-
-        SubFarmTab:CreateToggle("جمع الصناديق الفوري (Chest Instant)", "ChestInstantFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Chest Instant"] = state
-        end)
-
-        SubFarmTab:CreateToggle("توقف عند الحصول على دروب نادر (Stop on Items)", "StopItemsFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Stop Items"] = state
+        ItemsTab:CreateToggle("Auto Godhuman Fighting Style", "AutoGodhumanFlag", false, function(state)
+            _G.Settings.ItemsQuests["Auto Godhuman"] = state
+            if not state then StopTween() end
         end)
 
         ---------------------------------------------------------
-        -- 📌 5. TAB: CAKE PRINCE & DOUGH KING
+        -- 📌 9. TAB: FRUITS & SNIPER (Extracted from script_1)
         ---------------------------------------------------------
-        CakeTab:CreateSection("الكيك برنس و دو كينغ")
+        FruitsTab:CreateSection("Blox Fruits Rolling & Management")
 
-        CakeTab:CreateToggle("تلفيل وقتل الكاتكوري بالكامل (Auto Katakuri)", "KatakuriFlag", false, function(state)
-            _G.Settings.Cake["Auto Katakuri"] = state
-        end)
-
-        CakeTab:CreateToggle("استدعاء الكيك برنس التلقائي (Auto Spawn Prince)", "SpawnPrinceFlag", false, function(state)
-            _G.Settings.Cake["Auto Spawn Cake Prince"] = state
-        end)
-
-        CakeTab:CreateToggle("قتل الكيك برنس فور ظهوره (Auto Kill Cake Prince)", "KillPrinceFlag", false, function(state)
-            _G.Settings.Cake["Auto Kill Cake Prince"] = state
-        end)
-
-        CakeTab:CreateToggle("قتل دو كينغ فور ظهوره (Auto Kill Dough King)", "KillDoughFlag", false, function(state)
-            _G.Settings.Cake["Auto Kill Dough King"] = state
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 6. TAB: SEA FARMING (Fixed & Fully Operational)
-        ---------------------------------------------------------
-        SeaTab:CreateSection("إبحار وأحداث البحر (Sea Events Engine)")
-
-        SeaTab:CreateDropdown("اختر القارب (Select Boat)", "BoatDropdownFlag", {"Guardian", "Beast Hunter", "PirateGrandBrigade", "MarineGrandBrigade", "PirateBrigade", "MarineBrigade", "PirateSloop", "MarineSloop"}, "Guardian", function(selected)
-            _G.Settings.Sea["Selected Boat"] = selected
-        end)
-
-        SeaTab:CreateDropdown("اختر منطقة الإبحار (Select Zone)", "ZoneDropdownFlag", {"Zone 1", "Zone 2", "Zone 3", "Zone 4", "Zone 5", "Zone 6", "Infinite"}, "Zone 5", function(selected)
-            _G.Settings.Sea["Selected Zone"] = selected
-        end)
-
-        SeaTab:CreateToggle("تفعيل الإبحار التلقائي (Sail Boat)", "SailBoatFlag", false, function(state)
-            _G.Settings.Sea["Sail Boat"] = state
-        end)
-
-        SeaTab:CreateToggle("قتل أسماك القرش (Auto Farm Shark)", "SharkFlag", false, function(state)
-            _G.Settings.Sea["Auto Farm Shark"] = state
-        end)
-
-        SeaTab:CreateToggle("قتل البيرانا (Auto Farm Piranha)", "PiranhaFlag", false, function(state)
-            _G.Settings.Sea["Auto Farm Piranha"] = state
-        end)
-
-        SeaTab:CreateToggle("قتل طاقم الأسماك (Fish Crew Member)", "CrewFlag", false, function(state)
-            _G.Settings.Sea["Auto Farm Fish Crew Member"] = state
-        end)
-
-        SeaTab:CreateToggle("قتل السفن الشبحية (Ghost Ship)", "GhostShipFlag", false, function(state)
-            _G.Settings.Sea["Auto Farm Ghost Ship"] = state
-        end)
-
-        SeaTab:CreateToggle("قتل التيرور شارك (Terrorshark)", "TerrorFlag", false, function(state)
-            _G.Settings.Sea["Auto Farm Terrorshark"] = state
-        end)
-
-        SeaTab:CreateToggle("قتل السي بيست (Seabeasts)", "SeabeastFlag", false, function(state)
-            _G.Settings.Sea["Auto Farm Seabeasts"] = state
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 7. TAB: RAIDS
-        ---------------------------------------------------------
-        RaidTab:CreateSection("الغارات والريدات (Raids & Dungeons)")
-
-        RaidTab:CreateDropdown("اختر الشريحة (Select Raid Chip)", "RaidChipFlag", {"Flame", "Ice", "Quake", "Light", "Dark", "Spider", "Rumble", "Magma", "Buddha", "Sand", "Dough"}, "Flame", function(selected)
-            _G.Settings.Raid["Selected Chip"] = selected
-        end)
-
-        RaidTab:CreateToggle("تفعيل الريد التلقائي (Auto Raid)", "AutoRaidFlag", false, function(state)
-            _G.Settings.Raid["Auto Raid"] = state
-        end)
-
-        RaidTab:CreateToggle("تفعيل ريد Law التلقائي (Law Raid)", "LawRaidFlag", false, function(state)
-            _G.Settings.Raid["Law Raid"] = state
-        end)
-
-        RaidTab:CreateToggle("إيقاظ الفواكه التلقائي (Auto Awaken)", "AwakenFlag", false, function(state)
-            _G.Settings.Raid["Auto Awaken"] = state
-        end)
-
-        RaidTab:CreateButton("شراء شريحة ريد (Buy Microchip)", function()
+        FruitsTab:CreateButton("Roll Fruit Once (Blox Fruit Cousin)", function()
             if CommF_ then
-                CommF_:InvokeServer("BlackbeardReward", "Microchip", "1")
-                CommF_:InvokeServer("BlackbeardReward", "Microchip", "2")
+                local res = CommF_:InvokeServer("Cousin", "Buy")
+                AetherUI:Notify({Title = "Fruit Dealer", Content = tostring(res), Duration = 4})
+            end
+        end)
+
+        FruitsTab:CreateToggle("Auto Roll Fruit (Loop)", "AutoRollFruitFlag", false, function(state)
+            _G.Settings.Fruits["Auto Roll Fruit"] = state
+            task.spawn(function()
+                while _G.Settings.Fruits["Auto Roll Fruit"] do
+                    if CommF_ then pcall(function() CommF_:InvokeServer("Cousin", "Buy") end) end
+                    task.wait(3)
+                end
+            end)
+        end)
+
+        FruitsTab:CreateToggle("Fruit Notifier (ESP)", "FruitESPFlag", false, function(state)
+            _G.Settings.Fruits["Fruit ESP"] = state
+            _G.Settings.Visuals["ESP Fruits"] = state
+        end)
+
+        FruitsTab:CreateToggle("Fruit Sniper (Tween to Fruit)", "FruitSniperFlag", false, function(state)
+            _G.Settings.Fruits["Fruit Sniper"] = state
+            if not state then StopTween() end
+        end)
+
+        FruitsTab:CreateToggle("Auto Store Fruit", "AutoStoreFruitFlag", false, function(state)
+            _G.Settings.Fruits["Auto Store Fruit"] = state
+            task.spawn(function()
+                while _G.Settings.Fruits["Auto Store Fruit"] do
+                    task.wait(0.5)
+                    local backpack = LocalPlayer:FindFirstChild("Backpack")
+                    if backpack then
+                        for _, tool in pairs(backpack:GetChildren()) do
+                            if tool:IsA("Tool") and string.find(tool.Name:lower(), "fruit") then
+                                pcall(function() CommF_:InvokeServer("StoreFruit", tool.Name) end)
+                            end
+                        end
+                    end
+                end
+            end)
+        end)
+
+        FruitsTab:CreateToggle("Auto Drop Fruit", "AutoDropFruitFlag", false, function(state)
+            _G.Settings.Fruits["Auto Drop Fruit"] = state
+            task.spawn(function()
+                while _G.Settings.Fruits["Auto Drop Fruit"] do
+                    task.wait(0.5)
+                    local backpack = LocalPlayer:FindFirstChild("Backpack")
+                    if backpack then
+                        for _, tool in pairs(backpack:GetChildren()) do
+                            if tool:IsA("Tool") and string.find(tool.Name:lower(), "fruit") then
+                                tool.Parent = workspace
+                            end
+                        end
+                    end
+                end
+            end)
+        end)
+
+        FruitsTab:CreateButton("Open Blox Fruits Shop Remotely", function()
+            if CommF_ then
+                pcall(function() CommF_:InvokeServer("Shop", "Open") end)
+                pcall(function() CommF_:InvokeServer("OpenShop") end)
             end
         end)
 
         ---------------------------------------------------------
-        -- 📌 8. TAB: AUTO QUESTS
+        -- 📌 10. TAB: DRAGON DOJO
         ---------------------------------------------------------
-        AutoQuestsTab:CreateSection("أخذ وإنهاء المهمات المباشرة")
+        DragonDojoTab:CreateSection("Blaze Ember & Dojo Collector")
 
-        AutoQuestsTab:CreateButton("أخذ مهمة القرود (Jungle Quest 1)", function()
-            if CommF_ then CommF_:InvokeServer("StartQuest", "JungleQuest", 1) end
+        DragonDojoTab:CreateToggle("Auto Farm Blaze Ember", "FarmBlazeEmberFlag", false, function(state)
+            _G.Settings.DragonDojo["Auto Farm Blaze Ember"] = state
+            if not state then StopTween() end
         end)
 
-        AutoQuestsTab:CreateButton("أخذ مهمة الغوريلا (Jungle Quest 2)", function()
-            if CommF_ then CommF_:InvokeServer("StartQuest", "JungleQuest", 2) end
-        end)
-
-        AutoQuestsTab:CreateButton("أخذ مهمة القراصنة (Buggy Quest 1)", function()
-            if CommF_ then CommF_:InvokeServer("StartQuest", "BuggyQuest1", 1) end
-        end)
-
-        AutoQuestsTab:CreateButton("أخذ مهمة المارينز (Marine Quest 2)", function()
-            if CommF_ then CommF_:InvokeServer("StartQuest", "MarineQuest2", 1) end
-        end)
-
-        AutoQuestsTab:CreateButton("أخذ مهمة السماء (Sky Quest 1)", function()
-            if CommF_ then CommF_:InvokeServer("StartQuest", "SkyQuest", 1) end
-        end)
-
-        AutoQuestsTab:CreateButton("أخذ مهمة الزومبي (Zombie Quest 1)", function()
-            if CommF_ then CommF_:InvokeServer("StartQuest", "ZombieQuest", 1) end
-        end)
-
-        AutoQuestsTab:CreateButton("أخذ مهمة العظام (Haunted Quest 2)", function()
-            if CommF_ then CommF_:InvokeServer("StartQuest", "HauntedQuest2", 1) end
-        end)
-
-        AutoQuestsTab:CreateButton("أخذ مهمة Tiki (Tiki Quest 1)", function()
-            if CommF_ then CommF_:InvokeServer("StartQuest", "TikiQuest1", 1) end
-        end)
-
-        AutoQuestsTab:CreateButton("إلغاء المهمة الحالية (Abandon Quest)", function()
-            if CommF_ then CommF_:InvokeServer("AbandonQuest") end
+        DragonDojoTab:CreateToggle("Auto Collect Spawned Blaze Ember", "CollectBlazeEmberFlag", false, function(state)
+            _G.Settings.DragonDojo["Auto Collect Blaze Ember"] = state
+            if not state then StopTween() end
         end)
 
         ---------------------------------------------------------
-        -- 📌 9. TAB: TELEPORTS
+        -- 📌 11. TAB: COMBAT & PVP
         ---------------------------------------------------------
-        TeleportsTab:CreateSection("الانتقال السريع للجزر (Island Teleports)")
+        CombatTab:CreateSection("Target Player Selector")
 
-        local currentWorldIslands = (World1 and IslandTeleports.World1) or (World2 and IslandTeleports.World2) or IslandTeleports.World3
-        for islandName, cf in pairs(currentWorldIslands) do
-            TeleportsTab:CreateButton("الانتقال إلى " .. islandName, function()
-                TweenPlayer(cf)
-                AetherUI:Notify({Title = "Teleport", Content = "جاري الانتقال إلى " .. islandName, Duration = 2})
+        local playerList = {}
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer then table.insert(playerList, p.Name) end
+        end
+
+        CombatTab:CreateDropdown("Select Player Target", "PVPPlayerDropdown", playerList, playerList[1] or "None", function(selected)
+            _G.Settings.Combat["Selected Player"] = selected
+        end)
+
+        CombatTab:CreateToggle("Spectate Selected Player", "SpectateFlag", false, function(state)
+            _G.Settings.Combat["Spectate Player"] = state
+            if state and _G.Settings.Combat["Selected Player"] then
+                local target = Players:FindFirstChild(_G.Settings.Combat["Selected Player"])
+                if target and target.Character and target.Character:FindFirstChild("Humanoid") then
+                    workspace.CurrentCamera.CameraSubject = target.Character.Humanoid
+                end
+            else
+                local char, hum = GetCharacter()
+                if char and hum then
+                    workspace.CurrentCamera.CameraSubject = hum
+                end
+            end
+        end)
+
+        CombatTab:CreateToggle("Teleport To Player", "TPPlayerFlag", false, function(state)
+            _G.Settings.Combat["Teleport To Player"] = state
+            if not state then StopTween() end
+            task.spawn(function()
+                while _G.Settings.Combat["Teleport To Player"] do
+                    task.wait()
+                    pcall(function()
+                        local target = Players:FindFirstChild(_G.Settings.Combat["Selected Player"])
+                        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+                            TweenPlayer(target.Character.HumanoidRootPart.CFrame)
+                        end
+                    end)
+                end
+            end)
+        end)
+
+        CombatTab:CreateSection("Combat Assist Toggles")
+
+        CombatTab:CreateToggle("Kill Aura (Attack Nearby Enemies)", "KillAuraFlag", false, function(state)
+            _G.Settings.Combat["Kill Aura"] = state
+        end)
+
+        CombatTab:CreateSlider("Kill Aura Range", "KillAuraRangeSlider", 5, 50, 25, function(val)
+            _G.Settings.Combat["Kill Aura Range"] = val
+        end)
+
+        CombatTab:CreateSlider("Attack Speed Multiplier", "AttackSpeedSlider", 1, 5, 1, function(val)
+            _G.Settings.Combat["Attack Speed"] = val
+        end)
+
+        CombatTab:CreateToggle("Auto Enable Buso Haki (Once Per Life)", "AutoHakiOnceFlag", false, function(state)
+            _G.Settings.Combat["Auto Enable Haki"] = state
+        end)
+
+        CombatTab:CreateToggle("Auto PvP Escape & Safety Return", "AutoPvPEscapeFlag", false, function(state)
+            _G.Settings.Combat["Auto PvP Escape"] = state
+            if not state then StopTween() end
+        end)
+
+        CombatTab:CreateSlider("Escape HP %", "EscapeHPSlider", 10, 90, 30, function(val)
+            _G.Settings.Combat["Escape HP %"] = val
+        end)
+
+        CombatTab:CreateSlider("Return HP %", "ReturnHPSlider", 20, 100, 70, function(val)
+            _G.Settings.Combat["Return HP %"] = val
+        end)
+
+        ---------------------------------------------------------
+        -- 📌 12. TAB: CRAFTING (Extracted from script_1)
+        ---------------------------------------------------------
+        CraftingTab:CreateSection("Item Crafting Automation")
+
+        CraftingTab:CreateToggle("Auto-Craft Shark Tooth Necklace", "CraftSharkNecklaceFlag", false, function(v) _G.Settings.Crafting.SharkToothNecklace = v end)
+        CraftingTab:CreateToggle("Auto-Craft Terror Jaw", "CraftTerrorJawFlag", false, function(v) _G.Settings.Crafting.TerrorJaw = v end)
+        CraftingTab:CreateToggle("Auto-Craft Monster Magnet", "CraftMonsterMagnetFlag", false, function(v) _G.Settings.Crafting.MonsterMagnet = v end)
+        CraftingTab:CreateToggle("Auto-Craft Shark Anchor", "CraftSharkAnchorFlag", false, function(v) _G.Settings.Crafting.SharkAnchor = v end)
+        CraftingTab:CreateToggle("Auto-Craft Leviathan Shield", "CraftLeviShieldFlag", false, function(v) _G.Settings.Crafting.LeviathanShield = v end)
+        CraftingTab:CreateToggle("Auto-Craft Leviathan Boat", "CraftLeviBoatFlag", false, function(v) _G.Settings.Crafting.LeviathanBoat = v end)
+        CraftingTab:CreateToggle("Auto-Craft Leviathan Crown", "CraftLeviCrownFlag", false, function(v) _G.Settings.Crafting.LeviathanCrown = v end)
+        CraftingTab:CreateToggle("Auto-Craft Legendary Scroll", "CraftLegScrollFlag", false, function(v) _G.Settings.Crafting.LegendaryScroll = v end)
+        CraftingTab:CreateToggle("Auto-Craft Mythical Scroll", "CraftMythScrollFlag", false, function(v) _G.Settings.Crafting.MythicalScroll = v end)
+
+        ---------------------------------------------------------
+        -- 📌 13. TAB: TELEPORTS
+        ---------------------------------------------------------
+        TeleportsTab:CreateSection("First Sea Islands Teleport")
+        for islandName, cf in pairs(FullIslandLocations.Sea1) do
+            local key = "TP_" .. islandName
+            TeleportsTab:CreateToggle("Teleport to " .. islandName, key, false, function(state)
+                _G.Settings.Teleports[key] = state
+                if state then
+                    TweenPlayer(cf, Vector3.new(0, 30, 0))
+                    task.wait(1)
+                    _G.Settings.Teleports[key] = false
+                end
             end)
         end
 
-        TeleportsTab:CreateSection("الانتقال السريع للشخصيات (NPC Teleports)")
+        TeleportsTab:CreateSection("Second Sea Islands Teleport")
+        for islandName, cf in pairs(FullIslandLocations.Sea2) do
+            local key = "TP_" .. islandName
+            TeleportsTab:CreateToggle("Teleport to " .. islandName, key, false, function(state)
+                _G.Settings.Teleports[key] = state
+                if state then
+                    TweenPlayer(cf, Vector3.new(0, 30, 0))
+                    task.wait(1)
+                    _G.Settings.Teleports[key] = false
+                end
+            end)
+        end
 
-        local currentWorldNpcs = (World1 and NpcTeleports.World1) or (World2 and NpcTeleports.World2) or NpcTeleports.World3
-        for npcName, cf in pairs(currentWorldNpcs) do
-            TeleportsTab:CreateButton("الانتقال إلى " .. npcName, function()
-                TweenPlayer(cf)
-                AetherUI:Notify({Title = "Teleport", Content = "جاري الانتقال إلى " .. npcName, Duration = 2})
+        TeleportsTab:CreateSection("Third Sea Islands Teleport")
+        for islandName, cf in pairs(FullIslandLocations.Sea3) do
+            local key = "TP_" .. islandName
+            TeleportsTab:CreateToggle("Teleport to " .. islandName, key, false, function(state)
+                _G.Settings.Teleports[key] = state
+                if state then
+                    TweenPlayer(cf, Vector3.new(0, 30, 0))
+                    task.wait(1)
+                    _G.Settings.Teleports[key] = false
+                end
             end)
         end
 
         ---------------------------------------------------------
-        -- 📌 10. TAB: VISUALS
+        -- 📌 14. TAB: VISUALS & ESP
         ---------------------------------------------------------
-        VisualTab:CreateSection("كاشف الأعداء ورادار HP")
+        VisualTab:CreateSection("Visual Object Detectors")
 
-        VisualTab:CreateToggle("تفعيل كاشف الوحوش (Mob ESP + HP)", "ESPFlag", false, function(state)
-            _G.Settings.Visuals["ESP Enemies"] = state
+        VisualTab:CreateToggle("ESP Players", "ESPPlayersFlag", false, function(state) _G.Settings.Visuals["ESP Players"] = state end)
+        VisualTab:CreateToggle("ESP Bosses", "ESPBossesFlag", false, function(state) _G.Settings.Visuals["ESP Bosses"] = state end)
+        VisualTab:CreateToggle("ESP Fruits", "ESPFruitsFlag", false, function(state) _G.Settings.Visuals["ESP Fruits"] = state end)
+        VisualTab:CreateToggle("ESP Chests", "ESPChestsFlag", false, function(state) _G.Settings.Visuals["ESP Chests"] = state end)
+        VisualTab:CreateToggle("ESP Enemies", "ESPEnemiesFlag", false, function(state) _G.Settings.Visuals["ESP Enemies"] = state end)
+        VisualTab:CreateToggle("ESP Mirage Island", "ESPMirageFlag", false, function(state) _G.Settings.Visuals["ESP Mirage Island"] = state end)
+        VisualTab:CreateToggle("ESP Kitsune Island", "ESPKitsuneFlag", false, function(state) _G.Settings.Visuals["ESP Kitsune Island"] = state end)
+
+        ---------------------------------------------------------
+        -- 📌 15. TAB: MISC & LIVE SERVER STATUS (Completely Fixed Display)
+        ---------------------------------------------------------
+        MiscTab:CreateSection("Game Promo Codes Master")
+
+        MiscTab:CreateButton("Redeem All Active Promo Codes", function()
+            RedeemAllCodes()
+            AetherUI:Notify({Title = "Codes", Content = "Redeeming all working codes automatically...", Duration = 4})
         end)
 
-        ---------------------------------------------------------
-        -- 📌 11. TAB: MISC (Enhanced & Server Hops)
-        ---------------------------------------------------------
-        MiscTab:CreateSection("حالة السيرفر والوحوش (Live Server Info)")
+        MiscTab:CreateSection("Live Server & Player Information")
 
-        local serverTimeParagraph = MiscTab:CreateParagraph({
-            Title = "وقت السيرفر",
-            Desc = "جارٍ التحميل...",
+        local SessionTimePara = MiscTab:CreateParagraph({
+            Title = "Session Time",
+            Desc = "00:00:00",
             Image = "rbxassetid://6034287594",
             ImageSize = 20
         })
 
-        local timeInServerParagraph = MiscTab:CreateParagraph({
-            Title = "الوقت في السيرفر",
-            Desc = "0 Hours 0 Minute 0 Second",
+        local TimezonePara = MiscTab:CreateParagraph({
+            Title = "Timezones",
+            Desc = "Local: --:--:-- | UTC: --:--:--",
             Image = "rbxassetid://6034287594",
             ImageSize = 20
         })
 
-        local cakePrinceCountParagraph = MiscTab:CreateParagraph({
-            Title = "عداد الكيك برنس المتبقي",
-            Desc = "جارٍ التحميل...",
+        local ElitePara = MiscTab:CreateParagraph({
+            Title = "Elite Hunters Killed",
+            Desc = "Checking...",
             Image = "rbxassetid://6034834832",
             ImageSize = 20
         })
 
-        local moonStatusParagraph = MiscTab:CreateParagraph({
-            Title = "حالة اكتمال القمر",
-            Desc = "جارٍ التحميل...",
+        local SwordPara = MiscTab:CreateParagraph({
+            Title = "Legendary Swords Owned",
+            Desc = "0 / 3 Owned",
+            Image = "rbxassetid://6034834832",
+            ImageSize = 20
+        })
+
+        local SeaIslandPara = MiscTab:CreateParagraph({
+            Title = "Location & Sea",
+            Desc = "Sea: Detecting... | Island: Detecting...",
             Image = "rbxassetid://6034453535",
             ImageSize = 20
         })
 
-        -- تحديث دوري للمعلومات
+        local StatsPara = MiscTab:CreateParagraph({
+            Title = "Player Stats & Currency",
+            Desc = "Level: -- | Beli: -- | Fragments: --",
+            Image = "rbxassetid://6031280882",
+            ImageSize = 20
+        })
+
+        local ServerInfoPara = MiscTab:CreateParagraph({
+            Title = "Server Uptime & Players",
+            Desc = "Players: 0/0 | Uptime: 00:00:00",
+            Image = "rbxassetid://6034287594",
+            ImageSize = 20
+        })
+
+        local CakePrincePara = MiscTab:CreateParagraph({
+            Title = "Cake / Dough Prince Status",
+            Desc = "Checking remaining enemies...",
+            Image = "rbxassetid://6034834832",
+            ImageSize = 20
+        })
+
+        local NetworkPara = MiscTab:CreateParagraph({
+            Title = "Network FPS & Ping",
+            Desc = "FPS: -- | Ping: -- ms",
+            Image = "rbxassetid://6031280882",
+            ImageSize = 20
+        })
+
+        -- Live Updater Coroutine
+        local scriptStartTime = os.clock()
+        local serverStartTime = os.clock()
+
         task.spawn(function()
             while task.wait(1) do
                 pcall(function()
-                    local clockTime = game.Lighting.ClockTime
-                    local hours = math.floor(clockTime)
-                    local minutes = math.floor((clockTime - hours) * 60)
-                    serverTimeParagraph:SetDesc(string.format("%02d:%02d", hours, minutes))
+                    -- 1. Session Time
+                    local elapsed = math.floor(os.clock() - scriptStartTime)
+                    local sH = math.floor(elapsed / 3600)
+                    local sM = math.floor((elapsed % 3600) / 60)
+                    local sS = elapsed % 60
+                    SessionTimePara:SetDesc(string.format("%02d:%02d:%02d", sH, sM, sS))
 
-                    local gameTime = math.floor(workspace.DistributedGameTime + 0.5)
-                    local sH = math.floor(gameTime / 3600) % 24
-                    local sM = math.floor(gameTime / 60) % 60
-                    local sS = math.floor(gameTime) % 60
-                    timeInServerParagraph:SetDesc(sH .. " Hours " .. sM .. " Minute " .. sS .. " Second")
+                    -- 2. Timezones
+                    local localTime = os.date("%H:%M:%S")
+                    local utcTime = os.date("!%H:%M:%S")
+                    TimezonePara:SetDesc("Local: " .. localTime .. " | UTC: " .. utcTime)
 
+                    -- 3. Elite Kills
+                    local stats = LocalPlayer:FindFirstChild("leaderstats")
+                    local ekVal = "N/A"
+                    if stats then
+                        for _, v in pairs(stats:GetChildren()) do
+                            if v.Name:lower():find("elite") then ekVal = tostring(v.Value) break end
+                        end
+                    end
+                    ElitePara:SetDesc(ekVal)
+
+                    -- 4. Legendary Swords
+                    local ownedCount = 0
+                    local bp = LocalPlayer:FindFirstChild("Backpack")
+                    local c = LocalPlayer.Character
+                    for _, sName in ipairs({"Shisui", "Saddi", "Wando"}) do
+                        if (bp and bp:FindFirstChild(sName)) or (c and c:FindFirstChild(sName)) then
+                            ownedCount = ownedCount + 1
+                        end
+                    end
+                    SwordPara:SetDesc(ownedCount .. " / 3 Owned")
+
+                    -- 5. Sea & Island
+                    local currentSeaName = World1 and "First Sea" or (World2 and "Second Sea" or (World3 and "Third Sea" or "Unknown"))
+                    SeaIslandPara:SetDesc("Sea: " .. currentSeaName)
+
+                    -- 6. Player Stats & Currency
+                    local level = stats and stats:FindFirstChild("Level") and stats.Level.Value or "N/A"
+                    local beli = stats and stats:FindFirstChild("Beli") and stats.Beli.Value or "N/A"
+                    local frags = stats and stats:FindFirstChild("Fragments") and stats.Fragments.Value or "N/A"
+                    StatsPara:SetDesc("Level: " .. level .. " | Beli: " .. beli .. " | Fragments: " .. frags)
+
+                    -- 7. Server Uptime & Players
+                    local pCount = #Players:GetPlayers()
+                    local maxP = Players.MaxPlayers
+                    local upSec = math.floor(os.clock() - serverStartTime)
+                    local uH = math.floor(upSec / 3600)
+                    local uM = math.floor((upSec % 3600) / 60)
+                    local uS = upSec % 60
+                    ServerInfoPara:SetDesc("Players: " .. pCount .. "/" .. maxP .. " | Uptime: " .. string.format("%02d:%02d:%02d", uH, uM, uS))
+
+                    -- 8. Cake Prince Progress
                     if World3 and CommF_ then
                         local princeData = CommF_:InvokeServer("CakePrinceSpawner")
                         if typeof(princeData) == "string" then
                             if string.find(princeData, "spawned") or string.find(princeData, "ready") then
-                                cakePrinceCountParagraph:SetDesc("Cake Prince Is Spawned!")
+                                CakePrincePara:SetDesc("👑 Cake Prince Is Spawned!")
                             else
                                 local rem = string.match(princeData, "%d+")
-                                cakePrinceCountParagraph:SetDesc(rem and (rem .. " Enemies Remaining") or princeData)
+                                CakePrincePara:SetDesc(rem and ("⚔️ " .. rem .. " enemies remaining") or princeData)
                             end
                         end
                     else
-                        cakePrinceCountParagraph:SetDesc("Sea 3 Only")
+                        CakePrincePara:SetDesc("Available in Third Sea Only")
                     end
 
-                    local sky = game.Lighting:FindFirstChildOfClass("Sky")
-                    if sky then
-                        if sky.MoonTextureId == "http://www.roblox.com/asset/?id=9709149431" then
-                            moonStatusParagraph:SetDesc("🌕 Full Moon 100%")
-                        elseif sky.MoonTextureId == "http://www.roblox.com/asset/?id=9709149052" then
-                            moonStatusParagraph:SetDesc("🌖 Full Moon 75%")
-                        elseif sky.MoonTextureId == "http://www.roblox.com/asset/?id=9709143733" then
-                            moonStatusParagraph:SetDesc("🌗 Full Moon 50%")
-                        else
-                            moonStatusParagraph:SetDesc("🌑 Moon Low / Normal")
-                        end
-                    end
+                    -- 9. FPS & Ping
+                    local ping = math.floor(game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue())
+                    NetworkPara:SetDesc("Ping: " .. ping .. " ms")
                 end)
             end
         end)
 
-        MiscTab:CreateSection("الانتقال لسيرفرات مخصصة (Custom Server Hops)")
+        MiscTab:CreateSection("Auto Stat Point Allocator")
 
-        local function ServerHopCustom()
-            local module = loadstring(game:HttpGet("https://raw.githubusercontent.com/raw-scriptpastebin/FE/main/Server_Hop_Settings"))()
-            module:Teleport(game.PlaceId)
-        end
-
-        MiscTab:CreateButton("Join Full Moon Server", function()
-            AetherUI:Notify({Title = "Server Hop", Content = "جاري البحث عن سيرفر Full Moon...", Duration = 3})
-            ServerHopCustom()
+        MiscTab:CreateDropdown("Select Stat Target", "SelectStatDropdown", {"Melee", "Defense", "Sword", "Gun", "Demon Fruit"}, "Melee", function(selected)
+            _G.Settings.Stats["Selected Stat"] = selected
         end)
 
-        MiscTab:CreateButton("Join 4+ Hours Server", function()
-            AetherUI:Notify({Title = "Server Hop", Content = "جاري البحث عن سيرفر قديم...", Duration = 3})
-            ServerHopCustom()
+        MiscTab:CreateSlider("Points Per Tick", "StatPointsSlider", 1, 100, 1, function(val)
+            _G.Settings.Stats["Points Per Tick"] = val
         end)
 
-        MiscTab:CreateButton("Join Mirage Server", function()
-            AetherUI:Notify({Title = "Server Hop", Content = "جاري البحث عن سيرفر يحتوي على ميراج...", Duration = 3})
-            ServerHopCustom()
+        MiscTab:CreateToggle("Auto Stat Points", "AutoStatsToggleFlag", false, function(state)
+            _G.Settings.Stats["Auto Stats"] = state
         end)
 
-        MiscTab:CreateButton("Join Factory Server (Sea 2)", function()
-            if World2 then
-                AetherUI:Notify({Title = "Server Hop", Content = "جاري البحث عن سيرفر مصنع...", Duration = 3})
-                ServerHopCustom()
-            else
-                AetherUI:Notify({Title = "Warning", Content = "هذا الخيار يعمل في Sea 2 فقط!", Duration = 3})
+        MiscTab:CreateSection("Server Utilities & Anti-AFK")
+
+        MiscTab:CreateToggle("Anti-AFK (Prevent Kick)", "AntiAFKFlag", false, function(state)
+            _G.Settings.Misc["Anti AFK"] = state
+        end)
+
+        MiscTab:CreateToggle("Hover Over Water (Walk On Water)", "WalkOnWaterFlag", false, function(state)
+            _G.Settings.Misc["Walk On Water"] = state
+        end)
+
+        MiscTab:CreateToggle("Auto Server Hop on Admin/VIP Join", "AutoHopVIPFlag", false, function(state)
+            _G.Settings.Misc["Auto Server Hop VIP"] = state
+        end)
+
+        MiscTab:CreateToggle("Bypass Anticheat (30-Min Server Hop)", "BypassAnticheatFlag", false, function(state)
+            _G.Settings.Misc["Bypass Anticheat"] = state
+        end)
+
+        MiscTab:CreateButton("Manual Server Hop", function()
+            local success, targetServer = pcall(function()
+                local placeId = game.PlaceId
+                local servers = {}
+                local result = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100"))
+                if result and result.data then
+                    for _, server in ipairs(result.data) do
+                        if server.playing < server.maxPlayers and server.id ~= tostring(game.JobId) then
+                            table.insert(servers, server.id)
+                        end
+                    end
+                end
+                if #servers > 0 then return servers[math.random(#servers)] end
+            end)
+
+            if success and targetServer then
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, targetServer, LocalPlayer)
             end
         end)
 
         ---------------------------------------------------------
-        -- 📌 12. TAB: SETTINGS
+        -- 📌 16. TAB: SETTINGS
         ---------------------------------------------------------
-        SettingsTab:CreateSection("إعدادات السكربت")
+        SettingsTab:CreateSection("Hub Controls")
 
-        SettingsTab:CreateButton("إعادة دخول السيرفر (Rejoin)", function()
+        SettingsTab:CreateButton("Rejoin Current Server", function()
             TeleportService:Teleport(game.PlaceId, LocalPlayer)
         end)
 
-        SettingsTab:CreateButton("إغلاق السكربت بالكامل (Destroy Hub)", function()
-            local master = game:GetService("CoreGui"):FindFirstChild("HaroonHub_Master")
+        SettingsTab:CreateButton("Destroy Hub Interface", function()
+            local master = game:GetService("CoreGui"):FindFirstChild("HaroonHub_Master") or game:GetService("Players").LocalPlayer.PlayerGui:FindFirstChild("HaroonHub_Master")
             if master then master:Destroy() end
         end)
     end)
 end)
 
 --------------------------------------------------------------------------------
--- 7. حلقة التلفيل الفردي والانتقال المباشر (Single-Target Master Loop)
+-- 8. Main Farming Loop
 --------------------------------------------------------------------------------
 task.spawn(function()
     while task.wait(0.08) do
         if _G.Settings.Main["Auto Farm Level"] then
             pcall(function()
-                local _, hrp, hum = GetCharacter()
-                if hum.Health <= 0 then return end
+                local char, hrp, hum = GetCharacter()
+                if not char or not hrp or not hum or hum.Health <= 0 then return end
 
                 CheckQuest()
                 AutoHaki()
@@ -6950,7 +1849,7 @@ task.spawn(function()
 
                 if not questGui or not questGui.Visible or not string.find(questGui.Container.QuestTitle.Title.Text, CurrentQuest.NameMon) then
                     if CommF_ then CommF_:InvokeServer("AbandonQuest") end
-                    TweenPlayer(CurrentQuest.CFrameQuest * CFrame.new(0, 5, 0))
+                    TweenPlayer(CurrentQuest.CFrameQuest, Vector3.new(0, 5, 0))
 
                     if (hrp.Position - CurrentQuest.CFrameQuest.Position).Magnitude <= 20 then
                         if CommF_ then CommF_:InvokeServer("StartQuest", CurrentQuest.NameQuest, CurrentQuest.LevelQuest) end
@@ -6974,13 +1873,10 @@ task.spawn(function()
                     end
 
                     if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
-                        local enemyRoot = targetMob.HumanoidRootPart
-                        local farmPos = enemyRoot.CFrame * CFrame.new(0, _G.Settings.Main["Farm Distance"], 0)
-                        
-                        TweenPlayer(farmPos)
+                        TweenPlayer(targetMob.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
                         SmartAttackMob(targetMob)
                     else
-                        TweenPlayer(CurrentQuest.CFrameMon * CFrame.new(0, _G.Settings.Main["Farm Distance"], 0))
+                        TweenPlayer(CurrentQuest.CFrameMon, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
                     end
                 end
             end)
@@ -6989,22 +1885,436 @@ task.spawn(function()
 end)
 
 --------------------------------------------------------------------------------
--- 8. محرك الـ Sea Farming المتكامل (Fixed Sea Events Engine)
+-- 9. Sub-Farms Engine (Bones, Elite Hunter, Citizen Quests)
 --------------------------------------------------------------------------------
-local ZoneCFrames = {
-    ["Zone 1"] = CFrame.new(-21998.37, 30.00, -682.30),
-    ["Zone 2"] = CFrame.new(-26779.52, 30.00, -822.85),
-    ["Zone 3"] = CFrame.new(-31171.95, 30.00, -2256.93),
-    ["Zone 4"] = CFrame.new(-34054.68, 30.21, -2560.12),
-    ["Zone 5"] = CFrame.new(-38887.55, 30.00, -2162.99),
-    ["Zone 6"] = CFrame.new(-44541.76, 30.00, -1244.85),
-    ["Infinite"] = CFrame.new(-148073.35, 9.00, 7721.05)
-}
+task.spawn(function()
+    while task.wait(0.2) do
+        -- 1. Auto Farm Bones
+        if _G.Settings.SubFarm["Auto Farm Bone"] and World3 then
+            pcall(function()
+                local char, hrp = GetCharacter()
+                if not char or not hrp then return end
 
-local function GetMyBoat()
+                local questGui = LocalPlayer.PlayerGui:FindFirstChild("Main") and LocalPlayer.PlayerGui.Main:FindFirstChild("Quest")
+                if _G.Settings.SubFarm["Auto Accept Bone Quest"] and questGui and not questGui.Visible then
+                    local qPos = CFrame.new(-9516.99, 172.01, 6078.46)
+                    TweenPlayer(qPos)
+                    if (hrp.Position - qPos.Position).Magnitude <= 15 then
+                        CommF_:InvokeServer("StartQuest", "HauntedQuest2", 1)
+                    end
+                end
+
+                for _, mobName in pairs({"Reborn Skeleton", "Living Zombie", "Demonic Soul", "Posessed Mummy"}) do
+                    local mob = workspace.Enemies:FindFirstChild(mobName)
+                    if mob and mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChildOfClass("Humanoid") and mob.Humanoid.Health > 0 then
+                        AutoHaki()
+                        TweenPlayer(mob.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
+                        SmartAttackMob(mob)
+                        break
+                    end
+                end
+            end)
+        end
+
+        -- 2. Auto Elite Hunter Engine
+        if _G.Settings.SubFarm["Auto Elite Hunter"] and World3 then
+            pcall(function()
+                local char, hrp = GetCharacter()
+                if not char or not hrp then return end
+
+                local questGui = LocalPlayer.PlayerGui:FindFirstChild("Main") and LocalPlayer.PlayerGui.Main:FindFirstChild("Quest")
+                local hasEliteQuest = false
+
+                if questGui and questGui.Visible then
+                    local title = questGui.Container.QuestTitle.Title.Text
+                    hasEliteQuest = string.find(title, "Diablo") or string.find(title, "Urban") or string.find(title, "Deandre")
+                end
+
+                if not hasEliteQuest then
+                    if CommF_ then CommF_:InvokeServer("EliteHunter") end
+                else
+                    local targetElite = nil
+                    for _, eName in pairs({"Diablo", "Urban", "Deandre"}) do
+                        local mob = workspace.Enemies:FindFirstChild(eName) or ReplicatedStorage:FindFirstChild(eName)
+                        if mob and mob:FindFirstChild("HumanoidRootPart") then
+                            targetElite = mob
+                            break
+                        end
+                    end
+
+                    if targetElite and targetElite:FindFirstChild("HumanoidRootPart") then
+                        AutoHaki()
+                        TweenPlayer(targetElite.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
+                        SmartAttackMob(targetElite)
+                    elseif _G.Settings.SubFarm["Auto Elite Hunter Hop"] then
+                        pcall(function() TeleportService:Teleport(game.PlaceId, LocalPlayer) end)
+                    end
+                end
+            end)
+        end
+
+        -- 3. Citizen Quest Engine
+        if _G.Settings.Quests["Auto Citizen Quest"] and World3 then
+            pcall(function()
+                local char, hrp = GetCharacter()
+                if not char or not hrp then return end
+
+                local progress = CommF_:InvokeServer("CitizenQuestProgress", "Citizen")
+                if progress == 0 then
+                    local mob = workspace.Enemies:FindFirstChild("Forest Pirate")
+                    if mob and mob:FindFirstChild("HumanoidRootPart") then
+                        TweenPlayer(mob.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
+                        SmartAttackMob(mob)
+                    else
+                        TweenPlayer(CFrame.new(-13274.47, 332.37, -7769.58))
+                    end
+                elseif progress == 1 then
+                    local boss = workspace.Enemies:FindFirstChild("Captain Elephant")
+                    if boss and boss:FindFirstChild("HumanoidRootPart") then
+                        TweenPlayer(boss.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
+                        SmartAttackMob(boss)
+                    else
+                        TweenPlayer(CFrame.new(-13376.75, 433.28, -8071.39))
+                    end
+                elseif progress == 2 then
+                    TweenPlayer(CFrame.new(-12513.51, 340.11, -9873.04))
+                end
+            end)
+        end
+    end
+end)
+
+--------------------------------------------------------------------------------
+-- 10. ADVANCED RAID ENGINE: Auto Next Island (Checks 5 Islands & Enemy Clearance)
+--------------------------------------------------------------------------------
+local RaidNextIslandIndex = 1
+local RaidLastTargetPosition = nil
+local RaidLastTargetTime = 0
+local RAID_ISLAND_RADIUS = 260
+
+local function GetRaidIslands()
+    local islands = {}
+    local folders = {
+        workspace:FindFirstChild("_WorldOrigin") and workspace._WorldOrigin:FindFirstChild("Locations"),
+        workspace:FindFirstChild("Locations"),
+        workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Locations"),
+        workspace:FindFirstChild("Map"),
+        workspace:FindFirstChild("_WorldOrigin")
+    }
+
+    local function getCF(obj)
+        if obj:IsA("BasePart") then return obj.CFrame end
+        if obj:IsA("Model") then
+            local ok, cf = pcall(function() return obj:GetPivot() end)
+            if ok then return cf end
+        end
+        return nil
+    end
+
+    for _, folder in ipairs(folders) do
+        if folder then
+            for _, child in ipairs(folder:GetChildren()) do
+                local name = child.Name
+                local num = string.match(name, "[Ii]sland%s*<?%s*(%d+)")
+                    or string.match(name, "<%s*[Ii]sland%s*(%d+)%s*>")
+                    or string.match(name, "[Rr]aid%s*[Ii]sland%s*(%d+)")
+                local index = tonumber(num)
+                if index and index >= 1 and index <= 5 and not islands[index] then
+                    local cf = getCF(child)
+                    if cf then islands[index] = cf end
+                end
+            end
+        end
+    end
+    return islands
+end
+
+local function GetAliveRaidEnemiesNear(position, radius)
+    local result = {}
+    local enemies = workspace:FindFirstChild("Enemies")
+    if not enemies then return result end
+
+    for _, enemy in ipairs(enemies:GetChildren()) do
+        local hum = enemy:FindFirstChildOfClass("Humanoid")
+        local root = enemy:FindFirstChild("HumanoidRootPart")
+        if hum and root and hum.Health > 0 and (root.Position - position).Magnitude <= radius then
+            table.insert(result, enemy)
+        end
+    end
+    return result
+end
+
+local function GetClosestAliveRaidEnemy(position, radius)
+    local closest, closestDistance
+    for _, enemy in ipairs(GetAliveRaidEnemiesNear(position, radius)) do
+        local root = enemy:FindFirstChild("HumanoidRootPart")
+        if root then
+            local d = (position - root.Position).Magnitude
+            if not closestDistance or d < closestDistance then
+                closest, closestDistance = enemy, d
+            end
+        end
+    end
+    return closest
+end
+
+local function ResetRaidNavigation()
+    RaidNextIslandIndex = 1
+    RaidLastTargetPosition = nil
+    RaidLastTargetTime = 0
+end
+
+local function GetAutoNextRaidTarget()
+    local _, hrp = GetCharacter()
+    if not hrp then return nil, nil end
+
+    local islands = GetRaidIslands()
+    local available = {}
+    for i = 1, 5 do
+        if islands[i] then table.insert(available, i) end
+    end
+    if #available == 0 then
+        return nil, nil
+    end
+
+    -- Re-sync to the island nearest to the player, then only move forward.
+    local nearestIndex, nearestDistance
+    for _, i in ipairs(available) do
+        local d = (hrp.Position - islands[i].Position).Magnitude
+        if not nearestDistance or d < nearestDistance then
+            nearestIndex, nearestDistance = i, d
+        end
+    end
+    if nearestIndex and nearestDistance <= RAID_ISLAND_RADIUS then
+        if nearestIndex >= RaidNextIslandIndex then
+            RaidNextIslandIndex = math.min(nearestIndex + 1, 5)
+        end
+
+        local currentEnemy = GetClosestAliveRaidEnemy(islands[nearestIndex].Position, RAID_ISLAND_RADIUS)
+        if currentEnemy then
+            return currentEnemy.HumanoidRootPart.CFrame * CFrame.new(0, _G.Settings.Main["Farm Distance"] or 28, 0), "enemy"
+        end
+    end
+
+    -- Only advance when the current island's area is actually clear.
+    local targetIndex = RaidNextIslandIndex
+    while targetIndex <= 5 and not islands[targetIndex] do
+        targetIndex += 1
+    end
+
+    if targetIndex > 5 then
+        return nil, "done"
+    end
+
+    local target = islands[targetIndex]
+    local targetDistance = (hrp.Position - target.Position).Magnitude
+
+    -- Already there: mark it complete and continue on the next loop.
+    if targetDistance <= RAID_ISLAND_RADIUS then
+        local enemy = GetClosestAliveRaidEnemy(target.Position, RAID_ISLAND_RADIUS)
+        if enemy then
+            return enemy.HumanoidRootPart.CFrame * CFrame.new(0, _G.Settings.Main["Farm Distance"] or 28, 0), "enemy"
+        end
+        RaidNextIslandIndex = targetIndex + 1
+        return nil, "advance"
+    end
+
+    return target * CFrame.new(0, 35, 0), "island"
+end
+
+task.spawn(function()
+    while task.wait(0.15) do
+        local S = _G.Settings.Raid
+        if S["Auto Dungeon / Raid"] or S["Auto Buy Chip & Start"] or S["Auto Clear Dungeon Waves"] or S["Auto Next Island"] then
+            pcall(function()
+                local _, hrp, hum = GetCharacter()
+                if not hrp or not hum or hum.Health <= 0 then return end
+
+                if not S["Auto Next Island"] then
+                    ResetRaidNavigation()
+                end
+
+                if S["Auto Buy Chip & Start"] and CommF_ then
+                    -- Prevent repeated Start calls every 0.15s.
+                    if not _G.__HaroonRaidStartCooldown or os.clock() >= _G.__HaroonRaidStartCooldown then
+                        _G.__HaroonRaidStartCooldown = os.clock() + 2
+                        CommF_:InvokeServer("RaidsNpc", "Select", S["Selected Chip"])
+                        task.wait(0.35)
+                        CommF_:InvokeServer("RaidsNpc", "Start")
+                    end
+                end
+
+                local hasMonsters = false
+                if S["Auto Clear Dungeon Waves"] then
+                    local enemies = workspace:FindFirstChild("Enemies")
+                    if enemies then
+                        for _, mob in ipairs(enemies:GetChildren()) do
+                            local mobHum = mob:FindFirstChildOfClass("Humanoid")
+                            local root = mob:FindFirstChild("HumanoidRootPart")
+                            if mobHum and root and mobHum.Health > 0 then
+                                hasMonsters = true
+                                AutoHaki()
+                                TweenPlayer(root.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0), "RaidClear")
+                                SmartAttackMob(mob)
+                                break
+                            end
+                        end
+                    end
+                end
+
+                if S["Auto Next Island"] and not hasMonsters then
+                    local targetCF, kind = GetAutoNextRaidTarget()
+                    if targetCF then
+                        AutoHaki()
+                        local targetPos = targetCF.Position
+                        if not RaidLastTargetPosition
+                            or (RaidLastTargetPosition - targetPos).Magnitude > 8
+                            or os.clock() - RaidLastTargetTime > 3 then
+                            RaidLastTargetPosition = targetPos
+                            RaidLastTargetTime = os.clock()
+                            TweenPlayer(targetCF, nil, "RaidNextIsland")
+                        end
+                    elseif kind == "done" then
+                        ResetRaidNavigation()
+                    end
+                end
+
+                if S["Auto Awaken"] and CommF_ then
+                    CommF_:InvokeServer("AwakeningExpert", "Awaken")
+                end
+            end)
+        else
+            ResetRaidNavigation()
+        end
+    end
+end)
+
+--------------------------------------------------------------------------------
+-- 11. CDK & TTK & Items Quest Loop
+--------------------------------------------------------------------------------
+task.spawn(function()
+    while task.wait(0.3) do
+        -- Auto Farm CDK
+        if _G.Settings.ItemsQuests["Auto Farm CDK"] and World3 then
+            pcall(function()
+                local char, hrp = GetCharacter()
+                if not char or not hrp then return end
+
+                local cdkType = _G.Settings.ItemsQuests["CDK Trial Type"]
+                if cdkType == "Quest Yama" then
+                    if CommF_ then
+                        CommF_:InvokeServer("CDKQuest", "OpenDoor")
+                        CommF_:InvokeServer("CDKQuest", "StartTrial", "Evil")
+                    end
+                    local mob = workspace.Enemies:FindFirstChild("Forest Pirate")
+                    if mob and mob:FindFirstChild("HumanoidRootPart") then
+                        TweenPlayer(mob.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
+                        SmartAttackMob(mob)
+                    end
+                elseif cdkType == "Quest Tushita" then
+                    if CommF_ then
+                        CommF_:InvokeServer("CDKQuest", "OpenDoor")
+                        CommF_:InvokeServer("CDKQuest", "StartTrial", "Good")
+                    end
+                    local boss = workspace.Enemies:FindFirstChild("Cake Queen")
+                    if boss and boss:FindFirstChild("HumanoidRootPart") then
+                        TweenPlayer(boss.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
+                        SmartAttackMob(boss)
+                    end
+                elseif cdkType == "Last Quest" then
+                    if CommF_ then CommF_:InvokeServer("CDKQuest", "StartTrial", "Boss") end
+                    local boss = workspace.Enemies:FindFirstChild("Cursed Skeleton Boss")
+                    if boss and boss:FindFirstChild("HumanoidRootPart") then
+                        TweenPlayer(boss.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
+                        SmartAttackMob(boss)
+                    else
+                        TweenPlayer(CFrame.new(-12318.19, 601.95, -6538.66))
+                    end
+                end
+            end)
+        end
+
+        -- Auto Farm TTK
+        if _G.Settings.ItemsQuests["Auto Farm TTK"] and World2 then
+            pcall(function()
+                if CommF_ then
+                    CommF_:InvokeServer("MysteriousMan", "1")
+                    CommF_:InvokeServer("MysteriousMan", "2")
+                end
+            end)
+        end
+
+        -- Auto Buy Legendary Swords
+        if _G.Settings.ItemsQuests["Auto Buy Legendary Swords"] then
+            for _, sName in ipairs({"Shisui", "Saddi", "Wando"}) do
+                pcall(function() CommF_:InvokeServer("BuyItem", sName, 1) end)
+            end
+        end
+    end
+end)
+
+--------------------------------------------------------------------------------
+-- 12. Mastery Engine & Tiki Outpost Melee Farm
+--------------------------------------------------------------------------------
+task.spawn(function()
+    while task.wait(0.1) do
+        -- 1. Auto Melee Mastery (Tiki Outpost)
+        if _G.Settings.SubFarm["Auto Mastery Melee (Tiki)"] and World3 then
+            pcall(function()
+                local char, hrp, hum = GetCharacter()
+                if not char or not hrp or not hum or hum.Health <= 0 then return end
+
+                local targetTikiMob = nil
+                for _, mName in pairs({"Isle Outlaw", "Island Boy", "Sun-kissed Warrior", "Skull Slayer"}) do
+                    local mob = workspace.Enemies:FindFirstChild(mName)
+                    if mob and mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChildOfClass("Humanoid") and mob.Humanoid.Health > 0 then
+                        targetTikiMob = mob
+                        break
+                    end
+                end
+
+                if targetTikiMob then
+                    AutoHaki()
+                    TweenPlayer(targetTikiMob.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
+                    SmartAttackMob(targetTikiMob, "Melee")
+                else
+                    TweenPlayer(MobSpecificTeleports["Tiki Mastery Farm"], Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
+                end
+            end)
+        end
+
+        -- 2. Fruit / Gun / Sword Mastery
+        if (_G.Settings.SubFarm["Auto Mastery Blox Fruits"] or _G.Settings.SubFarm["Auto Mastery Guns"] or _G.Settings.SubFarm["Auto Mastery Swords"]) then
+            pcall(function()
+                local char, hrp, hum = GetCharacter()
+                if not char or not hrp or not hum or hum.Health <= 0 then return end
+
+                local chosenWep = _G.Settings.SubFarm["Auto Mastery Blox Fruits"] and "Blox Fruit" or (_G.Settings.SubFarm["Auto Mastery Guns"] and "Gun" or "Sword")
+                local targetMob = nil
+                for _, mob in pairs(workspace.Enemies:GetChildren()) do
+                    if mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChildOfClass("Humanoid") and mob.Humanoid.Health > 0 then
+                        targetMob = mob
+                        break
+                    end
+                end
+
+                if targetMob then
+                    AutoHaki()
+                    TweenPlayer(targetMob.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
+                    SmartAttackMob(targetMob, chosenWep)
+                end
+            end)
+        end
+    end
+end)
+
+--------------------------------------------------------------------------------
+-- 13. Sea Events, Sailing & Prehistoric Engine
+--------------------------------------------------------------------------------
+local function GetMyBoat(boatName: string): Model?
     if workspace:FindFirstChild("Boats") then
         for _, b in pairs(workspace.Boats:GetChildren()) do
-            if b.Name == _G.Settings.Sea["Selected Boat"] and b:FindFirstChild("VehicleSeat") then
+            if b.Name == boatName and b:FindFirstChild("VehicleSeat") then
                 return b
             end
         end
@@ -7014,61 +2324,92 @@ end
 
 task.spawn(function()
     while task.wait(0.2) do
-        if _G.Settings.Sea["Sail Boat"] and World3 then
+        if World3 then
             pcall(function()
                 local char, hrp, hum = GetCharacter()
-                local boat = GetMyBoat()
+                if not char or not hrp or not hum then return end
 
-                -- 1. فحص وجود أعداء البحر والتحليق لمهاجمتهم
-                local seaEnemy = nil
-                for _, enemyName in pairs({"Shark", "Piranha", "Fish Crew Member", "FishBoat", "PirateBrigade", "PirateGrandBrigade", "Terrorshark"}) do
-                    local found = workspace.Enemies:FindFirstChild(enemyName)
-                    if found and found:FindFirstChild("HumanoidRootPart") and found:FindFirstChild("Humanoid") and found.Humanoid.Health > 0 then
-                        seaEnemy = found
-                        break
+                -- Prehistoric Island Automation
+                if _G.Settings.Sea["Auto Prehistoric Island"] or _G.Settings.Sea["Auto Complete Prehistoric Island"] or _G.Settings.Sea["Auto Draco Trail"] then
+                    local targetPreMob = nil
+                    for _, mName in pairs({"Isle Outlaw", "Island Boy", "Sun-kissed Warrior", "Terrorshark"}) do
+                        local mob = workspace.Enemies:FindFirstChild(mName)
+                        if mob and mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChildOfClass("Humanoid") and mob.Humanoid.Health > 0 then
+                            targetPreMob = mob
+                            break
+                        end
+                    end
+
+                    if targetPreMob then
+                        AutoHaki()
+                        TweenPlayer(targetPreMob.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
+                        SmartAttackMob(targetPreMob)
+                        return
+                    else
+                        TweenPlayer(MobSpecificTeleports["Prehistoric Island"], Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
                     end
                 end
 
-                if seaEnemy then
+                -- Sea Mobs Combat
+                local targetSeaEnemy = nil
+                local allowedEnemies = {}
+                if _G.Settings.Sea["Auto Farm Shark"] then table.insert(allowedEnemies, "Shark") end
+                if _G.Settings.Sea["Auto Farm Piranha"] then table.insert(allowedEnemies, "Piranha") end
+                if _G.Settings.Sea["Auto Farm Fish Crew Member"] then table.insert(allowedEnemies, "Fish Crew Member") end
+                if _G.Settings.Sea["Auto Farm Ghost Ship"] then table.insert(allowedEnemies, "Ghost Ship") table.insert(allowedEnemies, "FishBoat") end
+                if _G.Settings.Sea["Auto Farm Terrorshark"] then table.insert(allowedEnemies, "Terrorshark") end
+
+                if #allowedEnemies > 0 and workspace:FindFirstChild("Enemies") then
+                    for _, enemy in pairs(workspace.Enemies:GetChildren()) do
+                        if table.find(allowedEnemies, enemy.Name) and enemy:FindFirstChild("HumanoidRootPart") and enemy:FindFirstChildOfClass("Humanoid") and enemy.Humanoid.Health > 0 then
+                            targetSeaEnemy = enemy
+                            break
+                        end
+                    end
+                end
+
+                if targetSeaEnemy then
                     if hum.Sit then hum.Sit = false end
                     AutoHaki()
-                    TweenPlayer(seaEnemy.HumanoidRootPart.CFrame * CFrame.new(0, 25, 0))
-                    SmartAttackMob(seaEnemy)
+                    TweenPlayer(targetSeaEnemy.HumanoidRootPart.CFrame, Vector3.new(0, 25, 0))
+                    SmartAttackMob(targetSeaEnemy)
                     return
                 end
 
-                -- فحص السي بيست
+                -- Seabeast Combat
                 if _G.Settings.Sea["Auto Farm Seabeasts"] and workspace:FindFirstChild("SeaBeasts") then
                     for _, sb in pairs(workspace.SeaBeasts:GetChildren()) do
-                        if sb:FindFirstChild("HumanoidRootPart") and sb:FindFirstChild("Humanoid") and sb.Humanoid.Health > 0 then
+                        if sb:FindFirstChild("HumanoidRootPart") and sb:FindFirstChildOfClass("Humanoid") and sb.Humanoid.Health > 0 then
                             if hum.Sit then hum.Sit = false end
                             AutoHaki()
-                            local dodgeOffset = _G.Settings.Sea["Dodge Seabeasts Attack"] and Vector3.new(math.random(-50, 50), 60, math.random(-50, 50)) or Vector3.new(0, 60, 0)
-                            TweenPlayer(sb.HumanoidRootPart.CFrame * CFrame.new(dodgeOffset))
+                            local dodgeOffset = _G.Settings.Sea["Dodge Seabeasts Attack"] and Vector3.new(math.random(-50, 50), 55, math.random(-50, 50)) or Vector3.new(0, 55, 0)
+                            TweenPlayer(sb.HumanoidRootPart.CFrame, dodgeOffset)
                             FastAttackTarget(sb)
                             return
                         end
                     end
                 end
 
-                -- 2. شراء القارب أو ركوبه والإبحار نحو المنطقة
-                if not boat then
-                    local buyPos = CFrame.new(-16927.45, 9.08, 433.86)
-                    if (hrp.Position - buyPos.Position).Magnitude > 30 then
-                        TweenPlayer(buyPos)
+                -- Boat Sailing
+                if _G.Settings.Sea["Sail Boat"] or _G.Settings.Race["Auto Find Mirage"] or _G.Settings.Sea["Auto Find Kitsune Island"] then
+                    local boat = GetMyBoat(_G.Settings.Sea["Selected Boat"])
+                    if not boat then
+                        local buyPos = MobSpecificTeleports["Kitsune Island"]
+                        if (hrp.Position - buyPos.Position).Magnitude > 30 then
+                            TweenPlayer(buyPos)
+                        else
+                            if CommF_ then CommF_:InvokeServer("BuyBoat", _G.Settings.Sea["Selected Boat"]) end
+                        end
                     else
-                        if CommF_ then CommF_:InvokeServer("BuyBoat", _G.Settings.Sea["Selected Boat"]) end
-                    end
-                else
-                    if not hum.Sit then
-                        hrp.CFrame = boat.VehicleSeat.CFrame * CFrame.new(0, 1, 0)
-                        task.wait(0.2)
-                    else
-                        local targetZone = ZoneCFrames[_G.Settings.Sea["Selected Zone"]] or ZoneCFrames["Zone 5"]
-                        local dist = (boat.VehicleSeat.Position - targetZone.Position).Magnitude
-                        if dist > 100 then
-                            local tween = TweenService:Create(boat.VehicleSeat, TweenInfo.new(dist / _G.Settings.Sea["Boat Tween Speed"], Enum.EasingStyle.Linear), {CFrame = targetZone})
-                            tween:Play()
+                        if not hum.Sit then
+                            hrp.CFrame = boat.VehicleSeat.CFrame * CFrame.new(0, 1.5, 0)
+                        else
+                            local targetZone = ZoneCFrames[_G.Settings.Sea["Selected Zone"]] or ZoneCFrames["Zone 5"]
+                            local dist = (boat.VehicleSeat.Position - targetZone.Position).Magnitude
+                            if dist > 100 then
+                                local tween = TweenService:Create(boat.VehicleSeat, TweenInfo.new(dist / _G.Settings.Sea["Boat Tween Speed"], Enum.EasingStyle.Linear), {CFrame = targetZone})
+                                tween:Play()
+                            end
                         end
                     end
                 end
@@ -7078,32 +2419,343 @@ task.spawn(function()
 end)
 
 --------------------------------------------------------------------------------
--- 9. حلقات الصناديق والماتيريال والزعماء
+-- 14. Crafting, Stats & Anti-AFK Engine
 --------------------------------------------------------------------------------
+task.spawn(function()
+    while task.wait(0.5) do
+        -- Auto Stats Allocation
+        if _G.Settings.Stats["Auto Stats"] then
+            pcall(function()
+                local points = LocalPlayer.Data.Points.Value
+                if points and points > 0 then
+                    local targetStat = _G.Settings.Stats["Selected Stat"]
+                    local addCount = math.min(points, _G.Settings.Stats["Points Per Tick"] or 1)
+                    if CommF_ then CommF_:InvokeServer("AddPoint", targetStat, addCount) end
+                end
+            end)
+        end
 
--- حلقة تجميع الصناديق
+        -- Anti-AFK
+        if _G.Settings.Misc["Anti AFK"] then
+            pcall(function()
+                VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+                task.wait(1)
+                VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+            end)
+        end
+
+        -- Auto Crafting (Extracted from script_1)
+        if CommF_ then
+            pcall(function()
+                if _G.Settings.Crafting.SharkToothNecklace then CommF_:InvokeServer("Craft", "Shark Tooth Necklace") end
+                if _G.Settings.Crafting.TerrorJaw then CommF_:InvokeServer("Craft", "Terror Jaw") end
+                if _G.Settings.Crafting.MonsterMagnet then CommF_:InvokeServer("Craft", "Monster Magnet") end
+                if _G.Settings.Crafting.SharkAnchor then CommF_:InvokeServer("Craft", "Shark Anchor") end
+                if _G.Settings.Crafting.LeviathanShield then CommF_:InvokeServer("Craft", "Leviathan Shield") end
+                if _G.Settings.Crafting.LeviathanBoat then CommF_:InvokeServer("Craft", "Leviathan Boat") end
+                if _G.Settings.Crafting.LeviathanCrown then CommF_:InvokeServer("Craft", "Leviathan Crown") end
+                if _G.Settings.Crafting.LegendaryScroll then CommF_:InvokeServer("Craft", "Legendary Scroll") end
+                if _G.Settings.Crafting.MythicalScroll then CommF_:InvokeServer("Craft", "Mythical Scroll") end
+            end)
+        end
+    end
+end)
+
+--------------------------------------------------------------------------------
+-- 15. Advanced Dynamic ESP Engine
+--------------------------------------------------------------------------------
+local ESPCache = {}
+local ESPFolderName = "HaroonHub_ESP"
+
+local function GetESPContainer()
+    local gui = CoreGui:FindFirstChild(ESPFolderName)
+    if not gui then
+        gui = Instance.new("Folder")
+        gui.Name = ESPFolderName
+        gui.Parent = CoreGui
+    end
+    return gui
+end
+
+local function RemoveESP(obj)
+    local entry = ESPCache[obj]
+    if entry then
+        if entry.bill then entry.bill:Destroy() end
+        ESPCache[obj] = nil
+    end
+end
+
+local function ClearESPCategory(category)
+    for obj, entry in pairs(ESPCache) do
+        if entry.category == category then
+            RemoveESP(obj)
+        end
+    end
+end
+
+local function GetESPPart(obj)
+    if not obj or not obj.Parent then return nil end
+    if obj:IsA("BasePart") then return obj end
+    if obj:IsA("Model") then
+        return obj:FindFirstChild("HumanoidRootPart")
+            or obj:FindFirstChild("RootPart")
+            or obj.PrimaryPart
+            or obj:FindFirstChildWhichIsA("BasePart", true)
+    end
+    if obj:IsA("Tool") then
+        return obj:FindFirstChild("Handle") or obj:FindFirstChildWhichIsA("BasePart", true)
+    end
+    return nil
+end
+
+local function CreateOrUpdateESP(obj, part, title, color, category, hum)
+    if not obj or not part then return end
+
+    local entry = ESPCache[obj]
+    if not entry or not entry.bill or not entry.bill.Parent or entry.bill.Adornee ~= part then
+        RemoveESP(obj)
+
+        local bill = Instance.new("BillboardGui")
+        bill.Name = "HaroonESP"
+        bill.Adornee = part
+        bill.Size = UDim2.fromOffset(175, hum and 52 or 34)
+        bill.StudsOffset = Vector3.new(0, 2.5, 0)
+        bill.AlwaysOnTop = true
+        bill.MaxDistance = 10000
+        bill.ResetOnSpawn = false
+        bill.Parent = part
+
+        local frame = Instance.new("Frame")
+        frame.Name = "Frame"
+        frame.Size = UDim2.fromScale(1, 1)
+        frame.BackgroundTransparency = 1
+        frame.Parent = bill
+
+        local stroke = Instance.new("UIStroke")
+        stroke.Thickness = 1
+        stroke.Transparency = 0.15
+        stroke.Color = color
+        stroke.Parent = frame
+
+        local titleLabel = Instance.new("TextLabel")
+        titleLabel.Name = "ESPTitle"
+        titleLabel.Size = UDim2.new(1, 0, 0, 18)
+        titleLabel.BackgroundTransparency = 1
+        titleLabel.TextStrokeTransparency = 0.35
+        titleLabel.Font = Enum.Font.GothamBold
+        titleLabel.TextSize = 12
+        titleLabel.Parent = frame
+
+        local distLabel = Instance.new("TextLabel")
+        distLabel.Name = "ESPDist"
+        distLabel.Size = UDim2.new(1, 0, 0, 15)
+        distLabel.Position = UDim2.new(0, 0, 0, 18)
+        distLabel.BackgroundTransparency = 1
+        distLabel.TextColor3 = Color3.fromRGB(235,235,235)
+        distLabel.TextStrokeTransparency = 0.4
+        distLabel.Font = Enum.Font.Gotham
+        distLabel.TextSize = 10
+        distLabel.Parent = frame
+
+        local hpFill
+        if hum then
+            local hpBg = Instance.new("Frame")
+            hpBg.Name = "HPBackground"
+            hpBg.Size = UDim2.new(1, -10, 0, 5)
+            hpBg.Position = UDim2.new(0, 5, 0, 38)
+            hpBg.BackgroundColor3 = Color3.fromRGB(45,45,45)
+            hpBg.BorderSizePixel = 0
+            hpBg.Parent = frame
+
+            hpFill = Instance.new("Frame")
+            hpFill.Name = "HPFill"
+            hpFill.Size = UDim2.new(1,0,1,0)
+            hpFill.BorderSizePixel = 0
+            hpFill.Parent = hpBg
+        end
+
+        entry = {bill = bill, category = category, title = titleLabel, dist = distLabel, hp = hpFill}
+        ESPCache[obj] = entry
+    end
+
+    entry.category = category
+    entry.title.Text = title
+    entry.title.TextColor3 = color
+    local _, hrp = GetCharacter()
+    if hrp then
+        entry.dist.Text = "Dist: " .. math.floor((hrp.Position - part.Position).Magnitude) .. " Studs"
+    end
+
+    if hum and entry.hp then
+        local maxHP = math.max(hum.MaxHealth, 1)
+        entry.hp.Size = UDim2.new(math.clamp(hum.Health / maxHP, 0, 1), 0, 1, 0)
+    end
+end
+
+local function CollectESPModels()
+    local out = {}
+    local enemies = workspace:FindFirstChild("Enemies")
+    if enemies then
+        for _, v in ipairs(enemies:GetChildren()) do
+            if v:IsA("Model") then table.insert(out, v) end
+        end
+    end
+    return out
+end
+
+local function FindIslandESP(namePatterns)
+    local found = {}
+    local roots = {
+        workspace:FindFirstChild("_WorldOrigin"),
+        workspace:FindFirstChild("Map"),
+        workspace:FindFirstChild("Locations")
+    }
+    for _, root in ipairs(roots) do
+        if root then
+            for _, obj in ipairs(root:GetDescendants()) do
+                if (obj:IsA("Model") or obj:IsA("BasePart")) then
+                    local lower = obj.Name:lower()
+                    for _, pattern in ipairs(namePatterns) do
+                        if lower:find(pattern) then
+                            table.insert(found, obj)
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return found
+end
+
+task.spawn(function()
+    while task.wait(0.25) do
+        pcall(function()
+            local _, hrp = GetCharacter()
+            if not hrp then return end
+
+            local V = _G.Settings.Visuals
+            local F = _G.Settings.Fruits
+
+            if V["ESP Players"] or F["Player ESP"] then
+                for _, p in ipairs(Players:GetPlayers()) do
+                    if p ~= LocalPlayer and p.Character then
+                        local root = p.Character:FindFirstChild("HumanoidRootPart")
+                        local hum = p.Character:FindFirstChildOfClass("Humanoid")
+                        if root and hum and hum.Health > 0 then
+                            CreateOrUpdateESP(p, root, "PLAYER • " .. p.Name, Color3.fromRGB(255,85,85), "Players", hum)
+                        end
+                    end
+                end
+            else
+                ClearESPCategory("Players")
+            end
+
+            if V["ESP Enemies"] then
+                for _, mob in ipairs(CollectESPModels()) do
+                    local hum = mob:FindFirstChildOfClass("Humanoid")
+                    local root = mob:FindFirstChild("HumanoidRootPart")
+                    if hum and root and hum.Health > 0 then
+                        CreateOrUpdateESP(mob, root, "ENEMY • " .. mob.Name, Color3.fromRGB(255,120,80), "Enemies", hum)
+                    end
+                end
+            else
+                ClearESPCategory("Enemies")
+            end
+
+            if V["ESP Bosses"] then
+                for _, mob in ipairs(CollectESPModels()) do
+                    local hum = mob:FindFirstChildOfClass("Humanoid")
+                    local root = mob:FindFirstChild("HumanoidRootPart")
+                    local lower = mob.Name:lower()
+                    local isBoss = lower:find("boss") or lower:find("king") or lower:find("lord")
+                        or lower:find("rip_") or lower:find("beautiful") or lower:find("don swan")
+                    if isBoss and hum and root and hum.Health > 0 then
+                        CreateOrUpdateESP(mob, root, "BOSS • " .. mob.Name, Color3.fromRGB(190,85,255), "Bosses", hum)
+                    end
+                end
+            else
+                ClearESPCategory("Bosses")
+            end
+
+            if V["ESP Fruits"] or F["Fruit ESP"] then
+                for _, v in ipairs(workspace:GetDescendants()) do
+                    if v:IsA("Tool") then
+                        local n = v.Name:lower()
+                        if n:find("fruit") or n:find("blox") then
+                            local part = GetESPPart(v)
+                            if part then
+                                CreateOrUpdateESP(v, part, "FRUIT • " .. v.Name, Color3.fromRGB(255,170,0), "Fruits")
+                            end
+                        end
+                    end
+                end
+            else
+                ClearESPCategory("Fruits")
+            end
+
+            if V["ESP Chests"] or F["Chest ESP"] then
+                local folder = workspace:FindFirstChild("ChestModels")
+                if folder then
+                    for _, chest in ipairs(folder:GetChildren()) do
+                        local part = GetESPPart(chest)
+                        if part then
+                            CreateOrUpdateESP(chest, part, "CHEST • " .. chest.Name, Color3.fromRGB(255,235,70), "Chests")
+                        end
+                    end
+                end
+            else
+                ClearESPCategory("Chests")
+            end
+
+            if V["ESP Mirage Island"] then
+                for _, obj in ipairs(FindIslandESP({"mirage"})) do
+                    local part = GetESPPart(obj)
+                    if part then
+                        CreateOrUpdateESP(obj, part, "ISLAND • MIRAGE", Color3.fromRGB(120,180,255), "Mirage")
+                    end
+                end
+            else
+                ClearESPCategory("Mirage")
+            end
+
+            if V["ESP Kitsune Island"] then
+                for _, obj in ipairs(FindIslandESP({"kitsune"})) do
+                    local part = GetESPPart(obj)
+                    if part then
+                        CreateOrUpdateESP(obj, part, "ISLAND • KITSUNE", Color3.fromRGB(255,120,210), "Kitsune")
+                    end
+                end
+            else
+                ClearESPCategory("Kitsune")
+            end
+
+            -- Remove stale objects (destroyed enemies/chests/players).
+            for obj in pairs(ESPCache) do
+                if not obj or not obj.Parent then
+                    RemoveESP(obj)
+                end
+            end
+        end)
+    end
+end)
+
+--------------------------------------------------------------------------------
+-- 16. Chest & Boss Farm Standalone Loops
+--------------------------------------------------------------------------------
 task.spawn(function()
     while task.wait(0.2) do
         if _G.Settings.SubFarm["Auto Chest Tween"] or _G.Settings.SubFarm["Auto Chest Instant"] then
             pcall(function()
-                if _G.Settings.SubFarm["Auto Stop Items"] then
-                    local bp = LocalPlayer.Backpack
-                    local ch = LocalPlayer.Character
-                    if bp:FindFirstChild("God's Chalice") or (ch and ch:FindFirstChild("God's Chalice")) or 
-                       bp:FindFirstChild("Fist of Darkness") or (ch and ch:FindFirstChild("Fist of Darkness")) then
-                        _G.Settings.SubFarm["Auto Chest Tween"] = false
-                        _G.Settings.SubFarm["Auto Chest Instant"] = false
-                        AetherUI:Notify({Title = "Chest Farm", Content = "تم إيقاف جمع الصناديق: تم العثور على دروب نادر!", Duration = 3})
-                        return
-                    end
-                end
+                local char, hrp = GetCharacter()
+                if not char or not hrp then return end
 
                 local closestChest = nil
                 local shortestDist = math.huge
                 if workspace:FindFirstChild("ChestModels") then
                     for _, v in pairs(workspace.ChestModels:GetChildren()) do
                         if string.find(v.Name, "Chest") and v:FindFirstChild("RootPart") then
-                            local dist = (LocalPlayer.Character.HumanoidRootPart.Position - v.RootPart.Position).Magnitude
+                            local dist = (hrp.Position - v.RootPart.Position).Magnitude
                             if dist < shortestDist then
                                 shortestDist = dist
                                 closestChest = v
@@ -7114,9 +2766,10 @@ task.spawn(function()
 
                 if closestChest then
                     if _G.Settings.SubFarm["Auto Chest Instant"] then
-                        LocalPlayer.Character.HumanoidRootPart.CFrame = closestChest.RootPart.CFrame
-                    else
-                        TweenPlayer(closestChest.RootPart.CFrame)
+                        StopTween("AutoChestInstant")
+                        hrp.CFrame = closestChest.RootPart.CFrame
+                    elseif _G.Settings.SubFarm["Auto Chest Tween"] then
+                        TweenPlayer(closestChest.RootPart.CFrame, Vector3.new(0, 3, 0), "AutoChestTween")
                     end
                 end
             end)
@@ -7124,151 +2777,23 @@ task.spawn(function()
     end
 end)
 
--- حلقة تجميع الماتيريال
-task.spawn(function()
-    while task.wait(0.1) do
-        if _G.Settings.Main["Auto Farm Material"] then
-            pcall(function()
-                local mobs, pos = GetMaterialConfig(_G.Settings.Main["Selected Material"])
-                local found = false
-
-                for _, mName in pairs(mobs) do
-                    for _, v in pairs(workspace.Enemies:GetChildren()) do
-                        if v.Name == mName and v:FindFirstChild("HumanoidRootPart") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
-                            found = true
-                            AutoHaki()
-                            TweenPlayer(v.HumanoidRootPart.CFrame * CFrame.new(0, _G.Settings.Main["Farm Distance"], 0))
-                            SmartAttackMob(v)
-                            break
-                        end
-                    end
-                    if found then break end
-                end
-
-                if not found then
-                    TweenPlayer(pos * CFrame.new(0, _G.Settings.Main["Farm Distance"], 0))
-                end
-            end)
-        end
-    end
-end)
-
--- حلقة قتل الزعماء
 task.spawn(function()
     while task.wait(0.1) do
         if _G.Settings.Main["Auto Farm Boss"] or _G.Settings.Main["Auto Farm All Boss"] then
             pcall(function()
+                local char, hrp, hum = GetCharacter()
+                if not char or not hrp or not hum then return end
+
                 local bTarget = _G.Settings.Main["Selected Boss"]
                 for _, v in pairs(workspace.Enemies:GetChildren()) do
-                    if (v.Name == bTarget or _G.Settings.Main["Auto Farm All Boss"]) and v:FindFirstChild("HumanoidRootPart") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
+                    if (v.Name == bTarget or _G.Settings.Main["Auto Farm All Boss"]) and v:FindFirstChild("HumanoidRootPart") and v:FindFirstChildOfClass("Humanoid") and v.Humanoid.Health > 0 then
                         AutoHaki()
-                        TweenPlayer(v.HumanoidRootPart.CFrame * CFrame.new(0, _G.Settings.Main["Farm Distance"], 0))
+                        TweenPlayer(v.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
                         SmartAttackMob(v)
                         break
                     end
                 end
             end)
-        end
-    end
-end)
-
--- حلقة الكيك برنس و دو كينغ
-task.spawn(function()
-    while task.wait(0.1) do
-        if _G.Settings.Cake["Auto Katakuri"] or _G.Settings.Cake["Auto Kill Cake Prince"] or _G.Settings.Cake["Auto Kill Dough King"] then
-            pcall(function()
-                for _, name in pairs({"Dough King", "Cake Prince"}) do
-                    local boss = workspace.Enemies:FindFirstChild(name)
-                    if boss and boss:FindFirstChild("HumanoidRootPart") and boss:FindFirstChild("Humanoid") and boss.Humanoid.Health > 0 then
-                        AutoHaki()
-                        TweenPlayer(boss.HumanoidRootPart.CFrame * CFrame.new(0, _G.Settings.Main["Farm Distance"], 0))
-                        SmartAttackMob(boss)
-                        return
-                    end
-                end
-
-                if _G.Settings.Cake["Auto Katakuri"] then
-                    for _, kMob in pairs({"Cookie Crafter", "Cake Guard", "Baking Staff", "Head Baker"}) do
-                        for _, v in pairs(workspace.Enemies:GetChildren()) do
-                            if v.Name == kMob and v:FindFirstChild("HumanoidRootPart") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
-                                AutoHaki()
-                                TweenPlayer(v.HumanoidRootPart.CFrame * CFrame.new(0, _G.Settings.Main["Farm Distance"], 0))
-                                SmartAttackMob(v)
-                                return
-                            end
-                        end
-                    end
-                    TweenPlayer(CFrame.new(-2091.91, 70.00, -12142.83))
-                end
-            end)
-        end
-    end
-end)
-
--- حلقة كاشف الوحوش (ESP Loop)
-task.spawn(function()
-    while task.wait(0.2) do
-        if _G.Settings.Visuals["ESP Enemies"] and workspace:FindFirstChild("Enemies") then
-            for _, v in pairs(workspace.Enemies:GetChildren()) do
-                if v:IsA("Model") and v:FindFirstChild("HumanoidRootPart") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
-                    if not v.HumanoidRootPart:FindFirstChild("HaroonESP") then
-                        local bill = Instance.new("BillboardGui")
-                        bill.Name = "HaroonESP"
-                        bill.Adornee = v.HumanoidRootPart
-                        bill.Size = UDim2.new(0, 140, 0, 55)
-                        bill.StudsOffset = Vector3.new(0, 3.5, 0)
-                        bill.AlwaysOnTop = true
-                        bill.Parent = v.HumanoidRootPart
-
-                        local frame = Instance.new("Frame", bill)
-                        frame.Size = UDim2.new(1, 0, 1, 0)
-                        frame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-                        frame.BackgroundTransparency = 0.25
-                        Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 6)
-
-                        local nameLabel = Instance.new("TextLabel", frame)
-                        nameLabel.Size = UDim2.new(1, -10, 0, 14)
-                        nameLabel.Position = UDim2.new(0, 5, 0, 4)
-                        nameLabel.BackgroundTransparency = 1
-                        nameLabel.Text = v.Name
-                        nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-                        nameLabel.Font = Enum.Font.GothamBold
-                        nameLabel.TextSize = 10
-
-                        local distLabel = Instance.new("TextLabel", frame)
-                        distLabel.Name = "DistLabel"
-                        distLabel.Size = UDim2.new(1, -10, 0, 12)
-                        distLabel.Position = UDim2.new(0, 5, 0, 20)
-                        distLabel.BackgroundTransparency = 1
-                        distLabel.Text = "Distance: 0m"
-                        distLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
-                        distLabel.Font = Enum.Font.Gotham
-                        distLabel.TextSize = 9
-
-                        local hpBg = Instance.new("Frame", frame)
-                        hpBg.Size = UDim2.new(1, -10, 0, 6)
-                        hpBg.Position = UDim2.new(0, 5, 0, 38)
-                        hpBg.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
-                        Instance.new("UICorner", hpBg).CornerRadius = UDim.new(1, 0)
-
-                        local hpFill = Instance.new("Frame", hpBg)
-                        hpFill.Name = "HPFill"
-                        hpFill.Size = UDim2.new(1, 0, 1, 0)
-                        hpFill.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
-                        Instance.new("UICorner", hpFill).CornerRadius = UDim.new(1, 0)
-                    else
-                        local esp = v.HumanoidRootPart.HaroonESP
-                        local char = LocalPlayer.Character
-                        if char and char:FindFirstChild("HumanoidRootPart") then
-                            local dist = math.floor((char.HumanoidRootPart.Position - v.HumanoidRootPart.Position).Magnitude)
-                            local hpPercent = math.clamp(v.Humanoid.Health / v.Humanoid.MaxHealth, 0, 1)
-                            esp.Frame.DistLabel.Text = "📍 Dist: " .. tostring(dist) .. " Studs"
-                            esp.Frame.Frame.HPFill.Size = UDim2.new(hpPercent, 0, 1, 0)
-                            esp.Frame.Frame.HPFill.BackgroundColor3 = Color3.fromHSV(hpPercent * 0.3, 0.9, 0.9)
-                        end
-                    end
-                end
-            end
         end
     end
 end)
