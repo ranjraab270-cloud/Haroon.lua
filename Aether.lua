@@ -95,6 +95,7 @@ _G.Settings = {
         ["Fruit Sniper"] = false,
         ["Auto Store Fruit"] = false,
         ["Auto Drop Fruit"] = false,
+        ["Auto Collect World Fruits"] = false,
         ["Auto Roll Fruit"] = false,
     },
     SubFarm = {
@@ -123,7 +124,9 @@ _G.Settings = {
         ["Auto Katakuri"] = false,
         ["Auto Spawn Cake Prince"] = false,
         ["Auto Kill Cake Prince"] = false,
-        ["Auto Kill Dough King"] = false
+        ["Auto Kill Dough King"] = false,
+        ["Cake Progress Display"] = true,
+        ["Dough Progress Display"] = true
     },
     Race = {
         ["Auto Find Mirage"] = false,
@@ -230,6 +233,8 @@ _G.Settings = {
         ["Bypass Anticheat"] = false,
         ["Show Ping"] = false,
         ["Show FPS"] = false,
+        ["Server Time"] = false,
+        ["Server Time AFK"] = false,
     }
 }
 
@@ -976,6 +981,20 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
         QuestsTab:CreateToggle("Auto Tushita Puzzle", "TushitaPuzzleFlag", false, function(s) _G.Settings.Quests["Auto Tushita Puzzle"] = s end)
         QuestsTab:CreateToggle("Auto Colosseum Puzzle", "ColosseumPuzzleFlag", false, function(s) _G.Settings.Quests["Auto Colosseum Puzzle"] = s end)
         QuestsTab:CreateToggle("Auto Dough / Cake Challenges", "DoughChallengeFlag", false, function(s) _G.Settings.Quests["Auto Dough Challenges"] = s end)
+        QuestsTab:CreateToggle("Auto Cake Prince", "AutoCakePrinceFlag", false, function(state)
+            _G.Settings.Cake["Auto Kill Cake Prince"] = state
+            BFState.AutoCakePrince = state
+            BFStartCakeLoop()
+            if not state then StopTween("CakePrince") end
+        end)
+
+        QuestsTab:CreateToggle("Cake Prince Progress Display", "CakeProgressDisplayFlag", true, function(state)
+            _G.Settings.Cake["Cake Progress Display"] = state
+        end)
+
+        QuestsTab:CreateToggle("Dough King Progress Display", "DoughProgressDisplayFlag", true, function(state)
+            _G.Settings.Cake["Dough Progress Display"] = state
+        end)
         QuestsTab:CreateToggle("Auto Soul Guitar Puzzle", "SoulGuitarPuzzleFlag", false, function(s) _G.Settings.Quests["Auto Soul Guitar Puzzle"] = s end)
 
         ---------------------------------------------------------
@@ -1408,36 +1427,20 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
 
         FruitsTab:CreateToggle("Auto Store Fruit", "AutoStoreFruitFlag", false, function(state)
             _G.Settings.Fruits["Auto Store Fruit"] = state
-            task.spawn(function()
-                while _G.Settings.Fruits["Auto Store Fruit"] do
-                    task.wait(0.5)
-                    local backpack = LocalPlayer:FindFirstChild("Backpack")
-                    if backpack then
-                        for _, tool in pairs(backpack:GetChildren()) do
-                            if tool:IsA("Tool") and string.find(tool.Name:lower(), "fruit") then
-                                pcall(function() CommF_:InvokeServer("StoreFruit", tool.Name) end)
-                            end
-                        end
-                    end
-                end
-            end)
+            BFState.AutoStoreFruit = state
+            BFStartFruitLoop()
         end)
 
         FruitsTab:CreateToggle("Auto Drop Fruit", "AutoDropFruitFlag", false, function(state)
             _G.Settings.Fruits["Auto Drop Fruit"] = state
-            task.spawn(function()
-                while _G.Settings.Fruits["Auto Drop Fruit"] do
-                    task.wait(0.5)
-                    local backpack = LocalPlayer:FindFirstChild("Backpack")
-                    if backpack then
-                        for _, tool in pairs(backpack:GetChildren()) do
-                            if tool:IsA("Tool") and string.find(tool.Name:lower(), "fruit") then
-                                tool.Parent = workspace
-                            end
-                        end
-                    end
-                end
-            end)
+            BFState.AutoDropFruit = state
+            BFStartFruitLoop()
+        end)
+
+        FruitsTab:CreateToggle("Auto Collect World Fruits", "AutoCollectWorldFruitsFlag", false, function(state)
+            _G.Settings.Fruits["Auto Collect World Fruits"] = state
+            BFState.CollectWorldFruits = state
+            BFStartFruitLoop()
         end)
 
         FruitsTab:CreateButton("Open Blox Fruits Shop Remotely", function()
@@ -1669,12 +1672,58 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
             ImageSize = 20
         })
 
-        local CakePrincePara = MiscTab:CreateParagraph({
-            Title = "Cake / Dough Prince Status",
-            Desc = "Checking remaining enemies...",
+        local CakePrinceStatusPara = MiscTab:CreateParagraph({
+            Title = "Cake Prince Status",
+            Desc = "🔴 Not Spawned",
             Image = "rbxassetid://6034834832",
             ImageSize = 20
         })
+
+        local CakePrinceProgressPara = MiscTab:CreateParagraph({
+            Title = "Cake Prince Progress",
+            Desc = "0/500",
+            Image = "rbxassetid://6034834832",
+            ImageSize = 20
+        })
+
+        local DoughKingStatusPara = MiscTab:CreateParagraph({
+            Title = "Dough King Status",
+            Desc = "🔴 Not Ready",
+            Image = "rbxassetid://6034834832",
+            ImageSize = 20
+        })
+
+        local DoughKingProgressPara = MiscTab:CreateParagraph({
+            Title = "Dough King Progress",
+            Desc = "0/500",
+            Image = "rbxassetid://6034834832",
+            ImageSize = 20
+        })
+
+        local DoughItemsPara = MiscTab:CreateParagraph({
+            Title = "Sweet Chalice",
+            Desc = "🔴 Not Owned",
+            Image = "rbxassetid://6034834832",
+            ImageSize = 20
+        })
+
+        local AFKStatusPara = MiscTab:CreateParagraph({
+            Title = "Server Time / Anti-AFK",
+            Desc = "Server: --:--:-- | Anti-AFK: 🔴 Off",
+            Image = "rbxassetid://6034287594",
+            ImageSize = 20
+        })
+
+        MiscTab:CreateToggle("Server Time", "ServerTimeFlag", false, function(state)
+            _G.Settings.Misc["Server Time"] = state
+            BFState.ServerTime = state
+        end)
+
+        MiscTab:CreateToggle("Server Time AFK / Anti-AFK", "ServerTimeAFKFlag", false, function(state)
+            _G.Settings.Misc["Server Time AFK"] = state
+            BFState.ServerTimeAFK = state
+            BFStartAFK()
+        end)
 
         local NetworkPara = MiscTab:CreateParagraph({
             Title = "Network FPS & Ping",
@@ -1742,20 +1791,29 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
                     local uS = upSec % 60
                     ServerInfoPara:SetDesc("Players: " .. pCount .. "/" .. maxP .. " | Uptime: " .. string.format("%02d:%02d:%02d", uH, uM, uS))
 
-                    -- 8. Cake Prince Progress
+                    -- 8. Cake Prince / Dough King live progress
                     if World3 and CommF_ then
-                        local princeData = CommF_:InvokeServer("CakePrinceSpawner")
-                        if typeof(princeData) == "string" then
-                            if string.find(princeData, "spawned") or string.find(princeData, "ready") then
-                                CakePrincePara:SetDesc("👑 Cake Prince Is Spawned!")
-                            else
-                                local rem = string.match(princeData, "%d+")
-                                CakePrincePara:SetDesc(rem and ("⚔️ " .. rem .. " enemies remaining") or princeData)
-                            end
-                        end
+                        local cakeSpawned, cakeKilled, cakeRemaining = BFGetCakeStatus()
+                        local doughSpawned, doughKilled, doughRemaining, hasSweet = BFGetDoughStatus()
+
+                        CakePrinceStatusPara:SetDesc(cakeSpawned and "🟢 Spawned" or "🔴 Not Spawned")
+                        CakePrinceProgressPara:SetDesc(cakeKilled and (tostring(cakeKilled) .. "/500 | " .. tostring(cakeRemaining) .. " remaining") or "Checking...")
+
+                        local doughReady = doughSpawned or (hasSweet and doughRemaining == 0)
+                        DoughKingStatusPara:SetDesc(doughSpawned and "🟢 Spawned" or (doughReady and "🟢 Ready" or "🔴 Not Ready"))
+                        DoughKingProgressPara:SetDesc(doughKilled and (tostring(doughKilled) .. "/500 | " .. tostring(doughRemaining) .. " remaining") or "Checking...")
+                        DoughItemsPara:SetDesc(hasSweet and "🟢 Owned" or "🔴 Not Owned")
                     else
-                        CakePrincePara:SetDesc("Available in Third Sea Only")
+                        CakePrinceStatusPara:SetDesc("🔴 Third Sea Only")
+                        CakePrinceProgressPara:SetDesc("0/500")
+                        DoughKingStatusPara:SetDesc("🔴 Third Sea Only")
+                        DoughKingProgressPara:SetDesc("0/500")
+                        DoughItemsPara:SetDesc("🔴 Not Available")
                     end
+
+                    local serverClock = workspace:GetServerTimeNow()
+                    local antiAFK = BFState.ServerTimeAFK and "🟢 Active" or "🔴 Off"
+                    AFKStatusPara:SetDesc("Server: " .. os.date("%H:%M:%S", math.floor(serverClock)) .. " | Anti-AFK: " .. antiAFK .. " | Session: " .. string.format("%02d:%02d:%02d", math.floor(elapsed/3600), math.floor((elapsed%3600)/60), elapsed%60))
 
                     -- 9. FPS & Ping
                     local ping = math.floor(game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue())
