@@ -286,7 +286,7 @@ local function AnyMovementFeatureActive()
            S.SubFarm["Auto Farm Leviathan"] or S.ItemsQuests["Auto Sword Quest"] or S.ItemsQuests["Auto Farm CDK"] or
            S.ItemsQuests["Auto Farm TTK"] or S.Race["Auto Race V2 Quest"] or S.Race["Auto Race V3 Quest"] or
            S.Sea["Auto Prehistoric Island"] or S.Sea["Auto Complete Prehistoric Island"] or
-           S.Sea["Auto Draco Trail"] or S.Raid["Auto Next Island"] or S.Fruits["Fruit Sniper"]
+           S.Sea["Auto Draco Trail"] or S.Raid["Auto Next Island"] or S.Fruits["Fruit Sniper"] or S.Quests["Auto Yama Puzzle"] or S.Quests["Auto Tushita Puzzle"] or S.Quests["Auto Colosseum Puzzle"] or S.Quests["Auto Dough Challenges"] or S.Quests["Auto Soul Guitar Puzzle"]
 end
 
 RunService.Stepped:Connect(function()
@@ -720,13 +720,13 @@ local BossList = (World1 and {
 })
 
 local MaterialList = (World1 and {
-    "Leather + Scrap Metal", "Angel Wings", "Magma Ore", "Fish Tail", "Wood Planks"
+    "Leather + Scrap Metal", "Angel Wings", "Magma Ore", "Fish Tail"
 }) or (World2 and {
     "Leather + Scrap Metal", "Radioactive Material", "Ectoplasm", "Mystic Droplet",
     "Magma Ore", "Vampire Fang"
 }) or (World3 and {
     "Scrap Metal", "Demonic Wisp", "Conjured Cocoa", "Dragon Scale", "Gunpowder",
-    "Fish Tail", "Mini Tusk", "Azure Ember"
+    "Fish Tail", "Mini Tusk"
 })
 
 local MobSpecificTeleports = {
@@ -784,15 +784,15 @@ end
 --------------------------------------------------------------------------------
 local IntegratedMaterialByWorld = {
     [1] = {
-        ["Angel Wings"]={Mobs={"Shanda","Royal Squad","Royal Soldier","Wysper"},Position=CFrame.new(-4698,845,-1912)},
+        ["Angel Wings"]={Mobs={"God's Guard","Shanda","Royal Squad","Royal Soldier","Wysper","Thunder God"},Position=CFrame.new(-4698,845,-1912),Entrance=Vector3.new(-4607.8,872.5,-1667.5)},
         ["Leather + Scrap Metal"]={Mobs={"Brute","Pirate"},Position=CFrame.new(-1145,15,4350)},
-        ["Magma Ore"]={Mobs={"Military Soldier","Military Spy"},Position=CFrame.new(-5815,84,8820)},
-        ["Fish Tail"]={Mobs={"Fishman Warrior","Fishman Commando"},Position=CFrame.new(61123,19,1569)},
+        ["Magma Ore"]={Mobs={"Military Soldier","Military Spy","Magma Admiral"},Position=CFrame.new(-5815,84,8820)},
+        ["Fish Tail"]={Mobs={"Fishman Warrior","Fishman Commando","Fishman Lord"},Position=CFrame.new(61123,19,1569),Entrance=Vector3.new(61163.8,5.3,1819.7)},
     },
     [2] = {
-        ["Leather + Scrap Metal"]={Mobs={"Marine Captain"},Position=CFrame.new(-2010,73,-3326)},
+        ["Leather + Scrap Metal"]={Mobs={"Marine Captain","Mercenary"},Position=CFrame.new(-2010,73,-3326)},
         ["Magma Ore"]={Mobs={"Magma Ninja","Lava Pirate"},Position=CFrame.new(-5428,78,-5959)},
-        ["Ectoplasm"]={Mobs={"Ship Deckhand","Ship Engineer","Ship Steward","Ship Officer"},Position=CFrame.new(911,125,33159)},
+        ["Ectoplasm"]={Mobs={"Ship Deckhand","Ship Engineer","Ship Steward","Ship Officer"},Position=CFrame.new(911,125,33159),Entrance=Vector3.new(61163.8,5.3,1819.7)},
         ["Mystic Droplet"]={Mobs={"Water Fighter"},Position=CFrame.new(-3385,239,-10542)},
         ["Radioactive Material"]={Mobs={"Factory Staff"},Position=CFrame.new(295,73,-56)},
         ["Vampire Fang"]={Mobs={"Vampire"},Position=CFrame.new(-6033,7,-1317)},
@@ -808,18 +808,32 @@ local IntegratedMaterialByWorld = {
     },
 }
 
-local function integratedFindEnemy(names)
+local function integratedFindEnemy(names,center,radius)
     if type(names)=="string" then names={names} end
-    local containers={workspace:FindFirstChild("Enemies"),ReplicatedStorage}
-    for _,container in ipairs(containers) do
-        if container then
-            for _,name in ipairs(names) do
-                local obj=container:FindFirstChild(name)
-                local hum=obj and obj:FindFirstChildOfClass("Humanoid")
-                if obj and hum and hum.Health>0 and obj:FindFirstChild("HumanoidRootPart") then return obj end
+    local enemies=workspace:FindFirstChild("Enemies")
+    if not enemies then return nil end
+    local best,bestD=nil,math.huge
+    for _,name in ipairs(names) do
+        local obj=enemies:FindFirstChild(name)
+        if obj then
+            local hum=obj:FindFirstChildOfClass("Humanoid"); local root=obj:FindFirstChild("HumanoidRootPart")
+            if hum and hum.Health>0 and root then
+                local d=center and (root.Position-center).Magnitude or 0
+                if (not radius or d<=radius) and d<bestD then best,bestD=obj,d end
             end
         end
     end
+    if best then return best end
+    for _,obj in ipairs(enemies:GetChildren()) do
+        if obj:IsA("Model") and table.find(names,obj.Name) then
+            local hum=obj:FindFirstChildOfClass("Humanoid"); local root=obj:FindFirstChild("HumanoidRootPart")
+            if hum and hum.Health>0 and root then
+                local d=center and (root.Position-center).Magnitude or 0
+                if (not radius or d<=radius) and d<bestD then best,bestD=obj,d end
+            end
+        end
+    end
+    return best
 end
 
 local function integratedItem(name)
@@ -852,6 +866,23 @@ local function integratedCakeProgress()
     local n=tonumber(string.match(tostring(result or ""),"%d+"))
     if n then n=math.clamp(n,0,500); return 500-n,n,false end
     return 0,500,false
+end
+
+local function getCakePrinceProgressIntegrated()
+    local killed,remaining,spawned=integratedCakeProgress()
+    if spawned then return "🟢 Spawned | Progress: 500/500 | Remaining: 0" end
+    return string.format("🔴 Not Spawned | Progress: %d/500 | Remaining: %d", killed or 0, remaining or 500)
+end
+
+local function getDoughKingStatusText()
+    if not World3 then return "🔴 Third Sea only | Progress: 0/500 | Remaining: 500 | Sweet Chalice: ❌" end
+    local boss=integratedFindEnemy("Dough King")
+    local sweet=integratedItem("Sweet Chalice") ~= nil
+    local chalice=integratedItem("God's Chalice") ~= nil
+    local killed,remaining,spawned=integratedCakeProgress()
+    if boss then return "🟢 Spawned | Progress: 500/500 | Remaining: 0 | Sweet Chalice: "..(sweet and "✅" or "❌") end
+    if sweet then return "🟢 Ready | Progress: 500/500 | Remaining: 0 | Sweet Chalice: ✅" end
+    return string.format("🔴 Not Spawned | Progress: %d/500 | Remaining: %d | God's Chalice: %s", killed or 0, remaining or 500, chalice and "✅" or "❌")
 end
 
 local function integratedCakeStep()
@@ -895,128 +926,45 @@ local function integratedDoughStep()
     if integratedItem("Sweet Chalice") then pcall(function() CommF_:InvokeServer("CakePrinceSpawner",true) end) end
 end
 
-local MaterialState = {Target=nil}
-
-local function findEnhancedMaterialEnemy(names, center, radius)
-    if type(names)=="string" then names={names} end
-    local enemies=workspace:FindFirstChild("Enemies")
-    if not enemies then return nil end
-    local best,bestD=nil,math.huge
-    for _,mob in ipairs(enemies:GetChildren()) do
-        if mob:IsA("Model") and table.find(names,mob.Name) then
-            local h=mob:FindFirstChildOfClass("Humanoid")
-            local r=mob:FindFirstChild("HumanoidRootPart")
-            if h and h.Health>0 and r then
-                local d=center and (r.Position-center).Magnitude or 0
-                if (not radius or d<=radius) and d<bestD then best,bestD=mob,d end
-            end
-        end
-    end
-    return best
+local MaterialState={Target=nil,LastMaterial=nil}
+local function buildMaterialConfig(material)
+    local cfg=IntegratedMaterialByWorld[World] and IntegratedMaterialByWorld[World][material]
+    if cfg then return cfg end
+    local mobs,pos=GetMaterialConfig(material)
+    if mobs and #mobs>0 then return {Mobs=mobs,Position=pos} end
 end
 
-local EnhancedMaterialByWorld = {
-    [1]={
-        ["Angel Wings"]={Mobs={"God's Guard","Shanda","Wysper","Royal Squad","Royal Soldier","Thunder God"},Position=CFrame.new(-4698,845,-1912),Entrance=Vector3.new(-4607.82,872.54,-1667.56)},
-        ["Leather + Scrap Metal"]={Mobs={"Pirate","Brute"},Position=CFrame.new(-1145,15,4350)},
-        ["Magma Ore"]={Mobs={"Military Soldier","Military Spy","Magma Admiral"},Position=CFrame.new(-5815,84,8820)},
-        ["Fish Tail"]={Mobs={"Fishman Warrior","Fishman Commando","Fishman Lord"},Position=CFrame.new(61123,19,1569),Entrance=Vector3.new(61163.85,5.34,1819.78)},
-    },
-    [2]={
-        ["Leather + Scrap Metal"]={Mobs={"Marine Captain","Mercenary"},Position=CFrame.new(-2010.50,73,-3326.62)},
-        ["Magma Ore"]={Mobs={"Magma Ninja","Lava Pirate"},Position=CFrame.new(-5428,78,-5959)},
-        ["Ectoplasm"]={Mobs={"Ship Deckhand","Ship Engineer","Ship Steward","Ship Officer"},Position=CFrame.new(911.35,125.96,33159.54)},
-        ["Mystic Droplet"]={Mobs={"Water Fighter"},Position=CFrame.new(-3385,239,-10542)},
-        ["Radioactive Material"]={Mobs={"Factory Staff"},Position=CFrame.new(295,73,-56)},
-        ["Vampire Fang"]={Mobs={"Vampire"},Position=CFrame.new(-6033,7,-1317)},
-    },
-    [3]={
-        ["Scrap Metal"]={Mobs={"Jungle Pirate","Forest Pirate","Pirate Millionaire","Pistol Billionaire"},Position=CFrame.new(-11975.78,331.77,-10620.03)},
-        ["Fish Tail"]={Mobs={"Fishman Raider","Fishman Captain"},Position=CFrame.new(-10993,332,-8940)},
-        ["Conjured Cocoa"]={Mobs={"Chocolate Bar Battler","Cocoa Warrior"},Position=CFrame.new(620.63,78.94,-12581.37)},
-        ["Dragon Scale"]={Mobs={"Dragon Crew Archer","Dragon Crew Warrior"},Position=CFrame.new(6594,383,139)},
-        ["Gunpowder"]={Mobs={"Pistol Billionaire"},Position=CFrame.new(-84.86,85.62,6132.01)},
-        ["Mini Tusk"]={Mobs={"Mythological Pirate"},Position=CFrame.new(-13545,470,-6917)},
-        ["Demonic Wisp"]={Mobs={"Demonic Soul"},Position=CFrame.new(-9495.68,453.59,5977.35)},
-    },
-}
-
-local function findPhysicalMaterial(name)
-    local _,hrp=GetCharacter(); if not hrp then return nil end
-    local best,bestD=nil,math.huge
-    for _,obj in ipairs(workspace:GetDescendants()) do
-        if obj.Name==name or string.lower(obj.Name):find(string.lower(name),1,true) then
-            local part=obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart",true)
-            if part then
-                local d=(part.Position-hrp.Position).Magnitude
-                if d<bestD then best,bestD=part,d end
-            end
-        end
-    end
-    return best
+local function findMaterialTarget(cfg,origin)
+    if not cfg or not cfg.Mobs then return nil end
+    local target=integratedFindEnemy(cfg.Mobs,origin,1500)
+    if target then return target end
+    return integratedFindEnemy(cfg.Mobs,nil,nil)
 end
 
 local function integratedMaterialStep()
-    local selected=_G.Settings.Main["Selected Material"]
-    local _,hrp=GetCharacter(); if not hrp then return end
-
-    if selected=="Azure Ember" then
-        local ember=findPhysicalMaterial("Azure Ember")
-        if ember then
-            TweenPlayer(ember.CFrame,Vector3.new(0,2.5,0),"Material")
-        end
-        return
-    end
-
-    if selected=="Wood Planks" then
-        local tree
-        local bestD=math.huge
-        for _,obj in ipairs(workspace:GetDescendants()) do
-            if obj:IsA("Model") and string.lower(obj.Name):find("tree",1,true) then
-                local pp=obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart",true)
-                if pp then
-                    local d=(pp.Position-hrp.Position).Magnitude
-                    if d<bestD then tree,bestD=pp,d end
-                end
-            end
-        end
-        if tree then
-            TweenPlayer(tree.CFrame,Vector3.new(0,5,0),"Material")
-            local tool=LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
-            if tool then pcall(function() tool:Activate() end) end
-        end
-        return
-    end
-
-    local cfg=EnhancedMaterialByWorld[World] and EnhancedMaterialByWorld[World][selected]
+    local material=_G.Settings.Main["Selected Material"]
+    if MaterialState.LastMaterial~=material then MaterialState.Target=nil; MaterialState.LastMaterial=material end
+    local cfg=buildMaterialConfig(material)
     if not cfg then return end
+    local _,hrp,hum=GetCharacter(); if not hrp or not hum or hum.Health<=0 then return end
     local target=MaterialState.Target
-    local th=target and target:FindFirstChildOfClass("Humanoid")
-    local tr=target and target:FindFirstChild("HumanoidRootPart")
-    if not target or not target.Parent or not th or th.Health<=0 or not tr then
-        target=findEnhancedMaterialEnemy(cfg.Mobs,hrp.Position,1000)
-        MaterialState.Target=target
-    end
-
-    if target and target.Parent and target:FindFirstChild("HumanoidRootPart") then
-        local tr2=target.HumanoidRootPart
-        local desired=tr2.Position+Vector3.new(0,math.max(22,tonumber(_G.Settings.Main["Farm Distance"]) or 28),0)
-        if (hrp.Position-desired).Magnitude>10 then
-            TweenPlayer(CFrame.new(desired),nil,"Material")
+    local valid=target and target.Parent and target:FindFirstChild("HumanoidRootPart") and target:FindFirstChildOfClass("Humanoid") and target.Humanoid.Health>0 and table.find(cfg.Mobs,target.Name)
+    if not valid then target=findMaterialTarget(cfg,hrp.Position); MaterialState.Target=target end
+    if target then
+        local tr=target:FindFirstChild("HumanoidRootPart"); local th=target:FindFirstChildOfClass("Humanoid")
+        if tr and th and th.Health>0 then
+            local desired=tr.Position+Vector3.new(0,math.max(22,tonumber(_G.Settings.Main["Farm Distance"]) or 28),0)
+            if (hrp.Position-desired).Magnitude>12 then TweenPlayer(CFrame.new(desired),nil,"Material") else
+                if currentTween and currentTweenOwner=="Material" then pcall(function() currentTween:Cancel() end); currentTween=nil end
+                currentTweenOwner="Material"; pcall(function() hrp.CFrame=CFrame.new(desired); hrp.AssemblyLinearVelocity=Vector3.zero; hrp.AssemblyAngularVelocity=Vector3.zero end)
+            end
+            AutoHaki(); SmartAttackMob(target); return
         end
-        AutoHaki()
-        SmartAttackMob(target)
-        return
     end
-
     MaterialState.Target=nil
-    if cfg.Entrance and (hrp.Position-cfg.Entrance).Magnitude>1200 then
-        pcall(function() if CommF_ then CommF_:InvokeServer("requestEntrance",cfg.Entrance) end end)
-        task.wait(0.15)
-    end
-    if (hrp.Position-(cfg.Position.Position+Vector3.new(0,28,0))).Magnitude>30 then
-        TweenPlayer(cfg.Position,Vector3.new(0,28,0),"Material")
-    end
+    if cfg.Entrance and (hrp.Position-cfg.Entrance).Magnitude>1000 then pcall(function() CommF_:InvokeServer("requestEntrance",cfg.Entrance) end); task.wait(0.25) end
+    local desired=cfg.Position.Position+Vector3.new(0,28,0)
+    if (hrp.Position-desired).Magnitude>30 then TweenPlayer(cfg.Position,Vector3.new(0,28,0),"Material") end
 end
 
 local function integratedLeviathanStep()
@@ -1048,154 +996,81 @@ end
 task.spawn(function() while task.wait(0.25) do if _G.Settings.Cake["Auto Kill Cake Prince"] then pcall(integratedCakeStep) end end end)
 task.spawn(function() while task.wait(1.5) do if _G.Settings.Cake["Auto Spawn Cake Prince"] then pcall(integratedSummonCake) end end end)
 task.spawn(function() while task.wait(0.25) do if _G.Settings.Cake["Auto Kill Dough King"] then pcall(integratedDoughStep) end end end)
+task.spawn(function() while task.wait(0.15) do if _G.Settings.Main["Auto Farm Material"] then pcall(integratedMaterialStep) else MaterialState.Target=nil end end end)
 task.spawn(function() while task.wait(0.25) do if _G.Settings.SubFarm["Auto Farm Leviathan"] then pcall(integratedLeviathanStep) end end end)
 
 --------------------------------------------------------------------------------
--- 10B. Raid Island Progression Fix
+-- 10B. RAID ENGINE v2 - persistent scanner / delayed-spawn safe
 --------------------------------------------------------------------------------
-local RaidController={Index=1,JobId=tostring(game.JobId),Target=nil,ClearSince=0}
+local RaidController={Index=1,LastJob=tostring(game.JobId),Target=nil,SeenEnemy={},EmptySince=0}
 local function resetRaidController()
-    RaidController.Index=1
-    RaidController.JobId=tostring(game.JobId)
-    RaidController.Target=nil
-    RaidController.ClearSince=0
+    RaidController={Index=1,LastJob=tostring(game.JobId),Target=nil,SeenEnemy={},EmptySince=0}
     StopTween("Raid")
 end
-
 local function raidIslandCF(obj)
+    if not obj then return nil end
     if obj:IsA("BasePart") then return obj.CFrame end
     if obj:IsA("Model") then
         if obj.PrimaryPart then return obj.PrimaryPart.CFrame end
-        local ok,cf=pcall(function() return obj:GetPivot() end)
-        if ok then return cf end
+        local ok,cf=pcall(function() return obj:GetPivot() end); if ok then return cf end
     end
 end
-
 local function getRaidIslandsSorted()
     local found={}
     local roots={workspace:FindFirstChild("_WorldOrigin") and workspace._WorldOrigin:FindFirstChild("Locations"),workspace:FindFirstChild("Locations"),workspace:FindFirstChild("Map")}
-    for _,folder in ipairs(roots) do
-        if folder then
-            for _,obj in ipairs(folder:GetChildren()) do
-                local n=tonumber(string.match(obj.Name,"[Ii]sland%s*<?%s*(%d+)%s*>?"))
-                if n and n>=1 and n<=5 and not found[n] then found[n]=raidIslandCF(obj) end
-            end
-        end
-    end
+    local patterns={"[Ii]sland%s*<?%s*(%d+)%s*>?","[Rr]aid%s*[Ii]sland%s*<?%s*(%d+)%s*>?","<%s*[Ii]sland%s*(%d+)%s*>"}
+    for _,folder in ipairs(roots) do if folder then for _,obj in ipairs(folder:GetChildren()) do
+        local n; for _,pat in ipairs(patterns) do n=tonumber(string.match(obj.Name,pat)); if n then break end end
+        if n and n>=1 and n<=5 and not found[n] then found[n]=raidIslandCF(obj) end
+    end end end
     return found
 end
-
 local function getRaidTargets(center,radius)
     local enemies=workspace:FindFirstChild("Enemies"); if not enemies or not center then return {} end
-    local _,hrp=GetCharacter(); if not hrp then return {} end
-    local list={}
+    local list={}; local _,hrp=GetCharacter()
     for _,mob in ipairs(enemies:GetChildren()) do
         if mob:IsA("Model") then
-            local h=mob:FindFirstChildOfClass("Humanoid")
-            local r=mob:FindFirstChild("HumanoidRootPart")
+            local h=mob:FindFirstChildOfClass("Humanoid"); local r=mob:FindFirstChild("HumanoidRootPart")
             if h and h.Health>0 and r and (r.Position-center).Magnitude<=radius then table.insert(list,mob) end
         end
     end
-    table.sort(list,function(a,b)
-        local ar=a:FindFirstChild("HumanoidRootPart"); local br=b:FindFirstChild("HumanoidRootPart")
-        return ar and br and (ar.Position-hrp.Position).Magnitude<(br.Position-hrp.Position).Magnitude
-    end)
+    if hrp then table.sort(list,function(a,b) local ar=a:FindFirstChild("HumanoidRootPart"); local br=b:FindFirstChild("HumanoidRootPart"); return ar and br and (ar.Position-hrp.Position).Magnitude<(br.Position-hrp.Position).Magnitude end) end
     return list
 end
-
-local function raidPinTarget(target)
-    local _,hrp,hum=GetCharacter()
-    local tr=target and target:FindFirstChild("HumanoidRootPart")
-    local th=target and target:FindFirstChildOfClass("Humanoid")
-    if not hrp or not hum or not tr or not th or th.Health<=0 then return false end
-    local offset=Vector3.new(0,math.max(22,tonumber(_G.Settings.Main["Farm Distance"]) or 28),0)
-    local desired=CFrame.new(tr.Position+offset)
-    local dist=(hrp.Position-desired.Position).Magnitude
-    if dist>18 then
-        TweenPlayer(desired,nil,"Raid")
-    else
-        if currentTween and currentTweenOwner=="Raid" then currentTween:Cancel(); currentTween=nil end
-        currentTweenOwner="Raid"
-        pcall(function() hrp.CFrame=desired end)
+local function raidStableAttack(target)
+    local _,hrp,hum=GetCharacter(); local tr=target and target:FindFirstChild("HumanoidRootPart"); local th=target and target:FindFirstChildOfClass("Humanoid")
+    if not hrp or not hum or hum.Health<=0 or not tr or not th or th.Health<=0 then RaidController.Target=nil; return false end
+    local hover=math.max(22,tonumber(_G.Settings.Main["Farm Distance"]) or 28); local desired=tr.Position+Vector3.new(0,hover,0)
+    RaidController.Target=target; RaidController.EmptySince=0; RaidController.SeenEnemy[RaidController.Index]=true
+    if (hrp.Position-desired).Magnitude>12 then TweenPlayer(CFrame.new(desired),nil,"Raid") else
+        if currentTween and currentTweenOwner=="Raid" then pcall(function() currentTween:Cancel() end); currentTween=nil end
+        currentTweenOwner="Raid"; pcall(function() hrp.CFrame=CFrame.new(desired); hrp.AssemblyLinearVelocity=Vector3.zero; hrp.AssemblyAngularVelocity=Vector3.zero end)
     end
-    AutoHaki()
-    SmartAttackMob(target)
-    return true
+    AutoHaki(); SmartAttackMob(target); return true
 end
-
-local function clearRaidWaveOnly()
+local function raidStep(allowAdvance)
+    if RaidController.LastJob~=tostring(game.JobId) then resetRaidController() end
     local islands=getRaidIslandsSorted(); local current=islands[RaidController.Index]
-    local _,hrp=GetCharacter(); if not current or not hrp then return end
-    local targets=getRaidTargets(current.Position,850)
-    local target=targets[1]
-    if target then
-        RaidController.Target=target; RaidController.ClearSince=0; raidPinTarget(target); return
-    end
+    if not current then return end
+    local targets=getRaidTargets(current.Position,1000)
+    if #targets>0 then raidStableAttack(targets[1]); return end
     RaidController.Target=nil
-    if (hrp.Position-current.Position).Magnitude>60 then TweenPlayer(current,Vector3.new(0,28,0),"Raid") end
+    local _,hrp=GetCharacter(); if not hrp then return end
+    local desired=current*CFrame.new(0,35,0)
+    if (hrp.Position-desired.Position).Magnitude>40 then TweenPlayer(desired,nil,"Raid") end
+    -- Do not advance until an enemy was actually observed on this island.
+    if not allowAdvance or not RaidController.SeenEnemy[RaidController.Index] then RaidController.EmptySince=0; return end
+    if RaidController.EmptySince==0 then RaidController.EmptySince=os.clock(); return end
+    if os.clock()-RaidController.EmptySince<1.25 then return end
+    if RaidController.Index<5 then RaidController.Index+=1; RaidController.EmptySince=0; RaidController.Target=nil end
 end
-
-local function autoNextIslandFixed()
-    if RaidController.JobId~=tostring(game.JobId) then resetRaidController() end
-    local islands=getRaidIslandsSorted(); local current=islands[RaidController.Index]
-    local _,hrp=GetCharacter(); if not current or not hrp then return end
-
-    local targets=getRaidTargets(current.Position,850)
-    if #targets>0 then
-        RaidController.Target=targets[1]
-        RaidController.ClearSince=0
-        raidPinTarget(targets[1])
-        return
-    end
-
-    RaidController.Target=nil
-    if RaidController.ClearSince==0 then RaidController.ClearSince=os.clock() end
-    if os.clock()-RaidController.ClearSince<0.7 then
-        if (hrp.Position-current.Position).Magnitude>60 then TweenPlayer(current,Vector3.new(0,28,0),"Raid") end
-        return
-    end
-
-    if RaidController.Index<5 then
-        RaidController.Index+=1
-        RaidController.ClearSince=0
-        local nextCF=islands[RaidController.Index]
-        if nextCF then TweenPlayer(nextCF,Vector3.new(0,28,0),"Raid") end
-    else
-        -- Final island/boss: remain above the island while replication catches up.
-        if (hrp.Position-current.Position).Magnitude>60 then TweenPlayer(current,Vector3.new(0,28,0),"Raid") end
-    end
-end
-
-local function processRaid()
-    local R=_G.Settings.Raid
-    if R["Auto Buy Chip & Start"] and CommF_ then
-        pcall(function() CommF_:InvokeServer("RaidsNpc","Select",R["Selected Chip"]) end)
-        task.wait(0.35)
-        pcall(function() CommF_:InvokeServer("RaidsNpc","Start") end)
-    end
-    if R["Auto Next Island"] then
-        autoNextIslandFixed()
-    elseif R["Auto Clear Dungeon Waves"] then
-        clearRaidWaveOnly()
-    end
-    if R["Auto Awaken"] and CommF_ then pcall(function() CommF_:InvokeServer("AwakeningExpert","Awaken") end) end
-end
-
--- Per-frame raid hold: only locks the player when a live raid target is nearby.
--- This removes the small gravity/fall window between ordinary worker ticks.
 RunService.Heartbeat:Connect(function()
-    if not (_G.Settings.Raid["Auto Clear Dungeon Waves"] or _G.Settings.Raid["Auto Next Island"]) then return end
-    local target=RaidController.Target
-    local _,hrp,hum=GetCharacter()
-    local tr=target and target:FindFirstChild("HumanoidRootPart")
-    local th=target and target:FindFirstChildOfClass("Humanoid")
+    local R=_G.Settings.Raid; if not (R["Auto Clear Dungeon Waves"] or R["Auto Next Island"]) then return end
+    local t=RaidController.Target; local _,hrp,hum=GetCharacter(); local tr=t and t:FindFirstChild("HumanoidRootPart"); local th=t and t:FindFirstChildOfClass("Humanoid")
     if not hrp or not hum or not tr or not th or th.Health<=0 then return end
-    local offset=Vector3.new(0,math.max(22,tonumber(_G.Settings.Main["Farm Distance"]) or 28),0)
-    if (hrp.Position-(tr.Position+offset)).Magnitude<=30 then
-        pcall(function() hrp.CFrame=CFrame.new(tr.Position+offset) end)
-    end
+    local desired=tr.Position+Vector3.new(0,math.max(22,tonumber(_G.Settings.Main["Farm Distance"]) or 28),0)
+    if (hrp.Position-desired).Magnitude<35 then pcall(function() hrp.CFrame=CFrame.new(desired); hrp.AssemblyLinearVelocity=Vector3.zero; hrp.AssemblyAngularVelocity=Vector3.zero end) end
 end)
-
 --------------------------------------------------------------------------------
 -- 7. AetherUI Framework Integration (100% Full English Interface)
 --------------------------------------------------------------------------------
@@ -1338,11 +1213,11 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
         end)
 
         QuestsTab:CreateSection("Puzzles & Special Challenges")
-        QuestsTab:CreateToggle("Auto Yama Puzzle", "YamaPuzzleFlag", false, function(s) _G.Settings.Quests["Auto Yama Puzzle"] = s end)
-        QuestsTab:CreateToggle("Auto Tushita Puzzle", "TushitaPuzzleFlag", false, function(s) _G.Settings.Quests["Auto Tushita Puzzle"] = s end)
-        QuestsTab:CreateToggle("Auto Colosseum Puzzle", "ColosseumPuzzleFlag", false, function(s) _G.Settings.Quests["Auto Colosseum Puzzle"] = s end)
-        QuestsTab:CreateToggle("Auto Dough / Cake Challenges", "DoughChallengeFlag", false, function(s) _G.Settings.Quests["Auto Dough Challenges"] = s end)
-        QuestsTab:CreateToggle("Auto Soul Guitar Puzzle", "SoulGuitarPuzzleFlag", false, function(s) _G.Settings.Quests["Auto Soul Guitar Puzzle"] = s end)
+        QuestsTab:CreateToggle("Auto Yama Puzzle", "YamaPuzzleFlag", false, function(s) _G.Settings.Quests["Auto Yama Puzzle"] = s; if not s then StopTween("Puzzle") end end)
+        QuestsTab:CreateToggle("Auto Tushita Puzzle", "TushitaPuzzleFlag", false, function(s) _G.Settings.Quests["Auto Tushita Puzzle"] = s; if not s then StopTween("Puzzle") end end)
+        QuestsTab:CreateToggle("Auto Colosseum Puzzle", "ColosseumPuzzleFlag", false, function(s) _G.Settings.Quests["Auto Colosseum Puzzle"] = s; if not s then StopTween("Puzzle") end end)
+        QuestsTab:CreateToggle("Auto Dough / Cake Challenges", "DoughChallengeFlag", false, function(s) _G.Settings.Quests["Auto Dough Challenges"] = s; if not s then StopTween("Puzzle") end end)
+        QuestsTab:CreateToggle("Auto Soul Guitar Puzzle", "SoulGuitarPuzzleFlag", false, function(s) _G.Settings.Quests["Auto Soul Guitar Puzzle"] = s; if not s then StopTween("Puzzle") end end)
 
         ---------------------------------------------------------
         -- 📌 3. TAB: SHOP & UPGRADES (Full Extracted Shop)
@@ -1473,7 +1348,7 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
 
         RaidTab:CreateToggle("Auto Dungeon / Fruits Raid", "AutoDungeonFlag", false, function(state)
             _G.Settings.Raid["Auto Dungeon / Raid"] = state
-            if not state and not _G.Settings.Raid["Auto Clear Dungeon Waves"] and not _G.Settings.Raid["Auto Next Island"] then resetRaidController() end
+            if not state then StopTween() end
         end)
 
         RaidTab:CreateToggle("Auto Buy Chip & Start Raid", "AutoBuyStartRaidFlag", false, function(state)
@@ -1482,12 +1357,12 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
 
         RaidTab:CreateToggle("Auto Clear Dungeon Waves", "AutoClearDungeonFlag", false, function(state)
             _G.Settings.Raid["Auto Clear Dungeon Waves"] = state
-            if not state and not _G.Settings.Raid["Auto Next Island"] then resetRaidController() end
+            if not state then StopTween() end
         end)
 
         RaidTab:CreateToggle("Auto Next Island (5 Islands Full Scanner)", "AutoNextIslandFlag", false, function(state)
             _G.Settings.Raid["Auto Next Island"] = state
-            if not state and not _G.Settings.Raid["Auto Clear Dungeon Waves"] then resetRaidController() end
+            if not state then StopTween() end
         end)
 
         RaidTab:CreateToggle("Auto Awaken Skills", "AutoAwakenSkillsFlag", false, function(state)
@@ -2075,10 +1950,24 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
             return os.clock()
         end
 
+        do
+            local frames=0
+            local last=os.clock()
+            RunService.RenderStepped:Connect(function()
+                frames+=1
+                local now=os.clock()
+                if now-last>=1 then
+                    getgenv().HaroonFPS=frames/(now-last)
+                    frames=0
+                    last=now
+                end
+            end)
+        end
+
         task.spawn(function()
             while task.wait(0.5) do
                 pcall(function()
-                    local stats = LocalPlayer:FindFirstChild("leaderstats")
+                    local stats = LocalPlayer:FindFirstChild("Data") or LocalPlayer:FindFirstChild("leaderstats")
                     local sessionElapsed = os.clock() - uiStartClock
                     local serverElapsed = liveServerElapsed()
                     local afkElapsed = os.clock() - lastInputClock
@@ -2104,14 +1993,20 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
                     local pCount = #Players:GetPlayers()
                     ServerInfoPara:SetDesc("Players: " .. pCount .. "/" .. tostring(Players.MaxPlayers) .. " | Server: " .. fmtHMS(serverElapsed))
 
-                    local princeResult = getCakePrinceProgressIntegrated()
-                    CakePrincePara:SetDesc(princeResult)
-                    DoughKingPara:SetDesc(getDoughKingStatusText())
+                    local princeResult = "🔴 Not Spawned | Progress: 0/500 | Remaining: 500"
+                    pcall(function() princeResult=getCakePrinceProgressIntegrated() end)
+                    pcall(function() CakePrincePara:SetDesc(princeResult) end)
+                    local doughText="🔴 Not Spawned | Progress: 0/500 | Remaining: 500 | Sweet Chalice: ❌"
+                    pcall(function() doughText=getDoughKingStatusText() end)
+                    pcall(function() DoughKingPara:SetDesc(doughText) end)
 
-                    MiragePara:SetDesc(GetMirageIsland() and "🟢 Spawned" or "🔴 Not Spawned")
-                    KitsunePara:SetDesc(GetKitsuneIsland() and "🟢 Spawned" or "🔴 Not Spawned")
+                    local mirage=GetMirageIsland()
+                    local kitsune=GetKitsuneIsland()
+                    pcall(function() MiragePara:SetDesc(mirage and "🟢 Spawned" or "🔴 Not Spawned") end)
+                    pcall(function() KitsunePara:SetDesc(kitsune and "🟢 Spawned" or "🔴 Not Spawned") end)
 
-                    local counts = getSeaEventCounts()
+                    local counts = {}
+                    pcall(function() counts=getSeaEventCounts() or {} end)
                     local active = {}
                     for name, count in pairs(counts) do table.insert(active, name .. " x" .. count) end
                     table.sort(active)
@@ -2130,7 +2025,7 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
                         if (bp and bp:FindFirstChild(name)) or (c and c:FindFirstChild(name)) then swords += 1 end
                     end
                     SwordPara:SetDesc(swords .. " / 3")
-                    local fps = math.floor(1 / math.max(0.001, RunService.RenderStepped:Wait()))
+                    local fps = math.floor(getgenv().HaroonFPS or 0)
                     local ping = 0
                     pcall(function() ping = math.floor(game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue()) end)
                     NetworkPara:SetDesc("FPS: " .. tostring(fps) .. " | Ping: " .. tostring(ping) .. " ms")
@@ -2359,39 +2254,99 @@ task.spawn(function()
 end)
 
 --------------------------------------------------------------------------------
+-- 9C. PUZZLE / CHALLENGE ENGINE - interaction + combat assist
+--------------------------------------------------------------------------------
+local function puzzleOwned(name)
+    local bp=LocalPlayer:FindFirstChildOfClass("Backpack"); local c=LocalPlayer.Character
+    return (bp and bp:FindFirstChild(name)) or (c and c:FindFirstChild(name))
+end
+local function puzzlePart(obj)
+    if not obj then return nil end
+    if obj:IsA("BasePart") then return obj end
+    if obj:IsA("Model") then return obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart",true) end
+    if obj.Parent and obj.Parent:IsA("BasePart") then return obj.Parent end
+    return obj.Parent and obj.Parent:FindFirstChildWhichIsA("BasePart",true)
+end
+local function findPuzzleNamed(names,center,radius)
+    local best,bestD=nil,math.huge
+    for _,pool in ipairs({workspace:FindFirstChild("Map"),workspace:FindFirstChild("_WorldOrigin")}) do
+        if pool then
+            for _,obj in ipairs(pool:GetDescendants()) do
+                local lower=obj.Name:lower(); local hit=false
+                for _,n in ipairs(names) do if lower:find(n:lower(),1,true) then hit=true break end end
+                if hit then
+                    local part=puzzlePart(obj)
+                    if part then local d=(part.Position-center).Magnitude; if d<=radius and d<bestD then best,bestD=obj,d end end
+                end
+            end
+        end
+    end
+    return best
+end
+local function interactPuzzle(obj)
+    if not obj then return false end
+    local prompt=obj:IsA("ProximityPrompt") and obj or obj:FindFirstChildWhichIsA("ProximityPrompt",true)
+    if prompt and fireproximityprompt then pcall(function() fireproximityprompt(prompt,1) end); return true end
+    local click=obj:IsA("ClickDetector") and obj or obj:FindFirstChildWhichIsA("ClickDetector",true)
+    if click and fireclickdetector then pcall(function() fireclickdetector(click) end); return true end
+    local part=puzzlePart(obj); if part then TweenPlayer(part.CFrame*CFrame.new(0,2,0),nil,"Puzzle"); return true end
+    return false
+end
+local function autoYamaPuzzle()
+    if not World3 or not puzzleOwned("Yama") then return end
+    local mob=integratedFindEnemy({"Forest Pirate","Ghost"})
+    if mob then raidStableAttack(mob); return end
+    local obj=findPuzzleNamed({"purple","marked","ghost","yama"},GetCharacter().Position,5000); if obj then interactPuzzle(obj) end
+end
+local function autoTushitaPuzzle()
+    if not World3 then return end
+    local boss=integratedFindEnemy("Longma"); if boss then raidStableAttack(boss); return end
+    local obj=findPuzzleNamed({"torch","holy torch"},GetCharacter().Position,7000); if obj then interactPuzzle(obj) end
+end
+local function autoColosseumPuzzle()
+    if not World2 then return end
+    local mob=integratedFindEnemy({"Swan Pirate","Jeremy","Gladiator"}); if mob then raidStableAttack(mob); return end
+    local obj=findPuzzleNamed({"infinity","symbol","button","gladiator"},GetCharacter().Position,5000); if obj then interactPuzzle(obj) end
+end
+local function autoDoughChallenges()
+    if not World3 then return end
+    local boss=integratedFindEnemy({"Dough King","Cake Prince","Cake Queen"}); if boss then raidStableAttack(boss); return end
+    local mob=integratedFindEnemy({"Cocoa Warrior","Chocolate Bar Battler"}); if mob then raidStableAttack(mob) end
+end
+local function autoSoulGuitarPuzzle()
+    if not World3 then return end
+    local obj=findPuzzleNamed({"grave","gravestone","tomb","skull","weird machine","soul guitar"},GetCharacter().Position,5000); if obj then interactPuzzle(obj) end
+end
+task.spawn(function()
+    while task.wait(0.35) do
+        if _G.Settings.Quests["Auto Yama Puzzle"] then pcall(autoYamaPuzzle) end
+        if _G.Settings.Quests["Auto Tushita Puzzle"] then pcall(autoTushitaPuzzle) end
+        if _G.Settings.Quests["Auto Colosseum Puzzle"] then pcall(autoColosseumPuzzle) end
+        if _G.Settings.Quests["Auto Dough Challenges"] then pcall(autoDoughChallenges) end
+        if _G.Settings.Quests["Auto Soul Guitar Puzzle"] then pcall(autoSoulGuitarPuzzle) end
+    end
+end)
+
+--------------------------------------------------------------------------------
 -- 10. ADVANCED RAID ENGINE
 --------------------------------------------------------------------------------
 task.spawn(function()
     local wasActive=false
-    while task.wait(0.10) do
+    while task.wait(0.12) do
         local R=_G.Settings.Raid
         local active=R["Auto Dungeon / Raid"] or R["Auto Buy Chip & Start"] or R["Auto Clear Dungeon Waves"] or R["Auto Next Island"] or R["Auto Awaken"]
         if active then
             if not wasActive then resetRaidController() end
             wasActive=true
-            pcall(processRaid)
+            pcall(function()
+                if R["Auto Buy Chip & Start"] and CommF_ then
+                    CommF_:InvokeServer("RaidsNpc","Select",R["Selected Chip"]); task.wait(0.45); CommF_:InvokeServer("RaidsNpc","Start")
+                end
+                if R["Auto Next Island"] then raidStep(true) elseif R["Auto Clear Dungeon Waves"] then raidStep(false) end
+                if R["Auto Awaken"] and CommF_ then pcall(function() CommF_:InvokeServer("AwakeningExpert","Awaken") end) end
+            end)
         elseif wasActive then
-            wasActive=false
-            resetRaidController()
-        end
-    end
-end)
-
---------------------------------------------------------------------------------
--- 10A. ENHANCED MATERIAL FARM ENGINE
---------------------------------------------------------------------------------
-task.spawn(function()
-    local wasActive=false
-    while task.wait(0.12) do
-        local active=_G.Settings.Main["Auto Farm Material"]==true
-        if active then
-            if not wasActive then MaterialState.Target=nil end
-            wasActive=true
-            pcall(integratedMaterialStep)
-        elseif wasActive then
-            wasActive=false
-            MaterialState.Target=nil
-            StopTween("Material")
+            wasActive=false; resetRaidController()
         end
     end
 end)
@@ -3150,7 +3105,7 @@ task.spawn(function()
                         AutoHaki()
                         TweenPlayer(v.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
                         SmartAttackMob(v)
-                        break 
+                        break
                     end
                 end
             end)
