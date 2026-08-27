@@ -45,6 +45,7 @@ if not RegisterHit and Net and Net:FindFirstChild("RE/RegisterHit") then
 end
 
 -- World Detection
+local MAX_PLAYER_LEVEL = 2800
 local World1, World2, World3 = false, false, false
 if game.PlaceId == 2753915549 or game.PlaceId == 85211729168715 then World1 = true
 elseif game.PlaceId == 4442272183 or game.PlaceId == 79091703265657 then World2 = true
@@ -239,8 +240,40 @@ _G.Settings = {
         ["Custom Jump"] = false,
         ["Jump Power"] = 50,
         ["Infinity Jump"] = false,
+        ["Save Settings"] = false,
     }
 }
+
+--------------------------------------------------------------------------------
+-- 2B. Persistent Settings / Profile
+--------------------------------------------------------------------------------
+local SETTINGS_FILE = "HaroonHub_Settings_V21.json"
+local function canFile()
+    return type(isfile)=="function" and type(readfile)=="function" and type(writefile)=="function"
+end
+local function deepMerge(dst, src)
+    if type(src) ~= "table" then return dst end
+    for k,v in pairs(src) do
+        if type(v)=="table" and type(dst[k])=="table" then deepMerge(dst[k],v) else dst[k]=v end
+    end
+    return dst
+end
+local function loadSettings()
+    if not canFile() then return false end
+    local ok, raw = pcall(readfile, SETTINGS_FILE)
+    if not ok or type(raw)~="string" or raw=="" then return false end
+    local decoded
+    local good=pcall(function() decoded=HttpService:JSONDecode(raw) end)
+    if good and type(decoded)=="table" then deepMerge(_G.Settings,decoded); return true end
+    return false
+end
+local function saveSettings()
+    if not canFile() then return false end
+    local ok, raw=pcall(function() return HttpService:JSONEncode(_G.Settings) end)
+    if not ok then return false end
+    return pcall(writefile, SETTINGS_FILE, raw)
+end
+loadSettings()
 
 --------------------------------------------------------------------------------
 -- 3. Promo Codes Master Engine
@@ -1063,9 +1096,6 @@ local function integratedHydraStep()
 end
 
 -- Independent controllers; each stops as soon as its own flag becomes false.
-task.spawn(function() while task.wait(0.25) do if _G.Settings.Cake["Auto Kill Cake Prince"] then pcall(integratedCakeStep) end end end)
-task.spawn(function() while task.wait(1.5) do if _G.Settings.Cake["Auto Spawn Cake Prince"] then pcall(integratedSummonCake) end end end)
-task.spawn(function() while task.wait(0.25) do if _G.Settings.Cake["Auto Kill Dough King"] then pcall(integratedDoughStep) end end end)
 task.spawn(function() while task.wait(0.15) do if _G.Settings.Main["Auto Farm Material"] then pcall(integratedMaterialStep) else MaterialState.Target=nil end end end)
 task.spawn(function() while task.wait(0.25) do if _G.Settings.SubFarm["Auto Farm Leviathan"] then pcall(integratedLeviathanStep) end end end)
 
@@ -1187,7 +1217,7 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
         ---------------------------------------------------------
         MainTab:CreateSection("Level Farm Configuration")
 
-        MainTab:CreateToggle("Auto Farm Level", "AutoFarmFlag", false, function(state)
+        MainTab:CreateToggle("Auto Farm Level", "AutoFarmFlag", _G.Settings.Main["Auto Farm Level"], function(state)
             _G.Settings.Main["Auto Farm Level"] = state
             if not state then StopTween() end
         end)
@@ -1245,14 +1275,14 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
             _G.Settings.Main["Selected Boss"] = selected
         end)
 
-        MainTab:CreateToggle("Auto Farm Selected Boss", "FarmBossFlag", false, function(state)
+        MainTab:CreateToggle("Auto Farm Selected Boss", "FarmBossFlag", _G.Settings.Main["Auto Farm Boss"], function(state)
             _G.Settings.Main["Auto Farm Boss"] = state
-            if not state then StopTween() end
+            if not state then StopTween("BossFarm") end
         end)
 
-        MainTab:CreateToggle("Auto Farm All Available Bosses", "FarmAllBossFlag", false, function(state)
+        MainTab:CreateToggle("Auto Farm All Available Bosses", "FarmAllBossFlag", _G.Settings.Main["Auto Farm All Boss"], function(state)
             _G.Settings.Main["Auto Farm All Boss"] = state
-            if not state then StopTween() end
+            if not state then StopTween("BossFarm") end
         end)
 
         ---------------------------------------------------------
@@ -1401,12 +1431,12 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
 
         SubFarmTab:CreateSection("Chests Farming")
 
-        SubFarmTab:CreateToggle("Auto Chest (Tween)", "ChestTweenFlag", false, function(state)
+        SubFarmTab:CreateToggle("Auto Chest (Tween)", "ChestTweenFlag", _G.Settings.SubFarm["Auto Chest Tween"], function(state)
             _G.Settings.SubFarm["Auto Chest Tween"] = state
             if not state then StopTween() end
         end)
 
-        SubFarmTab:CreateToggle("Auto Chest (Instant)", "ChestInstantFlag", false, function(state)
+        SubFarmTab:CreateToggle("Auto Chest (Instant)", "ChestInstantFlag", _G.Settings.SubFarm["Auto Chest Instant"], function(state)
             _G.Settings.SubFarm["Auto Chest Instant"] = state
             if not state then StopTween() end
         end)
@@ -1747,21 +1777,42 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
         ---------------------------------------------------------
         FruitsTab:CreateSection("Blox Fruits Rolling & Management")
 
-        FruitsTab:CreateButton("Roll Fruit Once (Blox Fruit Cousin)", function()
-            if CommF_ then
-                local res = CommF_:InvokeServer("Cousin", "Buy")
-                AetherUI:Notify({Title = "Fruit Dealer", Content = tostring(res), Duration = 4})
-            end
-        end)
-
-        FruitsTab:CreateToggle("Auto Roll Fruit (Loop)", "AutoRollFruitFlag", false, function(state)
-            _G.Settings.Fruits["Auto Roll Fruit"] = state
-            task.spawn(function()
-                while _G.Settings.Fruits["Auto Roll Fruit"] do
-                    if CommF_ then pcall(function() CommF_:InvokeServer("Cousin", "Buy") end) end
-                    task.wait(3)
+        local function findFruitGachaNPC()
+            local keys={"zioles","blox fruit gacha","fruit gacha","fruit dealer"}
+            for _,obj in ipairs(workspace:GetDescendants()) do
+                if obj:IsA("Model") then
+                    local n=obj.Name:lower()
+                    for _,k in ipairs(keys) do if n:find(k,1,true) then return obj end end
                 end
-            end)
+            end
+        end
+        local function interactNPC(obj)
+            if not obj then return false end
+            local prompt=obj:FindFirstChildWhichIsA("ProximityPrompt",true)
+            if prompt and type(fireproximityprompt)=="function" then
+                local ok=pcall(fireproximityprompt,prompt); if ok then return true end
+            end
+            local cd=obj:FindFirstChildWhichIsA("ClickDetector",true)
+            if cd and type(fireclickdetector)=="function" then
+                local ok=pcall(fireclickdetector,cd); if ok then return true end
+            end
+            return false
+        end
+        local function rollFruitOnce()
+            local result=nil; local ok=false
+            if CommF_ then ok,result=pcall(function() return CommF_:InvokeServer("Cousin","Buy") end) end
+            if not ok or result==nil then
+                interactNPC(findFruitGachaNPC())
+                if CommF_ then pcall(function() CommF_:InvokeServer("Cousin","Buy") end) end
+            end
+            if AetherUI then AetherUI:Notify({Title="Fruit Gacha",Content=tostring(result or "Roll request sent"),Duration=3}) end
+            return ok
+        end
+        FruitsTab:CreateButton("Roll Fruit Once (Blox Fruit Gacha)", function() rollFruitOnce() end)
+        FruitsTab:CreateToggle("Auto Roll Fruit (Loop)", "AutoRollFruitFlag", _G.Settings.Fruits["Auto Roll Fruit"], function(state)
+            _G.Settings.Fruits["Auto Roll Fruit"]=state
+            local token=os.clock(); getgenv().HaroonFruitRollToken=token
+            if state then task.spawn(function() while _G.Settings.Fruits["Auto Roll Fruit"] and getgenv().HaroonFruitRollToken==token do pcall(rollFruitOnce); task.wait(3) end end) end
         end)
 
         FruitsTab:CreateToggle("Fruit Notifier (ESP)", "FruitESPFlag", false, function(state)
@@ -1774,7 +1825,7 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
             if not state then StopTween() end
         end)
 
-        FruitsTab:CreateToggle("Auto Store Fruit", "AutoStoreFruitFlag", false, function(state)
+        FruitsTab:CreateToggle("Auto Store Fruit", "AutoStoreFruitFlag", _G.Settings.Fruits["Auto Store Fruit"], function(state)
             _G.Settings.Fruits["Auto Store Fruit"] = state
             task.spawn(function()
                 while _G.Settings.Fruits["Auto Store Fruit"] do
@@ -1791,7 +1842,7 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
             end)
         end)
 
-        FruitsTab:CreateToggle("Auto Drop Fruit", "AutoDropFruitFlag", false, function(state)
+        FruitsTab:CreateToggle("Auto Drop Fruit", "AutoDropFruitFlag", _G.Settings.Fruits["Auto Drop Fruit"], function(state)
             _G.Settings.Fruits["Auto Drop Fruit"] = state
             task.spawn(function()
                 while _G.Settings.Fruits["Auto Drop Fruit"] do
@@ -1808,11 +1859,22 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
             end)
         end)
 
-        FruitsTab:CreateButton("Open Blox Fruits Shop Remotely", function()
+        FruitsTab:CreateButton("Open Blox Fruits Shop", function()
+            local opened=false
             if CommF_ then
-                pcall(function() CommF_:InvokeServer("Shop", "Open") end)
-                pcall(function() CommF_:InvokeServer("OpenShop") end)
+                for _,args in ipairs({{"GetFruits"},{"GetFruits",true},{"Shop","Open"},{"OpenShop"}}) do
+                    local ok=pcall(function() CommF_:InvokeServer(table.unpack(args)) end); opened=opened or ok
+                end
             end
+            local dealer
+            for _,obj in ipairs(workspace:GetDescendants()) do
+                if obj:IsA("Model") then
+                    local n=obj.Name:lower()
+                    if n:find("blox fruit dealer",1,true) or n=="fruit dealer" then dealer=obj; break end
+                end
+            end
+            opened=interactNPC(dealer) or opened
+            if AetherUI then AetherUI:Notify({Title="Blox Fruits Shop",Content=opened and "Shop request sent." or "Fruit Dealer was not found.",Duration=3}) end
         end)
 
         ---------------------------------------------------------
@@ -2200,6 +2262,21 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
 
         SettingsTab:CreateToggle("Infinity Jump", "SettingsInfinityJump", false, function(state)
             _G.Settings.Misc["Infinity Jump"] = state
+        end)
+
+        SettingsTab:CreateSection("Persistence")
+        SettingsTab:CreateToggle("Enable Settings Save", "SettingsSaveFlag", _G.Settings.Misc["Save Settings"], function(state)
+            _G.Settings.Misc["Save Settings"]=state
+            local ok=state and saveSettings() or true
+            if AetherUI and state then AetherUI:Notify({Title="Settings",Content=ok and "Configuration saved." or "File API unavailable.",Duration=3}) end
+        end)
+        SettingsTab:CreateButton("Save Current Configuration", function()
+            local ok=saveSettings()
+            if AetherUI then AetherUI:Notify({Title="Settings",Content=ok and "Toggles, dropdowns and sliders saved." or "Could not save configuration.",Duration=3}) end
+        end)
+        SettingsTab:CreateButton("Rejoin & Restore Saved Configuration", function()
+            saveSettings()
+            TeleportService:Teleport(game.PlaceId, LocalPlayer)
         end)
 
         SettingsTab:CreateSection("Hub Controls")
@@ -3299,58 +3376,111 @@ task.spawn(function()
 end)
 
 --------------------------------------------------------------------------------
--- 16. Chest & Boss Farm Standalone Loops
+-- 16. Advanced Boss / Chest / Cake / Dough Engine v3
 --------------------------------------------------------------------------------
-task.spawn(function()
-    while task.wait(0.2) do
-        if _G.Settings.SubFarm["Auto Chest Tween"] or _G.Settings.SubFarm["Auto Chest Instant"] then
-            pcall(function()
-                local char, hrp = GetCharacter()
-                if not char or not hrp then return end
-
-                local closestChest = nil
-                local shortestDist = math.huge
-                if workspace:FindFirstChild("ChestModels") then
-                    for _, v in pairs(workspace.ChestModels:GetChildren()) do
-                        if string.find(v.Name, "Chest") and v:FindFirstChild("RootPart") then
-                            local dist = (hrp.Position - v.RootPart.Position).Magnitude
-                            if dist < shortestDist then
-                                shortestDist = dist
-                                closestChest = v
-                            end
-                        end
-                    end
-                end
-
-                if closestChest then
-                    if _G.Settings.SubFarm["Auto Chest Instant"] then
-                        hrp.CFrame = closestChest.RootPart.CFrame
-                    else
-                        TweenPlayer(closestChest.RootPart.CFrame, Vector3.new(0, 3, 0))
-                    end
-                end
-            end)
+local BossFarmState={Target=nil,retryAt=0}
+local ChestFarmState={Target=nil,visited={},emptySince=0}
+local function anyPart(obj)
+    if not obj then return nil end
+    if obj:IsA("BasePart") then return obj end
+    if obj:IsA("Model") then return obj.PrimaryPart or obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("RootPart") or obj:FindFirstChildWhichIsA("BasePart",true) end
+end
+local function bossLocation(name)
+    return MobSpecificTeleports and MobSpecificTeleports[name]
+end
+local function findBossTarget()
+    local enemies=workspace:FindFirstChild("Enemies"); if not enemies then return nil end
+    local wanted=_G.Settings.Main["Selected Boss"]; local all=_G.Settings.Main["Auto Farm All Boss"]; local _,hrp=GetCharacter()
+    local best,dist=nil,math.huge
+    for _,m in ipairs(enemies:GetChildren()) do
+        if m:IsA("Model") and (all or m.Name==wanted) then
+            local h=m:FindFirstChildOfClass("Humanoid"); local r=anyPart(m)
+            if h and h.Health>0 and r then local d=hrp and (hrp.Position-r.Position).Magnitude or 0; if d<dist then best,dist=m,d end end
         end
+    end
+    return best
+end
+local function bossFarmStepV3()
+    local active=_G.Settings.Main["Auto Farm Boss"] or _G.Settings.Main["Auto Farm All Boss"]
+    if not active then BossFarmState.Target=nil; return end
+    local _,hrp,hum=GetCharacter(); if not hrp or not hum or hum.Health<=0 then return end
+    local target=BossFarmState.Target
+    local th=target and target:FindFirstChildOfClass("Humanoid"); local tr=target and anyPart(target)
+    if not target or not target.Parent or not th or th.Health<=0 or not tr then target=findBossTarget(); BossFarmState.Target=target; tr=target and anyPart(target) end
+    if target and tr then
+        AutoHaki()
+        local above=tr.Position+Vector3.new(0,math.max(25,tonumber(_G.Settings.Main["Farm Distance"]) or 28),0)
+        if (hrp.Position-above).Magnitude>12 then TweenPlayer(CFrame.lookAt(above,tr.Position),nil,"BossFarm") else pcall(function() hrp.CFrame=CFrame.lookAt(above,tr.Position); hrp.AssemblyLinearVelocity=Vector3.zero; hrp.AssemblyAngularVelocity=Vector3.zero end) end
+        SmartAttackMob(target); return
+    end
+    -- Keep polling spawn locations while waiting; late spawns are detected on the next scan.
+    if not _G.Settings.Main["Auto Farm All Boss"] then
+        local cf=bossLocation(_G.Settings.Main["Selected Boss"]); if cf and os.clock()-BossFarmState.retryAt>1 then BossFarmState.retryAt=os.clock(); TweenPlayer(cf,Vector3.new(0,20,0),"BossFarm") end
+    end
+end
+local function chestModelsV3()
+    local out,seen={},{}
+    local roots={workspace:FindFirstChild("ChestModels"),workspace:FindFirstChild("Map"),workspace:FindFirstChild("Locations")}
+    for _,rootObj in ipairs(roots) do
+        if rootObj then for _,obj in ipairs(rootObj:GetDescendants()) do
+            if obj:IsA("Model") and not seen[obj] and obj.Name:lower():find("chest",1,true) and anyPart(obj) then seen[obj]=true; table.insert(out,obj) end
+        end end
+    end
+    return out
+end
+local function chestFarmStepV3()
+    local active=_G.Settings.SubFarm["Auto Chest Tween"] or _G.Settings.SubFarm["Auto Chest Instant"]
+    if not active then ChestFarmState.Target=nil; return end
+    local _,hrp=GetCharacter(); if not hrp then return end
+    local target=ChestFarmState.Target
+    local function valid(c) return c and c.Parent and anyPart(c) and not ChestFarmState.visited[c:GetDebugId()] end
+    if not valid(target) then
+        target=nil; local best,dist=nil,math.huge
+        for _,c in ipairs(chestModelsV3()) do
+            local k=c:GetDebugId(); local part=anyPart(c)
+            if not ChestFarmState.visited[k] and part then local d=(hrp.Position-part.Position).Magnitude; if d<dist then best,dist=c,d end end
+        end
+        target=best; ChestFarmState.Target=target
+    end
+    if not target then
+        if ChestFarmState.emptySince==0 then ChestFarmState.emptySince=os.clock() elseif os.clock()-ChestFarmState.emptySince>3 then ChestFarmState.visited={}; ChestFarmState.emptySince=0 end
+        return
+    end
+    ChestFarmState.emptySince=0; local part=anyPart(target); local pos=part.Position+Vector3.new(0,3,0)
+    if (hrp.Position-pos).Magnitude>12 then
+        if _G.Settings.SubFarm["Auto Chest Instant"] then pcall(function() hrp.CFrame=CFrame.new(pos) end) else TweenPlayer(CFrame.new(pos),nil,"ChestFarm") end
+    else
+        pcall(function() hrp.CFrame=CFrame.new(pos); hrp.AssemblyLinearVelocity=Vector3.zero end)
+        ChestFarmState.visited[target:GetDebugId()]=true; ChestFarmState.Target=nil
+    end
+end
+
+task.spawn(function() while task.wait(0.12) do pcall(bossFarmStepV3) end end)
+task.spawn(function() while task.wait(0.15) do pcall(chestFarmStepV3) end end)
+-- Highest priority for spawned Cake Prince / Dough King; otherwise their existing preparation routines keep running.
+task.spawn(function()
+    while task.wait(0.12) do
+        pcall(function()
+            local enemies=workspace:FindFirstChild("Enemies")
+            if _G.Settings.Cake["Auto Kill Cake Prince"] then
+                local boss=enemies and enemies:FindFirstChild("Cake Prince")
+                if boss and boss:FindFirstChild("HumanoidRootPart") then
+                    integratedCakeStep()
+                else
+                    integratedCakeStep()
+                    pcall(integratedSummonCake)
+                end
+            elseif _G.Settings.Cake["Auto Spawn Cake Prince"] then
+                pcall(integratedSummonCake)
+            elseif _G.Settings.Cake["Auto Kill Dough King"] then
+                local boss=enemies and enemies:FindFirstChild("Dough King")
+                integratedDoughStep()
+                if boss and boss:FindFirstChild("HumanoidRootPart") then
+                    -- integratedDoughStep handles the active boss first.
+                end
+            end
+        end)
     end
 end)
 
-task.spawn(function()
-    while task.wait(0.1) do
-        if _G.Settings.Main["Auto Farm Boss"] or _G.Settings.Main["Auto Farm All Boss"] then
-            pcall(function()
-                local char, hrp, hum = GetCharacter()
-                if not char or not hrp or not hum then return end
-
-                local bTarget = _G.Settings.Main["Selected Boss"]
-                for _, v in pairs(workspace.Enemies:GetChildren()) do
-                    if (v.Name == bTarget or _G.Settings.Main["Auto Farm All Boss"]) and v:FindFirstChild("HumanoidRootPart") and v:FindFirstChildOfClass("Humanoid") and v.Humanoid.Health > 0 then
-                        AutoHaki()
-                        TweenPlayer(v.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
-                        SmartAttackMob(v)
-                        break
-                    end
-                end
-            end)
-        end
-    end
-end)
+task.spawn(function() while task.wait(10) do if _G.Settings.Misc["Save Settings"] then pcall(saveSettings) end end end)
