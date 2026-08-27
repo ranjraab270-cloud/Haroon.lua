@@ -474,6 +474,71 @@ end
 --------------------------------------------------------------------------------
 -- 6. Quests & Islands Database
 --------------------------------------------------------------------------------
+-- Update 28 / Submerged Island level route (Max 2800)
+local SUBMERGED_MAX_LEVEL = 2800
+local SubmergedQuests = {
+    {Min=2600, Max=2624, Mob="Reef Bandit", Quest="SubmergedQuest1", Level=1, Giver="Submerged Quest Giver 1"},
+    {Min=2625, Max=2649, Mob="Coral Pirate", Quest="SubmergedQuest1", Level=2, Giver="Submerged Quest Giver 1"},
+    {Min=2650, Max=2674, Mob="Sea Chanter", Quest="SubmergedQuest2", Level=1, Giver="Submerged Quest Giver 2"},
+    {Min=2675, Max=2699, Mob="Ocean Prophet", Quest="SubmergedQuest2", Level=2, Giver="Submerged Quest Giver 2"},
+    {Min=2700, Max=2800, Mob="Grand Devotee", Quest="SubmergedQuest3", Level=2, Giver="Submerged Quest Giver 3"},
+}
+local function BFGetLevel()
+    local data = LocalPlayer:FindFirstChild("Data") or LocalPlayer:FindFirstChild("leaderstats")
+    local lv = data and data:FindFirstChild("Level")
+    return tonumber(lv and lv.Value) or 0
+end
+local function BFFindSubmergedEnemy(name)
+    local enemies = workspace:FindFirstChild("Enemies")
+    if not enemies then return nil end
+    local best, bestDist = nil, math.huge
+    local _, hrp = GetCharacter()
+    for _, v in ipairs(enemies:GetChildren()) do
+        if v:IsA("Model") and v.Name == name then
+            local h = v:FindFirstChildOfClass("Humanoid")
+            local r = v:FindFirstChild("HumanoidRootPart") or v.PrimaryPart
+            if h and h.Health > 0 and r then
+                local d = hrp and (hrp.Position-r.Position).Magnitude or 0
+                if d < bestDist then best, bestDist = v, d end
+            end
+        end
+    end
+    return best
+end
+local function BFFindSubmergedQuest(desired)
+    local npc = workspace:FindFirstChild(desired, true)
+    if npc and npc:IsA("Model") then return npc end
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") and obj.Name:lower() == desired:lower() then return obj end
+    end
+end
+local function BFSubmergedStep()
+    local level = BFGetLevel()
+    if not World3 or level < 2600 or level >= SUBMERGED_MAX_LEVEL then return false end
+    local q
+    for _, data in ipairs(SubmergedQuests) do if level >= data.Min and level <= data.Max then q=data break end end
+    if not q then return false end
+    local char, hrp = GetCharacter()
+    if not char or not hrp then return true end
+    AutoHaki()
+    local mob = BFFindSubmergedEnemy(q.Mob)
+    if mob then SmartAttackMob(mob); return true end
+    local questGui = LocalPlayer.PlayerGui:FindFirstChild("Main") and LocalPlayer.PlayerGui.Main:FindFirstChild("Quest")
+    local title = questGui and questGui:FindFirstChild("Container") and questGui.Container:FindFirstChild("QuestTitle") and questGui.Container.QuestTitle:FindFirstChild("Title")
+    local active = title and title.Text:find(q.Mob, 1, true)
+    if not active then
+        local giver = BFFindSubmergedQuest(q.Giver)
+        local gp = giver and (giver:FindFirstChild("HumanoidRootPart") or giver.PrimaryPart)
+        if gp then
+            TweenPlayer(gp.CFrame, Vector3.new(0, 5, 0))
+            if (hrp.Position-gp.Position).Magnitude <= 25 and CommF_ then pcall(function() CommF_:InvokeServer("StartQuest", q.Quest, q.Level) end) end
+        end
+    elseif hrp.Position.Y > 0 then
+        hrp.CFrame = CFrame.new(hrp.Position.X, -18, hrp.Position.Z)
+    end
+    return true
+end
+
 local CurrentQuest = {
     Mon = "Bandit",
     LevelQuest = 1,
@@ -1126,6 +1191,9 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
             _G.Settings.Main["Auto Farm Level"] = state
             if not state then StopTween() end
         end)
+
+        MainTab:CreateSection("Update 28 • Submerged Island")
+        MainTab:CreateParagraph({Title="Max Level", Desc="2800 (MAX) | Submerged Island: Lv. 2600-2800 | Auto Farm Level uses this route automatically", Image="rbxassetid://6034453535", ImageSize=20})
 
         MainTab:CreateToggle("Include Boss Quests", "IncludeBossQuestFlag", false, function(state)
             _G.Settings.Main["Include Boss Quests"] = state
@@ -2215,6 +2283,7 @@ task.spawn(function()
                 local char, hrp, hum = GetCharacter()
                 if not char or not hrp or not hum or hum.Health <= 0 then return end
 
+                if BFSubmergedStep() then return end
                 CheckQuest()
                 AutoHaki()
 
