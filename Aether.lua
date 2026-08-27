@@ -159,9 +159,8 @@ _G.Settings = {
         ["Auto Farm Seabeasts"] = false,
         ["Dodge Seabeasts Attack"] = true,
         ["Auto Find Kitsune Island"] = false,
+        ["Auto Collect Blaze Ember"] = false,
         ["Teleport To Kitsune Island"] = false,
-        ["Auto Collect Azure Embers"] = false,
-        ["Auto Collect Azure Embers"] = false,
         ["Auto Prehistoric Island"] = false,
         ["Auto Complete Prehistoric Island"] = false,
         ["Auto Draco Trail"] = false,
@@ -228,6 +227,7 @@ _G.Settings = {
         ["MythicalScroll"] = false,
     },
     Misc = {
+        ["Auto Load Aether Hub"] = true,
         ["Anti AFK"] = false,
         ["Auto Ken (Buso Haki)"] = false,
         ["Set Team to Marines"] = false,
@@ -243,7 +243,6 @@ _G.Settings = {
         ["Jump Power"] = 50,
         ["Infinity Jump"] = false,
         ["Save Settings"] = false,
-        ["Auto Load Aether Hub"] = true,
     }
 }
 
@@ -511,7 +510,6 @@ end
 -- 6. Quests & Islands Database
 --------------------------------------------------------------------------------
 -- Update 28 / Submerged Island level route (Max 2800)
-local V24_MAX_LEVEL = 2800
 local SUBMERGED_MAX_LEVEL = 2800
 local SubmergedQuests = {
     {Min=2600, Max=2624, Mob="Reef Bandit", Quest="SubmergedQuest1", Level=1, Giver="Submerged Quest Giver 1"},
@@ -551,60 +549,28 @@ local function BFFindSubmergedQuest(desired)
 end
 local function BFSubmergedStep()
     local level = BFGetLevel()
-    if not World3 or level < 2600 then return false end
-    if level >= SUBMERGED_MAX_LEVEL then
-        -- Stop XP farming cleanly at the real max-level instead of looping an old quest.
-        return true
-    end
-
+    if not World3 or level < 2600 or level > SUBMERGED_MAX_LEVEL then return false end
+    if level >= SUBMERGED_MAX_LEVEL then return true end
     local q
-    for _, data in ipairs(SubmergedQuests) do
-        if level >= data.Min and level <= data.Max then
-            q = data
-            break
-        end
-    end
+    for _, data in ipairs(SubmergedQuests) do if level >= data.Min and level <= data.Max then q=data break end end
     if not q then return false end
-
-    local char, hrp, hum = GetCharacter()
-    if not char or not hrp or not hum or hum.Health <= 0 then return true end
-
+    local char, hrp = GetCharacter()
+    if not char or not hrp then return true end
     AutoHaki()
-
     local mob = BFFindSubmergedEnemy(q.Mob)
-    if mob then
-        SmartAttackMob(mob)
-        return true
-    end
-
+    if mob then SmartAttackMob(mob); return true end
     local questGui = LocalPlayer.PlayerGui:FindFirstChild("Main") and LocalPlayer.PlayerGui.Main:FindFirstChild("Quest")
-    local title = questGui and questGui:FindFirstChild("Container")
-        and questGui.Container:FindFirstChild("QuestTitle")
-        and questGui.Container.QuestTitle:FindFirstChild("Title")
-    local active = title and tostring(title.Text):find(q.Mob, 1, true)
-
+    local title = questGui and questGui:FindFirstChild("Container") and questGui.Container:FindFirstChild("QuestTitle") and questGui.Container.QuestTitle:FindFirstChild("Title")
+    local active = title and title.Text:find(q.Mob, 1, true)
     if not active then
         local giver = BFFindSubmergedQuest(q.Giver)
         local gp = giver and (giver:FindFirstChild("HumanoidRootPart") or giver.PrimaryPart)
         if gp then
-            if (hrp.Position - gp.Position).Magnitude > 28 then
-                TweenPlayer(gp.CFrame, Vector3.new(0, 5, 0), "SubmergedQuest")
-            else
-                if CommF_ then
-                    pcall(function()
-                        CommF_:InvokeServer("StartQuest", q.Quest, q.Level)
-                    end)
-                end
-            end
+            TweenPlayer(gp.CFrame, Vector3.new(0, 5, 0))
+            if (hrp.Position-gp.Position).Magnitude <= 25 and CommF_ then pcall(function() CommF_:InvokeServer("StartQuest", q.Quest, q.Level) end) end
         end
-    else
-        -- Submerged Island is underwater; avoid climbing above the ceiling.
-        if hrp.Position.Y > -2 then
-            pcall(function()
-                hrp.CFrame = CFrame.new(hrp.Position.X, -18, hrp.Position.Z)
-                hrp.AssemblyLinearVelocity = Vector3.zero
-            end)
-        end
+    elseif hrp.Position.Y > 0 then
+        hrp.CFrame = CFrame.new(hrp.Position.X, -18, hrp.Position.Z)
     end
     return true
 end
@@ -796,9 +762,16 @@ local function CheckQuest()
         elseif MyLevel <= 2474 then
             CurrentQuest = {Mon = "Isle Outlaw", LevelQuest = 1, NameQuest = "TikiQuest1", NameMon = "Isle Outlaw", CFrameQuest = CFrame.new(-16547.74, 61.13, -173.41), CFrameMon = CFrame.new(-16442.81, 116.13, -264.46)}
         elseif MyLevel <= 2524 then
-            CurrentQuest = {Mon = "Island Boy", LevelQuest = 2, NameQuest = "TikiQuest1", NameMon = "Island Boy", CFrameQuest = CFrame.new(-16547.74, 61.13, -173.41), CFrameMon = CFrame.new(-16901.26, 84.06, -192.88)}
+            CurrentQuest = {Mon = "Island Boy", LevelQuest = 2, NameQuest = "TikiQuest1", NameMon = "Island Boy", CFrameQuest = CFrame.new(-16547.748, 61.135, -173.414), CFrameMon = CFrame.new(-16901.262, 84.068, -192.889)}
+        elseif MyLevel <= 2549 then
+            CurrentQuest = {Mon = "Isle Champion", LevelQuest = 2, NameQuest = "TikiQuest2", NameMon = "Isle Champion", CFrameQuest = CFrame.new(-16539.078, 55.686, 1051.574), CFrameMon = CFrame.new(-16641.680, 235.783, 1031.283)}
+        elseif MyLevel <= 2574 then
+            CurrentQuest = {Mon = "Serpent Hunter", LevelQuest = 1, NameQuest = "TikiQuest3", NameMon = "Serpent Hunter", CFrameQuest = CFrame.new(-16665.191, 104.596, 1579.694), CFrameMon = CFrame.new(-16521.063, 106.093, 1488.784)}
+        elseif MyLevel <= 2599 then
+            CurrentQuest = {Mon = "Skull Slayer", LevelQuest = 2, NameQuest = "TikiQuest3", NameMon = "Skull Slayer", CFrameQuest = CFrame.new(-16665.191, 104.596, 1579.694), CFrameMon = CFrame.new(-16855.043, 122.457, 1478.153)}
         else
-            CurrentQuest = {Mon = "Skull Slayer", LevelQuest = 2, NameQuest = "TikiQuest3", NameMon = "Skull Slayer", CFrameQuest = CFrame.new(-16661.89, 105.28, 1576.69), CFrameMon = CFrame.new(-16885.20, 114.12, 1627.94)}
+            -- 2600+ is handled by the dedicated Submerged Island controller below.
+            CurrentQuest = {Mon = "Reef Bandit", LevelQuest = 1, NameQuest = "SubmergedQuest1", NameMon = "Reef Bandit", CFrameQuest = CFrame.new(-16150, -16, 1200), CFrameMon = CFrame.new(-16170, -16, 1260)}
         end
     end
 end
@@ -1211,81 +1184,27 @@ end)
 --------------------------------------------------------------------------------
 -- 7. AetherUI Framework Integration (100% Full English Interface)
 --------------------------------------------------------------------------------
-local AetherUI = rawget(getgenv(), "AetherUI") or rawget(_G, "AetherUI")
-local success_ui, err_ui = true, nil
-if not AetherUI then
-    success_ui, err_ui = pcall(function()
-        local source = game:HttpGet("https://pastebin.com/raw/yeULgMe0")
-        local loader = assert(loadstring(source))
-        return loader()
-    end)
-    if success_ui then AetherUI = err_ui end
-end
-
--- Native AetherUI V7 uses SetContent; keep every legacy Hub caller compatible.
-do
-    local originalCreateWindow = AetherUI and AetherUI.CreateWindow
-    if type(originalCreateWindow) == "function" and not AetherUI.__HaroonV24ParagraphPatch then
-        AetherUI.__HaroonV24ParagraphPatch = true
-        function AetherUI:CreateWindow(...)
-            local window = originalCreateWindow(self, ...)
-            if not window or type(window.CreateTab) ~= "function" then return window end
-            local originalCreateTab = window.CreateTab
-            function window:CreateTab(...)
-                local tab = originalCreateTab(self, ...)
-                if not tab or type(tab.CreateParagraph) ~= "function" then return tab end
-                local originalCreateParagraph = tab.CreateParagraph
-                function tab:CreateParagraph(config)
-                    config = config or {}
-                    if config.Content == nil then
-                        config.Content = config.Desc or config.Description or config.Text or config.text or config.Lines or config.lines or config.Texts or config.texts or "No information available."
-                    end
-                    if type(config.Content) == "table" then
-                        local lines = {}
-                        for _, v in ipairs(config.Content) do lines[#lines+1] = tostring(v) end
-                        config.Content = table.concat(lines, "\n")
-                    end
-                    local paragraph = originalCreateParagraph(self, config)
-                    if type(paragraph) == "table" and type(paragraph.SetContent) == "function" then
-                        local native = paragraph.SetContent
-                        paragraph.SetDesc = paragraph.SetDesc or function(self, v) return native(self, tostring(v or "")) end
-                        paragraph.SetDescription = paragraph.SetDescription or paragraph.SetDesc
-                        paragraph.Update = paragraph.Update or paragraph.SetDesc
-                        paragraph.Set = paragraph.Set or paragraph.SetDesc
-                        paragraph.SetText = paragraph.SetText or paragraph.SetDesc
-                        paragraph.SetStatus = paragraph.SetStatus or paragraph.SetDesc
-                        paragraph.SetLines = paragraph.SetLines or function(self, list)
-                            local lines = {}
-                            if type(list) == "table" then for _, v in ipairs(list) do lines[#lines+1]=tostring(v) end else lines[1]=tostring(list or "") end
-                            return native(self, table.concat(lines, "\n"))
-                        end
-                    end
-                    return paragraph
-                end
-                return tab
-            end
-            return window
-        end
+local AETHER_LIBRARY_URL = "https://pastebin.com/raw/yeULgMe0"
+local AetherUI = nil
+local function loadAetherLibrary()
+    local existing = game:GetService("CoreGui"):FindFirstChild("AetherUI_Notifs")
+    if existing and getgenv().AetherUI then return getgenv().AetherUI end
+    local ok, lib = pcall(function() return loadstring(game:HttpGet(AETHER_LIBRARY_URL))() end)
+    if ok and lib then
+        AetherUI = lib
+        getgenv().AetherUI = lib
+        return lib
     end
+    return nil
 end
+local AetherUI = loadAetherLibrary()
+local success_ui = AetherUI ~= nil
+local err_ui = success_ui and nil or "AetherUI load failed"
 
 if not success_ui or not AetherUI then
-    warn("Haroon Hub: Failed to load AetherUI library. Error:", tostring(err_ui))
+    warn("Haroon Hub: Failed to load AetherUI library. Error:", err_ui)
     return
 end
-getgenv().AetherUI = AetherUI
-
-local function HaroonNotify(title, content, duration)
-    if not AetherUI then return end
-    pcall(function()
-        AetherUI:Notify({
-            Title = tostring(title or "Haroon Hub"),
-            Content = tostring(content or ""),
-            Duration = tonumber(duration) or 4
-        })
-    end)
-end
-
 
 AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Modules & Auto Engines...", function()
     AetherUI:InitKeySystem({"HAROON-2025-VIP", "HAROON-KEY-100"}, function()
@@ -1326,7 +1245,7 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
         end)
 
         MainTab:CreateSection("Update 28 • Submerged Island")
-        MainTab:CreateParagraph({Title="Max Level", Content="2800 (MAX) | Full route Lv. 1 → 2800 | Submerged Island: Lv. 2600-2800", Image="rbxassetid://6034453535", ImageSize=20})
+        MainTab:CreateParagraph({Title="Max Level", Desc="2800 (MAX) | Tiki Outpost: 2450-2600 | Submerged Island: 2600-2800 | Auto Farm Level route updated", Image="rbxassetid://6034453535", ImageSize=20})
 
         MainTab:CreateToggle("Include Boss Quests", "IncludeBossQuestFlag", false, function(state)
             _G.Settings.Main["Include Boss Quests"] = state
@@ -1678,6 +1597,10 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
             if not state then StopTween() end
         end)
 
+        SeaTab:CreateToggle("Auto Collect Azure Embers", "AutoCollectAzureEmberFlag", false, function(state)
+            _G.Settings.Sea["Auto Collect Blaze Ember"] = state
+        end)
+
         SeaTab:CreateToggle("Auto Find Kitsune Island", "AutoFindKitsuneIslandFlag", false, function(state)
             _G.Settings.Sea["Auto Find Kitsune Island"] = state
             if not state then StopTween("Kitsune") end
@@ -1699,11 +1622,6 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
         SeaTab:CreateToggle("Teleport To Kitsune (Auto)", "TeleportToKitsuneFlag", false, function(state)
             _G.Settings.Sea["Teleport To Kitsune Island"] = state
             if not state then StopTween("KitsuneTP") end
-        end)
-
-        SeaTab:CreateToggle("Auto Collect Azure Embers", "AutoAzureEmberFlag", false, function(state)
-            _G.Settings.Sea["Auto Collect Azure Embers"] = state
-            if not state then StopTween("KitsuneEmber") end
         end)
 
         ---------------------------------------------------------
@@ -1907,30 +1825,33 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
             return false
         end
         local function rollFruitOnce()
-            local result=nil; local ok=false
-            if CommF_ then ok,result=pcall(function() return CommF_:InvokeServer("Cousin","Buy") end) end
-            if not ok or result==nil then
-                interactNPC(findFruitGachaNPC())
-                if CommF_ then pcall(function() CommF_:InvokeServer("Cousin","Buy") end) end
+            local success=false
+            if CommF_ then
+                for _,args in ipairs({{"Cousin","Buy"},{"Cousin","Buy","Random"},{"Gacha","Buy"},{"BloxFruitGacha","Buy"}}) do
+                    local ok=pcall(function() CommF_:InvokeServer(table.unpack(args)) end)
+                    success=success or ok
+                end
             end
-            HaroonNotify("🍎 Fruit Gacha", tostring(result or "Roll request sent"), 3)
-            return ok
+            local npc=findFruitGachaNPC()
+            if npc and interactNPC(npc) then success=true end
+            if AetherUI then pcall(function() AetherUI:Notify({Title="Fruit Gacha",Content=success and "Roll request sent." or "Gacha interaction failed.",Duration=3}) end) end
+            return success
         end
         FruitsTab:CreateButton("Roll Fruit Once (Blox Fruit Gacha)", function() rollFruitOnce() end)
-        FruitsTab:CreateToggle("Auto Roll Fruit (Loop)", "AutoRollFruitFlag", _G.Settings.Fruits["Auto Roll Fruit"], function(state)
-            _G.Settings.Fruits["Auto Roll Fruit"]=state
-            local token=os.clock(); getgenv().HaroonFruitRollToken=token
-            if state then task.spawn(function() while _G.Settings.Fruits["Auto Roll Fruit"] and getgenv().HaroonFruitRollToken==token do pcall(rollFruitOnce); task.wait(3) end end) end
-        end)
-
-        FruitsTab:CreateToggle("Fruit Notifier (ESP)", "FruitESPFlag", false, function(state)
-            _G.Settings.Fruits["Fruit ESP"] = state
-            _G.Settings.Visuals["ESP Fruits"] = state
-        end)
-
-        FruitsTab:CreateToggle("Fruit Sniper (Tween to Fruit)", "FruitSniperFlag", false, function(state)
-            _G.Settings.Fruits["Fruit Sniper"] = state
-            if not state then StopTween() end
+        FruitsTab:CreateToggle("Auto Roll Fruit (Loop)", "AutoRollFruitFlag", false, function(state)
+            _G.Settings.Fruits["Auto Roll Fruit"] = state
+            if state then
+                local token=os.clock()
+                getgenv().HaroonAutoRollToken=token
+                task.spawn(function()
+                    while _G.Settings.Fruits["Auto Roll Fruit"] and getgenv().HaroonAutoRollToken==token do
+                        pcall(rollFruitOnce)
+                        task.wait(3)
+                    end
+                end)
+            else
+                getgenv().HaroonAutoRollToken=nil
+            end
         end)
 
         FruitsTab:CreateToggle("Auto Store Fruit", "AutoStoreFruitFlag", _G.Settings.Fruits["Auto Store Fruit"], function(state)
@@ -1970,24 +1891,24 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
         FruitsTab:CreateButton("Open Blox Fruits Shop", function()
             local opened=false
             if CommF_ then
-                for _,args in ipairs({{"GetFruits"},{"GetFruits",true},{"Shop","Open"},{"OpenShop"}}) do
-                    local ok=pcall(function() CommF_:InvokeServer(table.unpack(args)) end); opened=opened or ok
+                for _,args in ipairs({{"GetFruits"},{"GetFruits",true},{"Shop","Open"},{"OpenShop"},{"FruitShop","Open"}}) do
+                    local ok=pcall(function() CommF_:InvokeServer(table.unpack(args)) end)
+                    opened=opened or ok
                 end
             end
-            local dealer
-            for _,obj in ipairs(workspace:GetDescendants()) do
-                if obj:IsA("Model") then
-                    local n=obj.Name:lower()
-                    if n:find("blox fruit dealer",1,true) or n=="fruit dealer" then dealer=obj; break end
+            local names={"Blox Fruit Dealer","Blox Fruit Dealer Cousin","Advanced Fruit Dealer","Zioles","Blox Fruit Gacha"}
+            for _,n in ipairs(names) do
+                local npc=workspace:FindFirstChild(n,true)
+                if npc then
+                    local prompt=npc:FindFirstChildWhichIsA("ProximityPrompt",true)
+                    local click=npc:FindFirstChildWhichIsA("ClickDetector",true)
+                    if prompt and fireproximityprompt then pcall(function() fireproximityprompt(prompt,1) end); opened=true end
+                    if click and fireclickdetector then pcall(function() fireclickdetector(click) end); opened=true end
                 end
             end
-            opened=interactNPC(dealer) or opened
-            if AetherUI then AetherUI:Notify({Title="Blox Fruits Shop",Content=opened and "Shop request sent." or "Fruit Dealer was not found.",Duration=3}) end
+            if AetherUI then pcall(function() AetherUI:Notify({Title="Blox Fruits Shop", Content=opened and "Shop interaction sent." or "Fruit Dealer could not be located.", Duration=3}) end) end
         end)
 
-        ---------------------------------------------------------
-        -- 📌 10. TAB: DRAGON DOJO
-        ---------------------------------------------------------
         DragonDojoTab:CreateSection("Blaze Ember & Dojo Collector")
 
         DragonDojoTab:CreateToggle("Auto Farm Blaze Ember", "FarmBlazeEmberFlag", false, function(state)
@@ -2158,69 +2079,39 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
 
         MiscTab:CreateSection("Live Server & World Status")
 
-        local function UpdateParagraph(paragraph, description, titleText)
-            description = (type(description) == "table" and table.concat((function() local t={} for _,v in ipairs(description) do t[#t+1]=tostring(v) end return t end)(), "\n")) or tostring(description or "")
+        local function UpdateParagraph(paragraph, description)
+            if not paragraph then return false end
             local text = tostring(description or "")
-            if paragraph then
-                local methods = {"SetContent", "SetDesc", "SetDescription", "Update", "Set"}
-                for _, methodName in ipairs(methods) do
-                    local method = nil
-                    pcall(function() method = paragraph[methodName] end)
+            local methods = {"SetDesc", "SetDescription", "SetContent", "SetText", "Update", "Set"}
+            for _, methodName in ipairs(methods) do
+                local ok = pcall(function()
+                    local method = paragraph[methodName]
                     if type(method) == "function" then
-                        local ok1 = pcall(function() method(paragraph, text) end)
-                        local ok2 = ok1 or pcall(function() method(text) end)
-                        if ok2 then return true end
+                        method(paragraph, text)
+                    else
+                        error("missing")
                     end
-                end
-            end
-
-            -- AetherUI paragraph implementations differ between builds.
-            -- Fallback: locate the paragraph by its title and update the description TextLabel directly.
-            if titleText then
-                local roots = {}
-                local ok, hui = pcall(function() return gethui and gethui() end)
-                if ok and hui then table.insert(roots, hui) end
-                table.insert(roots, game:GetService("CoreGui"))
-                table.insert(roots, LocalPlayer:FindFirstChild("PlayerGui"))
-                for _, rootGui in ipairs(roots) do
-                    if rootGui then
-                        for _, node in ipairs(rootGui:GetDescendants()) do
-                            if node:IsA("TextLabel") and tostring(node.Text) == tostring(titleText) then
-                                local holder = node.Parent
-                                if holder then
-                                    for _, d in ipairs(holder:GetDescendants()) do
-                                        if d:IsA("TextLabel") and d ~= node then
-                                            local name = tostring(d.Name):lower()
-                                            if name:find("desc", 1, true) or name:find("description", 1, true) then
-                                                d.Text = text
-                                                return true
-                                            end
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
+                end)
+                if ok then return true end
             end
             return false
         end
 
-        local SessionTimePara = MiscTab:CreateParagraph({Title="Session Time", Content="00:00:00", Image="rbxassetid://6034287594", ImageSize=20})
-        local ServerTimePara = MiscTab:CreateParagraph({Title="Server Uptime", Content="00:00:00", Image="rbxassetid://6034287594", ImageSize=20})
-        local AFKTimePara = MiscTab:CreateParagraph({Title="AFK / Idle Time", Content="00:00:00", Image="rbxassetid://6034287594", ImageSize=20})
-        local TimezonePara = MiscTab:CreateParagraph({Title="Time", Content="Local: --:--:-- | UTC: --:--:--", Image="rbxassetid://6034287594", ImageSize=20})
-        local SeaIslandPara = MiscTab:CreateParagraph({Title="Location & Sea", Content="Sea: Detecting... | Island: Detecting...", Image="rbxassetid://6034453535", ImageSize=20})
-        local StatsPara = MiscTab:CreateParagraph({Title="Player Stats & Currency", Content="Level: -- | Beli: -- | Fragments: --", Image="rbxassetid://6031280882", ImageSize=20})
-        local ServerInfoPara = MiscTab:CreateParagraph({Title="Server", Content="Players: 0/0 | Server Time: 00:00:00", Image="rbxassetid://6034287594", ImageSize=20})
-        local CakePrincePara = MiscTab:CreateParagraph({Title="Cake Prince", Content="🔴 Not Spawned | Progress: 0/500 | Remaining: 500", Image="rbxassetid://6034834832", ImageSize=20})
-        local DoughKingPara = MiscTab:CreateParagraph({Title="Dough King", Content="🔴 Not Spawned | Progress: 0/500 | Remaining: 500 | Sweet Chalice: ❌", Image="rbxassetid://6034834832", ImageSize=20})
-        local MiragePara = MiscTab:CreateParagraph({Title="Mirage Status", Content="🔴 Not Spawned", Image="rbxassetid://6034453535", ImageSize=20})
-        local KitsunePara = MiscTab:CreateParagraph({Title="Kitsune Status", Content="🔴 Not Spawned", Image="rbxassetid://6034453535", ImageSize=20})
-        local SeaEventPara = MiscTab:CreateParagraph({Title="Sea Events", Content="No active sea events detected.", Image="rbxassetid://6034453535", ImageSize=20})
-        local ElitePara = MiscTab:CreateParagraph({Title="Elite Hunters Killed", Content="N/A", Image="rbxassetid://6034834832", ImageSize=20})
-        local SwordPara = MiscTab:CreateParagraph({Title="Legendary Swords Owned", Content="0 / 3", Image="rbxassetid://6034834832", ImageSize=20})
-        local NetworkPara = MiscTab:CreateParagraph({Title="Network", Content="FPS: -- | Ping: -- ms", Image="rbxassetid://6031280882", ImageSize=20})
+        local SessionTimePara = MiscTab:CreateParagraph({Title="Session Time", Desc="00:00:00", Image="rbxassetid://6034287594", ImageSize=20})
+        local ServerTimePara = MiscTab:CreateParagraph({Title="Server Uptime", Desc="00:00:00", Image="rbxassetid://6034287594", ImageSize=20})
+        local AFKTimePara = MiscTab:CreateParagraph({Title="AFK / Idle Time", Desc="00:00:00", Image="rbxassetid://6034287594", ImageSize=20})
+        local TimezonePara = MiscTab:CreateParagraph({Title="Time", Desc="Local: --:--:-- | UTC: --:--:--", Image="rbxassetid://6034287594", ImageSize=20})
+        local SeaIslandPara = MiscTab:CreateParagraph({Title="Location & Sea", Desc="Sea: Detecting... | Island: Detecting...", Image="rbxassetid://6034453535", ImageSize=20})
+        local StatsPara = MiscTab:CreateParagraph({Title="Player Stats & Currency", Desc="Level: -- | Beli: -- | Fragments: --", Image="rbxassetid://6031280882", ImageSize=20})
+        local ServerInfoPara = MiscTab:CreateParagraph({Title="Server", Desc="Players: 0/0 | Server Time: 00:00:00", Image="rbxassetid://6034287594", ImageSize=20})
+        local CakePrincePara = MiscTab:CreateParagraph({Title="Cake Prince", Desc="🔴 Not Spawned | Progress: 0/500 | Remaining: 500", Image="rbxassetid://6034834832", ImageSize=20})
+        local DoughKingPara = MiscTab:CreateParagraph({Title="Dough King", Desc="🔴 Not Spawned | Progress: 0/500 | Remaining: 500 | Sweet Chalice: ❌", Image="rbxassetid://6034834832", ImageSize=20})
+        local MiragePara = MiscTab:CreateParagraph({Title="Mirage Status", Desc="🔴 Not Spawned", Image="rbxassetid://6034453535", ImageSize=20})
+        local KitsunePara = MiscTab:CreateParagraph({Title="Kitsune Status", Desc="🔴 Not Spawned", Image="rbxassetid://6034453535", ImageSize=20})
+        local SeaEventPara = MiscTab:CreateParagraph({Title="Sea Events", Desc="No active sea events detected.", Image="rbxassetid://6034453535", ImageSize=20})
+        local ElitePara = MiscTab:CreateParagraph({Title="Elite Hunters Killed", Desc="N/A", Image="rbxassetid://6034834832", ImageSize=20})
+        local SwordPara = MiscTab:CreateParagraph({Title="Legendary Swords Owned", Desc="0 / 3", Image="rbxassetid://6034834832", ImageSize=20})
+        local NetworkPara = MiscTab:CreateParagraph({Title="Network", Desc="FPS: -- | Ping: -- ms", Image="rbxassetid://6031280882", ImageSize=20})
 
         local uiStartClock = os.clock()
         local lastInputClock = os.clock()
@@ -2263,10 +2154,10 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
                     local sessionElapsed = os.clock() - uiStartClock
                     local serverElapsed = liveServerElapsed()
                     local afkElapsed = os.clock() - lastInputClock
-                    UpdateParagraph(SessionTimePara, fmtHMS(sessionElapsed), "Session Time")
-                    UpdateParagraph(ServerTimePara, "Uptime: " .. fmtHMS(serverElapsed) .. " | Clock: " .. os.date("%H:%M:%S"), "Server Uptime")
-                    UpdateParagraph(AFKTimePara, "Idle: " .. fmtHMS(afkElapsed) .. (afkElapsed >= 60 and " | AFK" or ""), "AFK / Idle Time")
-                    UpdateParagraph(TimezonePara, "Local: " .. os.date("%H:%M:%S") .. " | UTC: " .. os.date("!%H:%M:%S"), "Time")
+                    UpdateParagraph(SessionTimePara, fmtHMS(sessionElapsed))
+                    UpdateParagraph(ServerTimePara, "Uptime: " .. fmtHMS(serverElapsed) .. " | Clock: " .. os.date("%H:%M:%S"))
+                    UpdateParagraph(AFKTimePara, "Idle: " .. fmtHMS(afkElapsed) .. (afkElapsed >= 60 and " | AFK" or ""))
+                    UpdateParagraph(TimezonePara, "Local: " .. os.date("%H:%M:%S") .. " | UTC: " .. os.date("!%H:%M:%S"))
 
                     local currentSeaName = World1 and "First Sea" or (World2 and "Second Sea" or (World3 and "Third Sea" or "Unknown"))
                     local islandText = "Unknown"
@@ -2275,34 +2166,45 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
                         local mi = GetMirageIsland(); local ki = GetKitsuneIsland()
                         if mi then islandText = "Mirage Island" elseif ki then islandText = "Kitsune Island" end
                     end
-                    UpdateParagraph(SeaIslandPara, "Sea: " .. currentSeaName .. " | Island/Event: " .. islandText, "Location & Sea")
+                    UpdateParagraph(SeaIslandPara, "Sea: " .. currentSeaName .. " | Island/Event: " .. islandText)
 
                     local level = stats and stats:FindFirstChild("Level") and stats.Level.Value or "N/A"
                     local beli = stats and stats:FindFirstChild("Beli") and stats.Beli.Value or "N/A"
                     local frags = stats and stats:FindFirstChild("Fragments") and stats.Fragments.Value or "N/A"
-                    UpdateParagraph(StatsPara, "Level: " .. tostring(level) .. " | Beli: " .. tostring(beli) .. " | Fragments: " .. tostring(frags), "Player Stats & Currency")
+                    UpdateParagraph(StatsPara, "Level: " .. tostring(level) .. " | Beli: " .. tostring(beli) .. " | Fragments: " .. tostring(frags))
 
                     local pCount = #Players:GetPlayers()
-                    UpdateParagraph(ServerInfoPara, "Players: " .. pCount .. "/" .. tostring(Players.MaxPlayers) .. " | Server: " .. fmtHMS(serverElapsed), "Server")
+                    UpdateParagraph(ServerInfoPara, "Players: " .. pCount .. "/" .. tostring(Players.MaxPlayers) .. " | Server: " .. fmtHMS(serverElapsed))
 
                     local princeResult = "🔴 Not Spawned | Progress: 0/500 | Remaining: 500"
                     pcall(function() princeResult=getCakePrinceProgressIntegrated() end)
-                    pcall(function() UpdateParagraph(CakePrincePara, princeResult, "Cake Prince") end)
+                    pcall(function() UpdateParagraph(CakePrincePara, princeResult) end)
                     local doughText="🔴 Not Spawned | Progress: 0/500 | Remaining: 500 | Sweet Chalice: ❌"
                     pcall(function() doughText=getDoughKingStatusText() end)
-                    pcall(function() UpdateParagraph(DoughKingPara, doughText, "Dough King") end)
+                    pcall(function() UpdateParagraph(DoughKingPara, doughText) end)
 
                     local mirage=GetMirageIsland()
                     local kitsune=GetKitsuneIsland()
-                    pcall(function() UpdateParagraph(MiragePara, mirage and "🟢 Spawned" or "🔴 Not Spawned", "Mirage Status") end)
-                    pcall(function() UpdateParagraph(KitsunePara, kitsune and "🟢 Spawned" or "🔴 Not Spawned", "Kitsune Status") end)
+                    pcall(function() UpdateParagraph(MiragePara, mirage and "🟢 Spawned" or "🔴 Not Spawned") end)
+                    pcall(function() UpdateParagraph(KitsunePara, kitsune and "🟢 Spawned" or "🔴 Not Spawned") end)
 
                     local counts = {}
                     pcall(function() counts=getSeaEventCounts() or {} end)
+                    local signatureParts={}
+                    for name,count in pairs(counts) do table.insert(signatureParts,name..":"..tostring(count)) end
+                    table.sort(signatureParts)
+                    local eventSignature=table.concat(signatureParts,"|")
+                    local prevSignature=getgenv().HaroonSeaEventSignature
+                    if eventSignature ~= prevSignature and eventSignature ~= "" then
+                        getgenv().HaroonSeaEventSignature=eventSignature
+                        if AetherUI then pcall(function() AetherUI:Notify({Title="🌊 Sea Event",Content="New sea event detected: "..eventSignature,Duration=4}) end) end
+                    elseif eventSignature ~= prevSignature then
+                        getgenv().HaroonSeaEventSignature=eventSignature
+                    end
                     local active = {}
                     for name, count in pairs(counts) do table.insert(active, name .. " x" .. count) end
                     table.sort(active)
-                    UpdateParagraph(SeaEventPara, #active > 0 and table.concat(active, " | ") or "🔴 No active Sea Events", "Sea Events")
+                    UpdateParagraph(SeaEventPara, #active > 0 and table.concat(active, " | ") or "🔴 No active Sea Events")
 
                     local ek = "N/A"
                     if stats then
@@ -2310,17 +2212,17 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
                             if v.Name:lower():find("elite") then ek = tostring(v.Value) break end
                         end
                     end
-                    UpdateParagraph(ElitePara, ek, "Elite Hunters Killed")
+                    UpdateParagraph(ElitePara, ek)
                     local swords = 0
                     local bp = LocalPlayer:FindFirstChildOfClass("Backpack"); local c = LocalPlayer.Character
                     for _, name in ipairs({"Shisui", "Saddi", "Wando"}) do
                         if (bp and bp:FindFirstChild(name)) or (c and c:FindFirstChild(name)) then swords += 1 end
                     end
-                    UpdateParagraph(SwordPara, swords .. " / 3", "Legendary Swords Owned")
+                    UpdateParagraph(SwordPara, swords .. " / 3")
                     local fps = math.floor(getgenv().HaroonFPS or 0)
                     local ping = 0
                     pcall(function() ping = math.floor(game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue()) end)
-                    UpdateParagraph(NetworkPara, "FPS: " .. tostring(fps) .. " | Ping: " .. tostring(ping) .. " ms", "Network")
+                    UpdateParagraph(NetworkPara, "FPS: " .. tostring(fps) .. " | Ping: " .. tostring(ping) .. " ms")
                 end)
             end
         end)
@@ -2402,24 +2304,18 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
             _G.Settings.Misc["Infinity Jump"] = state
         end)
 
-        SettingsTab:CreateSection("AetherUI / Hub Loader")
-SettingsTab:CreateToggle("Auto Load Aether Hub", "AutoLoadAetherFlag", _G.Settings.Misc["Auto Load Aether Hub"] == true, function(state)
-    _G.Settings.Misc["Auto Load Aether Hub"] = state
-    if state and not getgenv().AetherUI then
-        local ok, obj = pcall(function()
-            local fn = loadstring(game:HttpGet("https://pastebin.com/raw/yeULgMe0"))
-            return type(fn)=="function" and fn() or nil
+        SettingsTab:CreateSection("Aether Hub Loader")
+        SettingsTab:CreateToggle("Auto Load Aether Hub", "AutoLoadAetherHubFlag", true, function(state)
+            _G.Settings.Misc["Auto Load Aether Hub"] = state
         end)
-        if ok and obj then
-            getgenv().AetherUI = obj
-            HaroonNotify("AetherUI", "Aether Hub loaded successfully.", 4)
-        else
-            HaroonNotify("AetherUI", "Failed to load Aether Hub.", 5)
-        end
-    end
-end)
+        SettingsTab:CreateButton("Reload AetherUI Library", function()
+            if _G.Settings.Misc["Auto Load Aether Hub"] then
+                local ok, lib = pcall(function() return loadstring(game:HttpGet(AETHER_LIBRARY_URL))() end)
+                if AetherUI then pcall(function() AetherUI:Notify({Title="AetherUI", Content=ok and "Library reloaded successfully." or "Library reload failed.", Duration=3}) end) end
+            end
+        end)
 
-SettingsTab:CreateSection("Persistence")
+        SettingsTab:CreateSection("Persistence")
         SettingsTab:CreateToggle("Enable Settings Save", "SettingsSaveFlag", _G.Settings.Misc["Save Settings"], function(state)
             _G.Settings.Misc["Save Settings"]=state
             local ok=state and saveSettings() or true
@@ -2487,8 +2383,6 @@ local function applyMovementSettings()
         hum.JumpPower = defaults.JumpPower
         hum.JumpHeight = defaults.JumpHeight
     end
-end
-
 LocalPlayer.CharacterAdded:Connect(function(char)
     task.wait(0.5)
     local hum = char:FindFirstChildOfClass("Humanoid")
@@ -2903,18 +2797,32 @@ function GetMirageIsland()
     if not World3 then return nil end
     local map = workspace:FindFirstChild("Map")
     local locations = getLocationsFolder()
-    return (map and (map:FindFirstChild("MysticIsland") or map:FindFirstChild("Mirage Island", true)))
+    local direct=(map and (map:FindFirstChild("MysticIsland") or map:FindFirstChild("Mirage Island", true)))
         or (locations and (locations:FindFirstChild("Mirage Island") or locations:FindFirstChild("MysticIsland")))
         or workspace:FindFirstChild("MysticIsland")
+    if direct then return direct end
+    for _,obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") then
+            local n=obj.Name:lower()
+            if n=="mysticisland" or n=="mirage island" then return obj end
+        end
+    end
 end
 
 function GetKitsuneIsland()
     if not World3 then return nil end
     local map = workspace:FindFirstChild("Map")
     local locations = getLocationsFolder()
-    return (map and (map:FindFirstChild("KitsuneIsland") or map:FindFirstChild("Kitsune Island", true)))
+    local direct=(map and (map:FindFirstChild("KitsuneIsland") or map:FindFirstChild("Kitsune Island", true)))
         or (locations and (locations:FindFirstChild("Kitsune Island") or locations:FindFirstChild("KitsuneIsland")))
         or workspace:FindFirstChild("KitsuneIsland")
+    if direct then return direct end
+    for _,obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") then
+            local n=obj.Name:lower()
+            if n=="kitsuneisland" or n=="kitsune island" then return obj end
+        end
+    end
 end
 
 local function isNightTime()
@@ -2953,32 +2861,49 @@ end
 
 local function findAzureEmbers()
     local found, seen = {}, {}
-    local roots = {workspace:FindFirstChild("Map"), getLocationsFolder(), workspace:FindFirstChild("Effects"), workspace:FindFirstChild("Enemies")}
-    local function consider(obj)
-        if not obj or seen[obj] then return end
-        local n = tostring(obj.Name):lower()
-        if (n:find("azure", 1, true) and (n:find("ember", 1, true) or n:find("flame", 1, true)))
-            or n == "azureember" or n == "azure ember" then
-            seen[obj] = true
-            table.insert(found, obj)
-        end
-    end
+    local roots = {
+        workspace:FindFirstChild("Map"),
+        getLocationsFolder(),
+        workspace:FindFirstChild("Locations"),
+        workspace:FindFirstChild("Effects"),
+        workspace:FindFirstChild("Enemies"),
+        workspace
+    }
     for _, rootObj in ipairs(roots) do
         if rootObj then
-            for _, obj in ipairs(rootObj:GetDescendants()) do consider(obj) end
-        end
-    end
-    -- Fallback to a bounded workspace scan for transient event objects.
-    local count = 0
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        local n = tostring(obj.Name):lower()
-        if n:find("azure",1,true) and n:find("ember",1,true) then
-            consider(obj)
-            count += 1
-            if count >= 80 then break end
+            for _, obj in ipairs(rootObj:GetDescendants()) do
+                if not seen[obj] then
+                    local n = tostring(obj.Name):lower():gsub("%s+", "")
+                    if (n:find("azureember", 1, true) or n:find("azureembers", 1, true))
+                        and (obj:IsA("BasePart") or obj:IsA("Model") or obj:IsA("Tool")) then
+                        seen[obj] = true
+                        table.insert(found, obj)
+                    end
+                end
+            end
         end
     end
     return found
+end
+
+local function collectObject(obj, owner)
+    if not obj or not obj.Parent then return false end
+    local prompt = obj:IsA("ProximityPrompt") and obj or obj:FindFirstChildWhichIsA("ProximityPrompt", true)
+    if prompt and fireproximityprompt then
+        pcall(function() fireproximityprompt(prompt, 1) end)
+        return true
+    end
+    local click = obj:IsA("ClickDetector") and obj or obj:FindFirstChildWhichIsA("ClickDetector", true)
+    if click and fireclickdetector then
+        pcall(function() fireclickdetector(click) end)
+        return true
+    end
+    local cf = GetModelCFrame(obj)
+    if cf then
+        TweenPlayer(cf, Vector3.new(0, 3, 0), owner or "Collector")
+        return true
+    end
+    return false
 end
 
 function GetModelCFrame(obj)
@@ -3065,35 +2990,27 @@ local KitsuneDanger6Point = ZoneCFrames["Zone 6"] or CFrame.new(-44542, 31, -124
 local MirageRouteIndex = 1
 local MirageLastMove = 0
 local KitsuneLastMove = 0
-local LastMirageSpawned = false
-local LastKitsuneSpawned = false
-local LastEmberCount = -1
 
 local function moveBoatSmart(boat, targetCF)
+    if not boat or not targetCF then return false end
     local seat = getBoatSeat(boat)
-    if not seat then return false end
     local char, hrp, hum = GetCharacter()
+    if not seat or not hrp then return false end
     if hum and not hum.Sit then
         pcall(function() hrp.CFrame = seat.CFrame * CFrame.new(0, 2.5, 0) end)
+        pcall(function() seat:Sit(hum) end)
         return false
     end
-    local target = Vector3.new(targetCF.Position.X, math.max(25, targetCF.Position.Y), targetCF.Position.Z)
-    local current = seat.Position
-    local distance = (current-target).Magnitude
-    if distance <= 90 then return true end
-    if boat:GetAttribute("HaroonSmartBoatMoving") then return false end
-    boat:SetAttribute("HaroonSmartBoatMoving", true)
+    local targetPos = Vector3.new(targetCF.Position.X, math.max(26, targetCF.Position.Y), targetCF.Position.Z)
+    local primary = boat.PrimaryPart or seat
+    local distance = (primary.Position - targetPos).Magnitude
+    if distance <= 80 then return true end
+
     local speed = math.max(120, tonumber(_G.Settings.Sea["Boat Tween Speed"]) or 200)
-    local duration = math.clamp(distance/speed, 0.8, 8)
-    local goal = CFrame.lookAt(target, target + Vector3.new(60,0,0))
-    pcall(function()
-        local primary = boat.PrimaryPart or seat
-        local tween = TweenService:Create(primary, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame=goal})
-        tween:Play()
-        task.delay(duration+0.1, function()
-            if boat and boat.Parent then boat:SetAttribute("HaroonSmartBoatMoving", nil) end
-        end)
-    end)
+    local alpha = math.clamp((speed * 0.25) / math.max(distance, 1), 0.04, 0.22)
+    local nextPos = primary.Position:Lerp(targetPos, alpha)
+    local look = Vector3.new(targetPos.X, nextPos.Y, targetPos.Z)
+    pcall(function() boat:PivotTo(CFrame.lookAt(nextPos, look)) end)
     return false
 end
 
@@ -3103,77 +3020,89 @@ local function teleportToDetectedIsland(island, owner)
     return false
 end
 
+local MirageState = {Found=false, LastNotify=false}
+local KitsuneState = {Found=false, LastNotify=false}
+local function notifyEvent(title, content)
+    if AetherUI then pcall(function() AetherUI:Notify({Title=title, Content=content, Duration=4}) end) end
+end
+
+local function forceLeaveBoat()
+    local _, hrp, hum = GetCharacter()
+    if hum and hum.Sit then
+        hum.Sit = false
+        hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+    end
+    if hrp then hrp.AssemblyLinearVelocity = Vector3.zero; hrp.AssemblyAngularVelocity = Vector3.zero end
+end
+
 local function mirageStep()
     if not World3 then return end
     local island = GetMirageIsland()
-    local spawned = island ~= nil
-    if spawned and not LastMirageSpawned then
-        LastMirageSpawned = true
-        HaroonNotify("🌙 Mirage Island", "Mirage Island has spawned! Auto-teleport is ready.", 5)
-    elseif not spawned then
-        LastMirageSpawned = false
-    end
     if island then
+        if not MirageState.Found then
+            MirageState.Found = true
+            notifyEvent("🌙 Mirage Island", "🟢 Mirage Island has spawned!")
+        end
         MirageRouteIndex = 1
-        if _G.Settings.Race["Teleport To Mirage"] then teleportToDetectedIsland(island, "MirageTP") end
-        if _G.Settings.Race["Tween To Highest Mirage"] or _G.Settings.Race["Auto Find Mirage"] then
-            local gear = findBlueGear()
-            if gear then
-                local gcf = GetModelCFrame(gear)
-                if gcf then TweenPlayer(gcf, Vector3.new(0,6,0), "MirageGear") end
-            elseif isNightTime() and (_G.Settings.Race["Look Moon Ability"] or _G.Settings.Race["Auto Find Mirage"]) then
-                local top = GetModelCFrame(island)
-                if top then TweenPlayer(top, Vector3.new(0,110,0), "MirageMoon") end
-            end
+        if _G.Settings.Race["Teleport To Mirage"] then
+            forceLeaveBoat()
+            teleportToDetectedIsland(island, "MirageTP")
+        end
+        local gear = findBlueGear()
+        if gear and (_G.Settings.Race["Teleport To Blue Gear"] or _G.Settings.Race["Tween To Highest Mirage"]) then
+            collectObject(gear, "MirageGear")
+        end
+        if _G.Settings.Race["Look Moon Ability"] and isNightTime() then
+            local top = GetModelCFrame(island)
+            if top then TweenPlayer(top, Vector3.new(0, 100, 0), "MirageMoon") end
         end
         return
     end
+    if MirageState.Found then MirageState.Found=false end
     if not _G.Settings.Race["Auto Find Mirage"] then return end
     local boat = ensureBoat()
     if not boat then return end
-    if os.clock()-MirageLastMove < 0.9 then return end
-    MirageLastMove = os.clock()
-    local route = MirageSearchRoute[MirageRouteIndex]
-    if route and moveBoatSmart(boat, route) then MirageRouteIndex = MirageRouteIndex % #MirageSearchRoute + 1 end
+    local now=os.clock()
+    if now-MirageLastMove < 0.35 then return end
+    MirageLastMove=now
+    local route=MirageSearchRoute[MirageRouteIndex]
+    if route and moveBoatSmart(boat,route) then
+        MirageRouteIndex = MirageRouteIndex % #MirageSearchRoute + 1
+    end
 end
 
 local function kitsuneStep()
     if not World3 then return end
     local island = GetKitsuneIsland()
-    local spawned = island ~= nil
-    if spawned and not LastKitsuneSpawned then
-        LastKitsuneSpawned = true
-        HaroonNotify("🦊 Kitsune Island", "Kitsune Island has spawned! Auto-teleport is ready.", 5)
-    elseif not spawned then
-        LastKitsuneSpawned = false
-    end
     if island then
-        if _G.Settings.Sea["Teleport To Kitsune Island"] or _G.Settings.Sea["Auto Find Kitsune Island"] then teleportToDetectedIsland(island, "KitsuneTP") end
-        if _G.Settings.Sea["Auto Find Kitsune Island"] or _G.Settings.Sea["Auto Collect Azure Embers"] then
-            local embers = findAzureEmbers()
-            local _, hrp = GetCharacter()
-            local best, bestD = nil, math.huge
-            for _, ember in ipairs(embers) do
-                local cf = GetModelCFrame(ember)
+        if not KitsuneState.Found then
+            KitsuneState.Found = true
+            notifyEvent("🦊 Kitsune Island", "🟢 Kitsune Island has spawned!")
+        end
+        if _G.Settings.Sea["Teleport To Kitsune Island"] or _G.Settings.Sea["Auto Find Kitsune Island"] then
+            forceLeaveBoat()
+            teleportToDetectedIsland(island, "KitsuneTP")
+        end
+        if _G.Settings.Sea["Auto Collect Blaze Ember"] or _G.Settings.Sea["Auto Find Kitsune Island"] then
+            local embers=findAzureEmbers()
+            local _,hrp=GetCharacter(); local best,bestD=nil,math.huge
+            for _,ember in ipairs(embers) do
+                local cf=GetModelCFrame(ember)
                 if cf then
-                    local d = hrp and (hrp.Position-cf.Position).Magnitude or 0
-                    if d < bestD then best, bestD = ember, d end
+                    local d=hrp and (hrp.Position-cf.Position).Magnitude or 0
+                    if d<bestD then best,bestD=ember,d end
                 end
             end
-            if best then
-                local cf = GetModelCFrame(best)
-                if cf then TweenPlayer(cf, Vector3.new(0,3,0), "KitsuneEmber") end
-            end
+            if best then collectObject(best,"AzureEmber") end
         end
         return
     end
+    if KitsuneState.Found then KitsuneState.Found=false end
     if not _G.Settings.Sea["Auto Find Kitsune Island"] then return end
-    local boat = ensureBoat()
-    if not boat then return end
-    if os.clock()-KitsuneLastMove < 1.0 then return end
-    KitsuneLastMove = os.clock()
+    local boat=ensureBoat(); if not boat then return end
+    local now=os.clock(); if now-KitsuneLastMove<0.35 then return end; KitsuneLastMove=now
     local target = isFullMoonLikely() and KitsuneDanger6Point or KitsuneHoldingPoint
-    moveBoatSmart(boat, target)
+    moveBoatSmart(boat,target)
 end
 
 local function getSeaEventCounts()
@@ -3198,47 +3127,72 @@ local function getSeaEventCounts()
 end
 
 local function findSeaCombatTarget()
-    local allowed = {}
     local S = _G.Settings.Sea
-    if S["Auto Attack Sea Events"] or S["Auto Farm Shark"] then allowed["Shark"] = true end
-    if S["Auto Attack Sea Events"] or S["Auto Farm Piranha"] then allowed["Piranha"] = true end
-    if S["Auto Attack Sea Events"] or S["Auto Farm Fish Crew Member"] then allowed["Fish Crew Member"] = true end
-    if S["Auto Attack Sea Events"] or S["Auto Farm Ghost Ship"] then allowed["Ghost Ship"] = true; allowed["FishBoat"] = true end
-    if S["Auto Attack Sea Events"] or S["Auto Farm Terrorshark"] then allowed["Terrorshark"] = true end
-
-    local _, hrp = GetCharacter()
-    local best, bestD = nil, math.huge
-
-    local function inspect(container)
-        if not container then return end
-        for _, enemy in ipairs(container:GetDescendants()) do
-            if enemy:IsA("Model") and allowed[enemy.Name] then
-                local hum = enemy:FindFirstChildOfClass("Humanoid")
-                local r = enemy:FindFirstChild("HumanoidRootPart") or enemy.PrimaryPart
-                if hum and hum.Health > 0 and r then
-                    local d = hrp and (hrp.Position - r.Position).Magnitude or 0
-                    if d < bestD then best, bestD = enemy, d end
+    local allowed = {
+        Shark = S["Auto Farm Shark"],
+        Piranha = S["Auto Farm Piranha"],
+        ["Fish Crew Member"] = S["Auto Farm Fish Crew Member"],
+        ["Ghost Ship"] = S["Auto Farm Ghost Ship"],
+        FishBoat = S["Auto Farm Ghost Ship"],
+        Terrorshark = S["Auto Farm Terrorshark"],
+        ["Sea Beast"] = S["Auto Farm Seabeasts"],
+        SeaBeast = S["Auto Farm Seabeasts"],
+        SeaBeast1 = S["Auto Farm Seabeasts"],
+        ["Sea Beast 1"] = S["Auto Farm Seabeasts"],
+        PirateBrigade = S["Auto Attack Sea Events"],
+        PirateGrandBrigade = S["Auto Attack Sea Events"],
+        MarineBrigade = S["Auto Attack Sea Events"],
+        MarineGrandBrigade = S["Auto Attack Sea Events"],
+    }
+    local roots={workspace:FindFirstChild("Enemies"),workspace:FindFirstChild("SeaBeasts"),workspace:FindFirstChild("Boats"),workspace:FindFirstChild("Map")}
+    local _,hrp=GetCharacter(); local best,bestD=nil,math.huge
+    for _,rootFolder in ipairs(roots) do
+        if rootFolder then
+            for _,obj in ipairs(rootFolder:GetDescendants()) do
+                if allowed[obj.Name] or allowed[tostring(obj.Name)] then
+                    local model=obj:IsA("Model") and obj or obj:FindFirstAncestorOfClass("Model")
+                    local part=GetModelCFrame(obj) and (obj:IsA("BasePart") and obj or obj.PrimaryPart or obj:FindFirstChild("HumanoidRootPart"))
+                    if model and (model:FindFirstChildOfClass("Humanoid") or model:GetAttribute("Health") ~= nil) then
+                        part=part or model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart",true)
+                        if part then
+                            local d=hrp and (hrp.Position-part.Position).Magnitude or 0
+                            if d<bestD then best,bestD=model,d end
+                        end
+                    end
                 end
             end
         end
     end
-    inspect(workspace:FindFirstChild("Enemies"))
-    inspect(workspace:FindFirstChild("SeaBeasts"))
     return best
 end
 
+local function seaEventStep()
+    if not World3 then return end
+    local target=findSeaCombatTarget()
+    if target and _G.Settings.Sea["Auto Attack Sea Events"] then
+        local part=target:FindFirstChild("HumanoidRootPart") or target.PrimaryPart or target:FindFirstChildWhichIsA("BasePart",true)
+        if part then
+            local _,hrp,hum=GetCharacter(); if not hrp or not hum then return end
+            if hum.Sit then hum.Sit=false end
+            AutoHaki()
+            TweenPlayer(part.CFrame,Vector3.new(0,25,0),"SeaCombat")
+            local th=target:FindFirstChildOfClass("Humanoid")
+            if th then SmartAttackMob(target) else
+                for _,tool in ipairs(LocalPlayer.Character and LocalPlayer.Character:GetChildren() or {}) do
+                    if tool:IsA("Tool") then pcall(function() tool:Activate() end) end
+                end
+            end
+        end
+        return true
+    end
+    return false
+end
+
 local function integratedSeaStep()
-    if not World2 and not World3 then return end
-    local S = _G.Settings.Sea
-    local seaActive = S["Auto Attack Sea Events"] or S["Auto Farm Shark"] or S["Auto Farm Piranha"] or
-        S["Auto Farm Fish Crew Member"] or S["Auto Farm Ghost Ship"] or S["Auto Farm Terrorshark"] or
-        S["Auto Farm Seabeasts"] or S["Auto Find Kitsune Island"] or S["Auto Collect Azure Embers"] or
-        S["Sail Boat"]
-    if not seaActive then return end
+    if not World3 then return end
     local char, hrp, hum = GetCharacter()
     if not char or not hrp or not hum then return end
 
-    -- Island-only automation stays Third Sea.
     -- Prehistoric automation stays separate from sea-event navigation.
     if _G.Settings.Sea["Auto Prehistoric Island"] or _G.Settings.Sea["Auto Complete Prehistoric Island"] or _G.Settings.Sea["Auto Draco Trail"] then
         local pre = recursiveFindByNames(getLocationsFolder(), {"Prehistoric Island"})
@@ -3265,14 +3219,7 @@ local function integratedSeaStep()
         return
     end
 
-    local target = findSeaCombatTarget()
-    if target then
-        if hum.Sit then hum.Sit = false end
-        AutoHaki()
-        TweenPlayer(target.HumanoidRootPart.CFrame, Vector3.new(0, 25, 0), "SeaCombat")
-        SmartAttackMob(target)
-        return
-    end
+    if seaEventStep() then return end
 
     if _G.Settings.Sea["Auto Farm Seabeasts"] then
         local beasts = workspace:FindFirstChild("SeaBeasts")
@@ -3310,7 +3257,7 @@ end
 
 task.spawn(function()
     while task.wait(0.25) do
-        if not _G.Settings.__V23Override then pcall(integratedSeaStep) end
+        pcall(integratedSeaStep)
     end
 end)
 
@@ -3589,28 +3536,15 @@ local function bossLocation(name)
     return MobSpecificTeleports and MobSpecificTeleports[name]
 end
 local function findBossTarget()
-    local wanted=_G.Settings.Main["Selected Boss"]
-    local all=_G.Settings.Main["Auto Farm All Boss"]
-    local _,hrp=GetCharacter()
+    local enemies=workspace:FindFirstChild("Enemies"); if not enemies then return nil end
+    local wanted=_G.Settings.Main["Selected Boss"]; local all=_G.Settings.Main["Auto Farm All Boss"]; local _,hrp=GetCharacter()
     local best,dist=nil,math.huge
-
-    local function inspect(rootObj)
-        if not rootObj then return end
-        for _,m in ipairs(rootObj:GetDescendants()) do
-            if m:IsA("Model") and (all or m.Name==wanted) then
-                local h=m:FindFirstChildOfClass("Humanoid")
-                local r=anyPart(m)
-                if h and h.Health>0 and r then
-                    local d=hrp and (hrp.Position-r.Position).Magnitude or 0
-                    if d<dist then best,dist=m,d end
-                end
-            end
+    for _,m in ipairs(enemies:GetChildren()) do
+        if m:IsA("Model") and (all or m.Name==wanted) then
+            local h=m:FindFirstChildOfClass("Humanoid"); local r=anyPart(m)
+            if h and h.Health>0 and r then local d=hrp and (hrp.Position-r.Position).Magnitude or 0; if d<dist then best,dist=m,d end end
         end
     end
-
-    inspect(workspace:FindFirstChild("Enemies"))
-    inspect(workspace:FindFirstChild("_WorldOrigin") and workspace._WorldOrigin:FindFirstChild("Locations"))
-    inspect(workspace:FindFirstChild("Map"))
     return best
 end
 local function bossFarmStepV3()
@@ -3623,22 +3557,7 @@ local function bossFarmStepV3()
     if target and tr then
         AutoHaki()
         local above=tr.Position+Vector3.new(0,math.max(25,tonumber(_G.Settings.Main["Farm Distance"]) or 28),0)
-        local d=(hrp.Position-above).Magnitude
-        if d > 900 and _G.Settings.Main["Player Tween Speed"] then
-            pcall(function()
-                hrp.CFrame = CFrame.lookAt(above,tr.Position)
-                hrp.AssemblyLinearVelocity=Vector3.zero
-                hrp.AssemblyAngularVelocity=Vector3.zero
-            end)
-        elseif d>12 then
-            TweenPlayer(CFrame.lookAt(above,tr.Position),nil,"BossFarm")
-        else
-            pcall(function()
-                hrp.CFrame=CFrame.lookAt(above,tr.Position)
-                hrp.AssemblyLinearVelocity=Vector3.zero
-                hrp.AssemblyAngularVelocity=Vector3.zero
-            end)
-        end
+        if (hrp.Position-above).Magnitude>12 then TweenPlayer(CFrame.lookAt(above,tr.Position),nil,"BossFarm") else pcall(function() hrp.CFrame=CFrame.lookAt(above,tr.Position); hrp.AssemblyLinearVelocity=Vector3.zero; hrp.AssemblyAngularVelocity=Vector3.zero end) end
         SmartAttackMob(target); return
     end
     -- Keep polling spawn locations while waiting; late spawns are detected on the next scan.
@@ -3683,552 +3602,56 @@ local function chestFarmStepV3()
     end
 end
 
-task.spawn(function() while task.wait(0.12) do if not _G.Settings.__V23Override then pcall(bossFarmStepV3) end end end)
-task.spawn(function() while task.wait(0.15) do if not _G.Settings.__V23Override then pcall(chestFarmStepV3) end end end)
--- Highest priority for spawned Cake Prince / Dough King; otherwise their existing preparation routines keep running.
-task.spawn(function()
-    while task.wait(0.12) do
-        if not _G.Settings.__V23Override then pcall(function()
-            local enemies=workspace:FindFirstChild("Enemies")
-            if _G.Settings.Cake["Auto Kill Cake Prince"] then
-                local boss=enemies and enemies:FindFirstChild("Cake Prince")
-                if boss and boss:FindFirstChild("HumanoidRootPart") then
-                    integratedCakeStep()
-                else
-                    integratedCakeStep()
-                    pcall(integratedSummonCake)
-                end
-            elseif _G.Settings.Cake["Auto Spawn Cake Prince"] then
-                pcall(integratedSummonCake)
-            elseif _G.Settings.Cake["Auto Kill Dough King"] then
-                local boss=enemies and enemies:FindFirstChild("Dough King")
-                integratedDoughStep()
-                if boss and boss:FindFirstChild("HumanoidRootPart") then
-                    -- integratedDoughStep handles the active boss first.
-                end
-            end
-        end) end
-    end
-end)
-
-task.spawn(function() while task.wait(10) do if _G.Settings.Misc["Save Settings"] then pcall(saveSettings) end end end)
-
-
--- ============================================================
--- MERGED COMPONENT: HaroonHub_V22_SeaEvents
--- ============================================================
--- Haroon Hub V22 companion module
--- This file is intentionally standalone and reads _G.Settings from the main hub when present.
--- It can also be inspected independently.
-
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local Lighting = game:GetService("Lighting")
-local LocalPlayer = Players.LocalPlayer
-
-local M = {}
-
-function M:IsFullMoon()
-    local a = Lighting:GetAttribute("FullMoon")
-    if a == true then return true end
-    local p = Lighting:GetAttribute("MoonPhase")
-    return tostring(p):lower():find("full moon",1,true) ~= nil or tostring(p):lower() == "fullmoon"
+task.spawn(function() while task.wait(0.12) do pcall(bossFarmStepV3) end end)
+task.spawn(function() while task.wait(0.15) do pcall(chestFarmStepV3) end end)
+-- Highest priority Cake/Dough controller with live boss detection and portal fallback.
+local function findDimensionalShift()
+    return recursiveFindByNames(workspace, {"Dimensional Shift","DimensionalShift"})
+        or (workspace:FindFirstChild("Map") and recursiveFindByNames(workspace.Map,{"BigMirror","Mirror","CakeLoaf"}))
 end
-
-function M:FindAzureEmbers()
-    local out, seen = {}, {}
-    for _, root in ipairs({workspace:FindFirstChild("Map"), workspace:FindFirstChild("_WorldOrigin"), workspace:FindFirstChild("Effects"), workspace:FindFirstChild("Enemies")}) do
-        if root then
-            for _, obj in ipairs(root:GetDescendants()) do
-                local n=tostring(obj.Name):lower()
-                if n:find("azure",1,true) and n:find("ember",1,true) and not seen[obj] then
-                    seen[obj]=true
-                    table.insert(out,obj)
-                end
-            end
-        end
-    end
-    return out
-end
-
-function M:FindIsland(nameA, nameB)
-    for _, root in ipairs({
-        workspace:FindFirstChild("Map"),
-        workspace:FindFirstChild("_WorldOrigin") and workspace._WorldOrigin:FindFirstChild("Locations"),
-        workspace:FindFirstChild("Locations")
-    }) do
-        if root then
-            local x=root:FindFirstChild(nameA,true) or root:FindFirstChild(nameB,true)
-            if x then return x end
-        end
-    end
-end
-
-getgenv().HaroonHub_V22_SeaEvents = M
-
--- ============================================================
--- MERGED COMPONENT: HaroonHub_V22_BossCakeDough
--- ============================================================
--- Haroon Hub V22 companion module
--- This file is intentionally standalone and reads _G.Settings from the main hub when present.
--- It can also be inspected independently.
-
-local M = {}
-function M:FindBoss(name)
-    local enemies=workspace:FindFirstChild("Enemies")
-    if not enemies then return nil end
-    for _,obj in ipairs(enemies:GetDescendants()) do
-        if obj:IsA("Model") and obj.Name==name then
-            local h=obj:FindFirstChildOfClass("Humanoid")
-            local r=obj:FindFirstChild("HumanoidRootPart") or obj.PrimaryPart
-            if h and h.Health>0 and r then return obj end
-        end
-    end
-end
-function M:AllBosses()
-    local out={}
-    local enemies=workspace:FindFirstChild("Enemies")
-    if not enemies then return out end
-    for _,obj in ipairs(enemies:GetDescendants()) do
-        if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") and (obj:FindFirstChild("HumanoidRootPart") or obj.PrimaryPart) then
-            table.insert(out,obj)
-        end
-    end
-    return out
-end
-getgenv().HaroonHub_V22_BossCakeDough = M
-
--- ============================================================
--- MERGED COMPONENT: HaroonHub_V22_Level
--- ============================================================
--- Haroon Hub V22 companion module
--- This file is intentionally standalone and reads _G.Settings from the main hub when present.
--- It can also be inspected independently.
-
-local M = {MAX_LEVEL=2800}
-M.Quests={
- {Min=2600,Max=2624,Mob="Reef Bandit",Quest="SubmergedQuest1",Level=1,Giver="Submerged Quest Giver 1"},
- {Min=2625,Max=2649,Mob="Coral Pirate",Quest="SubmergedQuest1",Level=2,Giver="Submerged Quest Giver 1"},
- {Min=2650,Max=2674,Mob="Sea Chanter",Quest="SubmergedQuest2",Level=1,Giver="Submerged Quest Giver 2"},
- {Min=2675,Max=2699,Mob="High Disciple",Quest="SubmergedQuest3",Level=1,Giver="Submerged Quest Giver 3"},
- {Min=2700,Max=2800,Mob="Grand Devotee",Quest="SubmergedQuest3",Level=2,Giver="Submerged Quest Giver 3"},
-}
-function M:GetEndgameQuest(level)
-    for _,q in ipairs(self.Quests) do
-        if level>=q.Min and level<q.Max then return q end
-    end
-end
-getgenv().HaroonHub_V22_Level = M
-
-
---------------------------------------------------------------------------------
--- V23 STABLE CONTROLLERS
--- Replaces fragile polling for Sea Events, Mirage, Kitsune, Boss, and Chests.
---------------------------------------------------------------------------------
-local V23 = {
-    Mirage = {route = 1, lastMove = 0, notified = false},
-    Kitsune = {lastMove = 0, notified = false, lastMoon = false},
-    Boss = {target = nil, lastSearch = 0},
-    Chest = {target = nil, visited = {}, resetAt = 0},
-    Sea = {target = nil, lastSearch = 0},
-    Level = {max = 2800},
-}
-
-local function v23AnyPart(obj)
-    if not obj then return nil end
-    if obj:IsA("BasePart") then return obj end
-    if obj:IsA("Model") then
-        return obj.PrimaryPart or obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChildWhichIsA("BasePart", true)
-    end
-    return obj:FindFirstChildWhichIsA("BasePart", true)
-end
-
-local function v23Alive(model)
-    if not model or not model:IsA("Model") then return false end
-    local h = model:FindFirstChildOfClass("Humanoid")
-    return h and h.Health > 0
-end
-
-local function v23FindByNames(names, containers)
-    containers = containers or {workspace:FindFirstChild("Enemies"), workspace}
-    local set = {}
-    for _, n in ipairs(names) do set[tostring(n):lower()] = true end
-    local best, bestD = nil, math.huge
-    local _, hrp = GetCharacter()
-    for _, container in ipairs(containers) do
-        if container then
-            for _, obj in ipairs(container:GetDescendants()) do
-                if obj:IsA("Model") and set[obj.Name:lower()] and v23Alive(obj) then
-                    local p = v23AnyPart(obj)
-                    if p then
-                        local d = hrp and (hrp.Position - p.Position).Magnitude or 0
-                        if d < bestD then best, bestD = obj, d end
-                    end
-                end
-            end
-        end
-    end
-    return best
-end
-
-local function v23Notify(title, content)
-    pcall(function()
-        if AetherUI and AetherUI.Notify then
-            AetherUI:Notify({Title = title, Content = content, Duration = 5})
-        end
-    end)
-end
-
-local function v23SetParagraphSafe(paragraph, text, title)
-    text = tostring(text or "")
-    if paragraph then
-        for _, methodName in ipairs({"SetContent", "SetDesc", "SetDescription", "Update", "Set"}) do
-            local ok = pcall(function()
-                local fn = paragraph[methodName]
-                if type(fn) == "function" then fn(paragraph, text) else error("missing") end
-            end)
-            if ok then return true end
-        end
-    end
-    if title then
-        local roots = {}
-        pcall(function() if gethui then table.insert(roots, gethui()) end end)
-        table.insert(roots, game:GetService("CoreGui"))
-        local pg = LocalPlayer:FindFirstChild("PlayerGui")
-        if pg then table.insert(roots, pg) end
-        for _, rootGui in ipairs(roots) do
-            if rootGui then
-                for _, node in ipairs(rootGui:GetDescendants()) do
-                    if node:IsA("TextLabel") and tostring(node.Text) == title then
-                        local parent = node.Parent
-                        if parent then
-                            local labels = {}
-                            for _, d in ipairs(parent:GetDescendants()) do
-                                if d:IsA("TextLabel") and d ~= node then table.insert(labels, d) end
-                            end
-                            table.sort(labels, function(a,b) return a.AbsolutePosition.Y > b.AbsolutePosition.Y end)
-                            local target = labels[1]
-                            if target then target.Text = text return true end
-                        end
-                    end
-                end
-            end
-        end
-    end
+local function interactDripMama(useSweet)
+    local npc=workspace:FindFirstChild("drip_mama",true) or workspace:FindFirstChild("Drip Mama",true) or workspace:FindFirstChild("Drip_Mama",true)
+    if not npc then return false end
+    if useSweet and not integratedItem("Sweet Chalice") then return false end
+    local prompt=npc:FindFirstChildWhichIsA("ProximityPrompt",true)
+    if prompt and fireproximityprompt then pcall(function() fireproximityprompt(prompt,1) end); return true end
+    local click=npc:FindFirstChildWhichIsA("ClickDetector",true)
+    if click and fireclickdetector then pcall(function() fireclickdetector(click) end); return true end
+    local part=anyPart(npc)
+    if part then TweenPlayer(part.CFrame,Vector3.new(0,3,0),"CakePortal"); return true end
     return false
 end
 
-local function v23SettleAbove(part, height, owner)
-    local _, hrp, hum = GetCharacter()
-    if not hrp or not part then return false end
-    height = math.max(20, tonumber(height) or 28)
-    local pos = part.Position + Vector3.new(0, height, 0)
-    local targetCF = CFrame.lookAt(pos, part.Position)
-    if (hrp.Position - pos).Magnitude > 16 then
-        TweenPlayer(targetCF, nil, owner)
-        return false
-    end
-    pcall(function()
-        if hum and hum.Sit then hum.Sit = false end
-        hrp.CFrame = targetCF
-        hrp.AssemblyLinearVelocity = Vector3.zero
-        hrp.AssemblyAngularVelocity = Vector3.zero
-    end)
-    return true
-end
-
-local function v23FindBossTarget()
-    local selected = tostring(_G.Settings.Main["Selected Boss"] or "")
-    if _G.Settings.Main["Auto Farm Boss"] and selected ~= "" then
-        return v23FindByNames({selected})
-    end
-    if _G.Settings.Main["Auto Farm All Boss"] then
-        local allowed = BossList or {}
-        return v23FindByNames(allowed)
-    end
-end
-
-local function v23BossStep()
-    if not (_G.Settings.Main["Auto Farm Boss"] or _G.Settings.Main["Auto Farm All Boss"]) then
-        V23.Boss.target = nil
-        return
-    end
-    local target = V23.Boss.target
-    if not target or not target.Parent or not v23Alive(target) then
-        target = v23FindBossTarget()
-        V23.Boss.target = target
-    end
-    if target then
-        local part = v23AnyPart(target)
-        if part then
-            AutoHaki()
-            v23SettleAbove(part, _G.Settings.Main["Farm Distance"], "BossV23")
-            SmartAttackMob(target)
-            return
-        end
-    end
-    -- Keep polling spawn locations while waiting for a late spawn.
-    if _G.Settings.Main["Auto Farm Boss"] and os.clock() - V23.Boss.lastSearch > 1.0 then
-        V23.Boss.lastSearch = os.clock()
-        local cf = bossLocation and bossLocation(tostring(_G.Settings.Main["Selected Boss"] or "")) or nil
-        if cf then TweenPlayer(cf, Vector3.new(0, 25, 0), "BossV23") end
-    end
-end
-
-local function v23ChestList()
-    local out, seen = {}, {}
-    local roots = {workspace:FindFirstChild("ChestModels"), workspace:FindFirstChild("Map"), workspace:FindFirstChild("Locations"), workspace}
-    for _, rootObj in ipairs(roots) do
-        if rootObj then
-            for _, obj in ipairs(rootObj:GetDescendants()) do
-                if obj:IsA("Model") then
-                    local n = obj.Name:lower()
-                    if n:find("chest", 1, true) then
-                        local p = v23AnyPart(obj)
-                        if p and not seen[obj] then seen[obj] = true table.insert(out, obj) end
+task.spawn(function()
+    while task.wait(0.12) do
+        pcall(function()
+            local enemies=workspace:FindFirstChild("Enemies")
+            local cake=enemies and enemies:FindFirstChild("Cake Prince")
+            local dough=enemies and enemies:FindFirstChild("Dough King")
+            if _G.Settings.Cake["Auto Kill Dough King"] then
+                if dough and dough:FindFirstChild("HumanoidRootPart") then
+                    forceLeaveBoat(); integratedDoughStep()
+                else
+                    integratedDoughStep()
+                    if integratedMaterialCount("Conjured Cocoa") >= 10 then
+                        interactDripMama(true)
+                        if not dough then pcall(function() CommF_:InvokeServer("CakePrinceSpawner", true) end) end
                     end
                 end
-            end
-        end
-    end
-    return out
-end
-
-local function v23ChestStep()
-    local active = _G.Settings.SubFarm["Auto Chest Tween"] or _G.Settings.SubFarm["Auto Chest Instant"]
-    if not active then V23.Chest.target = nil return end
-    local _, hrp = GetCharacter()
-    if not hrp then return end
-    local target = V23.Chest.target
-    local function valid(c)
-        return c and c.Parent and v23AnyPart(c) and not V23.Chest.visited[c:GetDebugId()]
-    end
-    if not valid(target) then
-        target = nil
-        local best, bestD = nil, math.huge
-        for _, chest in ipairs(v23ChestList()) do
-            local p = v23AnyPart(chest)
-            local key = chest:GetDebugId()
-            if p and not V23.Chest.visited[key] then
-                local d = (hrp.Position - p.Position).Magnitude
-                if d < bestD then best, bestD = chest, d end
-            end
-        end
-        target = best
-        V23.Chest.target = target
-    end
-    if not target then
-        if V23.Chest.resetAt == 0 then V23.Chest.resetAt = os.clock() end
-        if os.clock() - V23.Chest.resetAt > 4 then V23.Chest.visited = {} V23.Chest.resetAt = 0 end
-        return
-    end
-    V23.Chest.resetAt = 0
-    local p = v23AnyPart(target)
-    if not p then V23.Chest.target = nil return end
-    local pos = p.Position + Vector3.new(0, 3, 0)
-    if _G.Settings.SubFarm["Auto Chest Instant"] then
-        pcall(function() hrp.CFrame = CFrame.new(pos) hrp.AssemblyLinearVelocity = Vector3.zero end)
-    else
-        TweenPlayer(CFrame.new(pos), nil, "ChestV23")
-    end
-    if (hrp.Position - pos).Magnitude <= 12 then
-        V23.Chest.visited[target:GetDebugId()] = true
-        V23.Chest.target = nil
-    end
-end
-
-local V23SeaTargets = {
-    "Shark", "Piranha", "Fish Crew Member", "Ghost Ship", "FishBoat",
-    "PirateBrigade", "PirateGrandBrigade", "MarineBrigade", "MarineGrandBrigade",
-    "Terrorshark", "Sea Beast", "SeaBeast1", "Sea Beast 1", "Leviathan"
-}
-
-local function v23SeaStep()
-    local S = _G.Settings.Sea
-    local active = S["Auto Attack Sea Events"] or S["Auto Farm Shark"] or S["Auto Farm Piranha"] or
-        S["Auto Farm Fish Crew Member"] or S["Auto Farm Ghost Ship"] or S["Auto Farm Terrorshark"] or S["Auto Farm Seabeasts"]
-    if not active then V23.Sea.target = nil return end
-    local target = V23.Sea.target
-    if not target or not target.Parent or not v23Alive(target) then
-        target = v23FindByNames(V23SeaTargets, {workspace:FindFirstChild("Enemies"), workspace:FindFirstChild("SeaBeasts")})
-        V23.Sea.target = target
-    end
-    if target then
-        local p = v23AnyPart(target)
-        if p then
-            local _, _, hum = GetCharacter()
-            if hum and hum.Sit then hum.Sit = false end
-            AutoHaki()
-            v23SettleAbove(p, S["Sea Event Attack Range"] or 50, "SeaV23")
-            SmartAttackMob(target)
-            return
-        end
-    end
-    -- No event right now: keep a valid boat nearby so the event system can trigger.
-    if os.clock() - V23.Sea.lastSearch > 1.2 then
-        V23.Sea.lastSearch = os.clock()
-        local boat = ensureBoat()
-        if boat then
-            local seat = getBoatSeat(boat)
-            local _, hrp, hum = GetCharacter()
-            if seat and hrp and hum then
-                if not hum.Sit then
-                    pcall(function() hrp.CFrame = seat.CFrame * CFrame.new(0,2.5,0) end)
+            elseif _G.Settings.Cake["Auto Kill Cake Prince"] then
+                if cake and cake:FindFirstChild("HumanoidRootPart") then
+                    forceLeaveBoat(); integratedCakeStep()
                 else
-                    local zone = ZoneCFrames[S["Selected Zone"]] or ZoneCFrames["Zone 5"]
-                    moveBoatSmart(boat, zone)
+                    integratedCakeStep()
+                    pcall(integratedSummonCake)
+                    if not cake and select(2,integratedCakeProgress())==0 then interactDripMama(false) end
                 end
-            end
-        end
-    end
-end
-
-local function v23FindMirageRobust()
-    if not World3 then return nil end
-    local roots = {workspace:FindFirstChild("Map"), getLocationsFolder(), workspace:FindFirstChild("Locations"), workspace}
-    for _, rootObj in ipairs(roots) do
-        if rootObj then
-            for _, name in ipairs({"MysticIsland", "Mirage Island", "MirageIsland"}) do
-                local found = rootObj:FindFirstChild(name, true)
-                if found then return found end
-            end
-        end
-    end
-end
-
-local function v23FindKitsuneRobust()
-    if not World3 then return nil end
-    local roots = {workspace:FindFirstChild("Map"), getLocationsFolder(), workspace:FindFirstChild("Locations"), workspace}
-    for _, rootObj in ipairs(roots) do
-        if rootObj then
-            for _, name in ipairs({"KitsuneIsland", "Kitsune Island"}) do
-                local found = rootObj:FindFirstChild(name, true)
-                if found then return found end
-            end
-        end
-    end
-end
-
-local function v23FindEmbersInIsland(island)
-    local out = {}
-    if not island then return out end
-    local roots = {island, workspace:FindFirstChild("Effects"), workspace:FindFirstChild("Map")}
-    for _, rootObj in ipairs(roots) do
-        if rootObj then
-            for _, obj in ipairs(rootObj:GetDescendants()) do
-                local n = obj.Name:lower()
-                if n:find("azure",1,true) and (n:find("ember",1,true) or n:find("flame",1,true)) then
-                    table.insert(out, obj)
-                end
-            end
-        end
-    end
-    return out
-end
-
-local function v23DirectTeleport(obj, owner, offsetY)
-    local cf = GetModelCFrame(obj)
-    if not cf then return false end
-    local _, hrp, hum = GetCharacter()
-    if not hrp then return false end
-    if hum then pcall(function() hum.Sit = false end) end
-    offsetY = tonumber(offsetY) or 0
-    pcall(function()
-        hrp.CFrame = cf * CFrame.new(0, offsetY, 0)
-        hrp.AssemblyLinearVelocity = Vector3.zero
-        hrp.AssemblyAngularVelocity = Vector3.zero
-    end)
-    return true
-end
-
-local function v23MirageStep()
-    local island = v23FindMirageRobust()
-    if island then
-        if not V23.Mirage.notified then
-            V23.Mirage.notified = true
-            v23Notify("🌙 Mirage Island", "Mirage Island spawned — teleporting now if enabled.")
-        end
-        if _G.Settings.Race["Teleport To Mirage"] or _G.Settings.Race["Auto Find Mirage"] then
-            v23DirectTeleport(island, "MirageV23", 85)
-        end
-        if (_G.Settings.Race["Teleport To Blue Gear"] or _G.Settings.Race["Auto Find Mirage"]) and isNightTime() then
-            local gear = findBlueGear()
-            if gear then v23DirectTeleport(gear, "MirageGearV23", 4) end
-        end
-        return
-    end
-    V23.Mirage.notified = false
-    if not _G.Settings.Race["Auto Find Mirage"] then return end
-    local boat = ensureBoat()
-    if not boat then return end
-    if os.clock() - V23.Mirage.lastMove < 0.9 then return end
-    V23.Mirage.lastMove = os.clock()
-    local route = MirageSearchRoute[V23.Mirage.route]
-    if route and moveBoatSmart(boat, route) then
-        V23.Mirage.route = V23.Mirage.route % #MirageSearchRoute + 1
-    end
-end
-
-local function v23KitsuneStep()
-    local island = v23FindKitsuneRobust()
-    if island then
-        if not V23.Kitsune.notified then
-            V23.Kitsune.notified = true
-            v23Notify("🦊 Kitsune Island", "Kitsune Island spawned — teleporting now if enabled.")
-        end
-        if _G.Settings.Sea["Teleport To Kitsune Island"] or _G.Settings.Sea["Auto Find Kitsune Island"] then
-            v23DirectTeleport(island, "KitsuneV23", 85)
-        end
-        if _G.Settings.Sea["Auto Collect Azure Embers"] then
-            local embers = v23FindEmbersInIsland(island)
-            local _, hrp = GetCharacter()
-            local best, bestD = nil, math.huge
-            for _, ember in ipairs(embers) do
-                local cf = GetModelCFrame(ember)
-                if cf then
-                    local d = hrp and (hrp.Position-cf.Position).Magnitude or 0
-                    if d < bestD then best, bestD = ember, d end
-                end
-            end
-            if best then v23DirectTeleport(best, "AzureEmberV23", 2) end
-        end
-        return
-    end
-    V23.Kitsune.notified = false
-    if not _G.Settings.Sea["Auto Find Kitsune Island"] then return end
-    local boat = ensureBoat()
-    if not boat then return end
-    local target = isFullMoonLikely() and KitsuneDanger6Point or KitsuneHoldingPoint
-    if os.clock() - V23.Kitsune.lastMove >= 1.0 then
-        V23.Kitsune.lastMove = os.clock()
-        moveBoatSmart(boat, target)
-    end
-end
-
--- Stable controllers.
-task.spawn(function() while task.wait(0.08) do pcall(v23BossStep) end end)
-task.spawn(function() while task.wait(0.10) do pcall(v23ChestStep) end end)
-task.spawn(function() while task.wait(0.12) do pcall(v23SeaStep) end end)
-task.spawn(function() while task.wait(0.12) do pcall(v23MirageStep); pcall(v23KitsuneStep) end end)
-
--- Re-apply the paragraph compatibility layer to all existing Misc/status paragraphs.
-task.spawn(function()
-    while task.wait(1) do
-        pcall(function()
-            local pg = LocalPlayer:FindFirstChild("PlayerGui")
-            local level = BFGetLevel()
-            if pg then
-                -- Nothing destructive: this loop exists only to force a live status heartbeat.
-                _G.HaroonHubStatus = {
-                    Level = level,
-                    MaxLevel = 2800,
-                    Mirage = v23FindMirageRobust() ~= nil,
-                    Kitsune = v23FindKitsuneRobust() ~= nil,
-                }
+            elseif _G.Settings.Cake["Auto Spawn Cake Prince"] then
+                pcall(integratedSummonCake)
             end
         end)
     end
 end)
 
--- Settings helper for the V23 auto-loader state.
-_G.Settings.Misc["Auto Load Aether Hub"] = _G.Settings.Misc["Auto Load Aether Hub"] == true
+
+task.spawn(function() while task.wait(10) do if _G.Settings.Misc["Save Settings"] then pcall(saveSettings) end end end)
