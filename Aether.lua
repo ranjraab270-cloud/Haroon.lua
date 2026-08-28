@@ -22,37 +22,18 @@ repeat task.wait() until LocalPlayer:FindFirstChild("PlayerGui")
 
 local Remotes = ReplicatedStorage:FindFirstChild("Remotes")
 if not Remotes then
-    warn("Haroon Hub: Remotes folder not found yet; UI will continue and retry when available.")
+    warn("Haroon Hub: Remotes folder not found in ReplicatedStorage!")
+    return
 end
 
-local CommF_ = Remotes and Remotes:FindFirstChild("CommF_") or nil
-local CommE = Remotes and Remotes:FindFirstChild("CommE") or nil
+local CommF_ = Remotes:FindFirstChild("CommF_")
+local CommE = Remotes:FindFirstChild("CommE")
 
 local Net = ReplicatedStorage:FindFirstChild("Modules") and ReplicatedStorage.Modules:FindFirstChild("Net")
 local RegisterAttack = Net and Net:FindFirstChild("RE/RegisterAttack")
 local ShootGunEvent = Net and Net:FindFirstChild("RE/ShootGunEvent")
 
 local RegisterHit = nil
-task.spawn(function()
-    while task.wait(1) do
-        if not CommF_ or not CommE then
-            local r = ReplicatedStorage:FindFirstChild("Remotes")
-            if r then
-                CommF_ = CommF_ or r:FindFirstChild("CommF_")
-                CommE = CommE or r:FindFirstChild("CommE")
-            end
-        end
-        if RegisterAttack == nil or ShootGunEvent == nil then
-            local n = ReplicatedStorage:FindFirstChild("Modules")
-            local net = n and n:FindFirstChild("Net")
-            if net then
-                RegisterAttack = RegisterAttack or net:FindFirstChild("RE/RegisterAttack")
-                ShootGunEvent = ShootGunEvent or net:FindFirstChild("RE/ShootGunEvent")
-            end
-        end
-    end
-end)
-
 pcall(function()
     if getrenv and getrenv()._G and getrenv()._G.SendHitsToServer then
         RegisterHit = debug.getupvalue(getrenv()._G.SendHitsToServer, 1)
@@ -1204,7 +1185,6 @@ end)
 -- 7. AetherUI Framework Integration (100% Full English Interface)
 --------------------------------------------------------------------------------
 local AETHER_LIBRARY_URL = "https://pastebin.com/raw/yeULgMe0"
-local AETHER_CACHE_NAME = "HaroonHubData/AetherUI_V7_Cached.lua"
 local AetherUI = nil
 local function getGlobalEnv()
     return (type(getgenv) == "function" and getgenv()) or _G
@@ -1214,43 +1194,15 @@ local function loadAetherLibrary()
     if env and type(env.AetherUI) == "table" then
         return env.AetherUI
     end
-
-    local function compile(source)
-        assert(type(source) == "string" and #source > 500, "empty/invalid AetherUI source")
-        local chunk, err = loadstring(source)
-        assert(type(chunk) == "function", err or "compile failed")
-        local ok, lib = pcall(chunk)
-        assert(ok and type(lib) == "table", tostring(lib))
-        return lib
-    end
-
-    -- 1) User-provided local cache when the executor supports file APIs.
-    if type(isfile) == "function" and type(readfile) == "function" and isfile(AETHER_CACHE_NAME) then
-        local ok, cached = pcall(readfile, AETHER_CACHE_NAME)
-        if ok and type(cached) == "string" then
-            local success, lib = pcall(compile, cached)
-            if success and type(lib) == "table" then
-                env.AetherUI = lib
-                return lib
-            end
-        end
-    end
-
-    -- 2) Official/published AetherUI source.
     local ok, lib = pcall(function()
-        return compile(game:HttpGet(AETHER_LIBRARY_URL))
+        local source = game:HttpGet(AETHER_LIBRARY_URL)
+        local chunk = assert(loadstring(source))
+        return chunk()
     end)
     if ok and type(lib) == "table" then
         env.AetherUI = lib
-        if type(isfolder) == "function" and type(makefolder) == "function" and type(writefile) == "function" then
-            pcall(function()
-                if not isfolder("HaroonHubData") then makefolder("HaroonHubData") end
-                writefile(AETHER_CACHE_NAME, game:HttpGet(AETHER_LIBRARY_URL))
-            end)
-        end
         return lib
     end
-
     return nil
 end
 AetherUI = loadAetherLibrary()
@@ -1262,110 +1214,48 @@ if not success_ui then
     return
 end
 
--- Robust Paragraph compatibility layer.
+-- Paragraph compatibility for both the supplied V7 API and older/newer variants.
 do
     if not AetherUI.__HaroonParagraphCompatibility then
         AetherUI.__HaroonParagraphCompatibility = true
-
         local rawCreateWindow = AetherUI.CreateWindow
         if type(rawCreateWindow) == "function" then
             function AetherUI:CreateWindow(config)
                 local window = rawCreateWindow(self, config)
-                if not window or type(window.CreateTab) ~= "function" then
-                    return window
-                end
-
+                if not window or type(window.CreateTab) ~= "function" then return window end
                 local rawCreateTab = window.CreateTab
                 function window:CreateTab(name, icon)
                     local tab = rawCreateTab(self, name, icon)
-                    if not tab or type(tab.CreateParagraph) ~= "function" then
-                        return tab
-                    end
-                    if tab.__HaroonParagraphCompatibility then
-                        return tab
-                    end
-                    tab.__HaroonParagraphCompatibility = true
-
+                    if not tab or type(tab.CreateParagraph) ~= "function" then return tab end
                     local rawCreateParagraph = tab.CreateParagraph
-
+                    if tab.__HaroonParagraphCompatibility then return tab end
+                    tab.__HaroonParagraphCompatibility = true
                     function tab:CreateParagraph(cfg)
-                        if type(cfg) ~= "table" then
-                            cfg = {Content = tostring(cfg or "")}
+                        if type(cfg) == "string" or type(cfg) == "number" or type(cfg) == "boolean" then
+                            cfg = {Content = tostring(cfg)}
                         else
-                            local copy = {}
-                            for k, v in pairs(cfg) do copy[k] = v end
-                            cfg = copy
+                            cfg = cfg or {}
                             if cfg.Content == nil then
-                                cfg.Content =
-                                    cfg.Desc or cfg.desc or
-                                    cfg.Description or cfg.description or
-                                    cfg.Text or cfg.text or
-                                    cfg.Texts or cfg.texts or
-                                    cfg.Lines or cfg.lines or
-                                    ""
+                                cfg.Content = cfg.Desc or cfg.desc or cfg.Description or cfg.description or cfg.Text or cfg.text or cfg.Texts or cfg.Lines or "No information available."
                             end
-                            if cfg.Icon == nil then
-                                cfg.Icon = cfg.Image or cfg.image
-                            end
+                            if cfg.Icon == nil then cfg.Icon = cfg.Image or cfg.image end
                         end
-
-                        local ok, paragraph = pcall(rawCreateParagraph, self, cfg)
-                        if not ok or not paragraph then
-                            warn("Haroon Hub: CreateParagraph failed:", paragraph)
-                            return nil
+                        local p = rawCreateParagraph(self, cfg)
+                        if type(p) == "table" and type(p.SetContent) == "function" then
+                            local setter = p.SetContent
+                            p.SetDesc = p.SetDesc or setter
+                            p.SetDescription = p.SetDescription or setter
+                            p.SetText = p.SetText or setter
+                            p.SetTexts = p.SetTexts or setter
+                            p.SetLines = p.SetLines or setter
+                            p.Update = p.Update or setter
+                            p.Set = p.Set or setter
+                            p.SetStatus = p.SetStatus or setter
                         end
-
-                        if type(paragraph.SetContent) == "function" then
-                            local setContent = paragraph.SetContent
-
-                            if type(paragraph.SetDesc) ~= "function" then
-                                function paragraph:SetDesc(v)
-                                    return setContent(self, tostring(v == nil and "" or v))
-                                end
-                            end
-                            if type(paragraph.SetDescription) ~= "function" then
-                                function paragraph:SetDescription(v)
-                                    return setContent(self, tostring(v == nil and "" or v))
-                                end
-                            end
-                            if type(paragraph.SetText) ~= "function" then
-                                function paragraph:SetText(v)
-                                    return setContent(self, tostring(v == nil and "" or v))
-                                end
-                            end
-                            if type(paragraph.SetTexts) ~= "function" then
-                                function paragraph:SetTexts(v)
-                                    return setContent(self, v)
-                                end
-                            end
-                            if type(paragraph.SetLines) ~= "function" then
-                                function paragraph:SetLines(v)
-                                    return setContent(self, v)
-                                end
-                            end
-                            if type(paragraph.Update) ~= "function" then
-                                function paragraph:Update(v)
-                                    return setContent(self, v)
-                                end
-                            end
-                            if type(paragraph.Set) ~= "function" then
-                                function paragraph:Set(v)
-                                    return setContent(self, v)
-                                end
-                            end
-                            if type(paragraph.SetStatus) ~= "function" then
-                                function paragraph:SetStatus(v)
-                                    return setContent(self, tostring(v == nil and "" or v))
-                                end
-                            end
-                        end
-
-                        return paragraph
+                        return p
                     end
-
                     return tab
                 end
-
                 return window
             end
         end
