@@ -1186,24 +1186,80 @@ end)
 --------------------------------------------------------------------------------
 local AETHER_LIBRARY_URL = "https://pastebin.com/raw/yeULgMe0"
 local AetherUI = nil
+local function getGlobalEnv()
+    return (type(getgenv) == "function" and getgenv()) or _G
+end
 local function loadAetherLibrary()
-    local existing = game:GetService("CoreGui"):FindFirstChild("AetherUI_Notifs")
-    if existing and getgenv().AetherUI then return getgenv().AetherUI end
-    local ok, lib = pcall(function() return loadstring(game:HttpGet(AETHER_LIBRARY_URL))() end)
-    if ok and lib then
-        AetherUI = lib
-        getgenv().AetherUI = lib
+    local env = getGlobalEnv()
+    if env and type(env.AetherUI) == "table" then
+        return env.AetherUI
+    end
+    local ok, lib = pcall(function()
+        local source = game:HttpGet(AETHER_LIBRARY_URL)
+        local chunk = assert(loadstring(source))
+        return chunk()
+    end)
+    if ok and type(lib) == "table" then
+        env.AetherUI = lib
         return lib
     end
     return nil
 end
-local AetherUI = loadAetherLibrary()
-local success_ui = AetherUI ~= nil
+AetherUI = loadAetherLibrary()
+local success_ui = type(AetherUI) == "table"
 local err_ui = success_ui and nil or "AetherUI load failed"
 
-if not success_ui or not AetherUI then
+if not success_ui then
     warn("Haroon Hub: Failed to load AetherUI library. Error:", err_ui)
     return
+end
+
+-- Paragraph compatibility for both the supplied V7 API and older/newer variants.
+do
+    if not AetherUI.__HaroonParagraphCompatibility then
+        AetherUI.__HaroonParagraphCompatibility = true
+        local rawCreateWindow = AetherUI.CreateWindow
+        if type(rawCreateWindow) == "function" then
+            function AetherUI:CreateWindow(config)
+                local window = rawCreateWindow(self, config)
+                if not window or type(window.CreateTab) ~= "function" then return window end
+                local rawCreateTab = window.CreateTab
+                function window:CreateTab(name, icon)
+                    local tab = rawCreateTab(self, name, icon)
+                    if not tab or type(tab.CreateParagraph) ~= "function" then return tab end
+                    local rawCreateParagraph = tab.CreateParagraph
+                    if tab.__HaroonParagraphCompatibility then return tab end
+                    tab.__HaroonParagraphCompatibility = true
+                    function tab:CreateParagraph(cfg)
+                        if type(cfg) == "string" or type(cfg) == "number" or type(cfg) == "boolean" then
+                            cfg = {Content = tostring(cfg)}
+                        else
+                            cfg = cfg or {}
+                            if cfg.Content == nil then
+                                cfg.Content = cfg.Desc or cfg.desc or cfg.Description or cfg.description or cfg.Text or cfg.text or cfg.Texts or cfg.Lines or "No information available."
+                            end
+                            if cfg.Icon == nil then cfg.Icon = cfg.Image or cfg.image end
+                        end
+                        local p = rawCreateParagraph(self, cfg)
+                        if type(p) == "table" and type(p.SetContent) == "function" then
+                            local setter = p.SetContent
+                            p.SetDesc = p.SetDesc or setter
+                            p.SetDescription = p.SetDescription or setter
+                            p.SetText = p.SetText or setter
+                            p.SetTexts = p.SetTexts or setter
+                            p.SetLines = p.SetLines or setter
+                            p.Update = p.Update or setter
+                            p.Set = p.Set or setter
+                            p.SetStatus = p.SetStatus or setter
+                        end
+                        return p
+                    end
+                    return tab
+                end
+                return window
+            end
+        end
+    end
 end
 
 AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Modules & Auto Engines...", function()
@@ -1825,16 +1881,9 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
             return false
         end
         local function rollFruitOnce()
-            local success=false
-            if CommF_ then
-                for _,args in ipairs({{"Cousin","Buy"},{"Cousin","Buy","Random"},{"Gacha","Buy"},{"BloxFruitGacha","Buy"}}) do
-                    local ok=pcall(function() CommF_:InvokeServer(table.unpack(args)) end)
-                    success=success or ok
-                end
-            end
             local npc=findFruitGachaNPC()
-            if npc and interactNPC(npc) then success=true end
-            if AetherUI then pcall(function() AetherUI:Notify({Title="Fruit Gacha",Content=success and "Roll request sent." or "Gacha interaction failed.",Duration=3}) end) end
+            local success = npc and interactNPC(npc) or false
+            if AetherUI then pcall(function() AetherUI:Notify({Title="Fruit Gacha",Content=success and "Gacha interaction sent." or "Blox Fruit Gacha NPC is not available in this server.",Duration=3}) end) end
             return success
         end
         FruitsTab:CreateButton("Roll Fruit Once (Blox Fruit Gacha)", function() rollFruitOnce() end)
@@ -1890,23 +1939,12 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
 
         FruitsTab:CreateButton("Open Blox Fruits Shop", function()
             local opened=false
-            if CommF_ then
-                for _,args in ipairs({{"GetFruits"},{"GetFruits",true},{"Shop","Open"},{"OpenShop"},{"FruitShop","Open"}}) do
-                    local ok=pcall(function() CommF_:InvokeServer(table.unpack(args)) end)
-                    opened=opened or ok
-                end
-            end
             local names={"Blox Fruit Dealer","Blox Fruit Dealer Cousin","Advanced Fruit Dealer","Zioles","Blox Fruit Gacha"}
             for _,n in ipairs(names) do
                 local npc=workspace:FindFirstChild(n,true)
-                if npc then
-                    local prompt=npc:FindFirstChildWhichIsA("ProximityPrompt",true)
-                    local click=npc:FindFirstChildWhichIsA("ClickDetector",true)
-                    if prompt and fireproximityprompt then pcall(function() fireproximityprompt(prompt,1) end); opened=true end
-                    if click and fireclickdetector then pcall(function() fireclickdetector(click) end); opened=true end
-                end
+                if npc and interactNPC(npc) then opened=true; break end
             end
-            if AetherUI then pcall(function() AetherUI:Notify({Title="Blox Fruits Shop", Content=opened and "Shop interaction sent." or "Fruit Dealer could not be located.", Duration=3}) end) end
+            if AetherUI then pcall(function() AetherUI:Notify({Title="Blox Fruits Shop", Content=opened and "Shop interaction sent." or "Fruit Dealer/Gacha NPC could not be located.", Duration=3}) end) end
         end)
 
         DragonDojoTab:CreateSection("Blaze Ember & Dojo Collector")
@@ -2097,21 +2135,21 @@ AetherUI:InitLoadingScreen("Haroon Hub V12 Master Edition", "Initializing Module
             return false
         end
 
-        local SessionTimePara = MiscTab:CreateParagraph({Title="Session Time", Desc="00:00:00", Image="rbxassetid://6034287594", ImageSize=20})
-        local ServerTimePara = MiscTab:CreateParagraph({Title="Server Uptime", Desc="00:00:00", Image="rbxassetid://6034287594", ImageSize=20})
-        local AFKTimePara = MiscTab:CreateParagraph({Title="AFK / Idle Time", Desc="00:00:00", Image="rbxassetid://6034287594", ImageSize=20})
-        local TimezonePara = MiscTab:CreateParagraph({Title="Time", Desc="Local: --:--:-- | UTC: --:--:--", Image="rbxassetid://6034287594", ImageSize=20})
-        local SeaIslandPara = MiscTab:CreateParagraph({Title="Location & Sea", Desc="Sea: Detecting... | Island: Detecting...", Image="rbxassetid://6034453535", ImageSize=20})
-        local StatsPara = MiscTab:CreateParagraph({Title="Player Stats & Currency", Desc="Level: -- | Beli: -- | Fragments: --", Image="rbxassetid://6031280882", ImageSize=20})
-        local ServerInfoPara = MiscTab:CreateParagraph({Title="Server", Desc="Players: 0/0 | Server Time: 00:00:00", Image="rbxassetid://6034287594", ImageSize=20})
-        local CakePrincePara = MiscTab:CreateParagraph({Title="Cake Prince", Desc="🔴 Not Spawned | Progress: 0/500 | Remaining: 500", Image="rbxassetid://6034834832", ImageSize=20})
-        local DoughKingPara = MiscTab:CreateParagraph({Title="Dough King", Desc="🔴 Not Spawned | Progress: 0/500 | Remaining: 500 | Sweet Chalice: ❌", Image="rbxassetid://6034834832", ImageSize=20})
-        local MiragePara = MiscTab:CreateParagraph({Title="Mirage Status", Desc="🔴 Not Spawned", Image="rbxassetid://6034453535", ImageSize=20})
-        local KitsunePara = MiscTab:CreateParagraph({Title="Kitsune Status", Desc="🔴 Not Spawned", Image="rbxassetid://6034453535", ImageSize=20})
-        local SeaEventPara = MiscTab:CreateParagraph({Title="Sea Events", Desc="No active sea events detected.", Image="rbxassetid://6034453535", ImageSize=20})
-        local ElitePara = MiscTab:CreateParagraph({Title="Elite Hunters Killed", Desc="N/A", Image="rbxassetid://6034834832", ImageSize=20})
-        local SwordPara = MiscTab:CreateParagraph({Title="Legendary Swords Owned", Desc="0 / 3", Image="rbxassetid://6034834832", ImageSize=20})
-        local NetworkPara = MiscTab:CreateParagraph({Title="Network", Desc="FPS: -- | Ping: -- ms", Image="rbxassetid://6031280882", ImageSize=20})
+        local SessionTimePara = MiscTab:CreateParagraph({Title="Session Time", Content="00:00:00",, Image="rbxassetid://6034287594", ImageSize=20})
+        local ServerTimePara = MiscTab:CreateParagraph({Title="Server Uptime", Content="00:00:00",, Image="rbxassetid://6034287594", ImageSize=20})
+        local AFKTimePara = MiscTab:CreateParagraph({Title="AFK / Idle Time", Content="00:00:00",, Image="rbxassetid://6034287594", ImageSize=20})
+        local TimezonePara = MiscTab:CreateParagraph({Title="Time", Content="Local: --:--:-- | UTC: --:--:--",, Image="rbxassetid://6034287594", ImageSize=20})
+        local SeaIslandPara = MiscTab:CreateParagraph({Title="Location & Sea", Content="Sea: Detecting... | Island: Detecting...",, Image="rbxassetid://6034453535", ImageSize=20})
+        local StatsPara = MiscTab:CreateParagraph({Title="Player Stats & Currency", Content="Level: -- | Beli: -- | Fragments: --",, Image="rbxassetid://6031280882", ImageSize=20})
+        local ServerInfoPara = MiscTab:CreateParagraph({Title="Server", Content="Players: 0/0 | Server Time: 00:00:00",, Image="rbxassetid://6034287594", ImageSize=20})
+        local CakePrincePara = MiscTab:CreateParagraph({Title="Cake Prince", Content="🔴 Not Spawned | Progress: 0/500 | Remaining: 500",, Image="rbxassetid://6034834832", ImageSize=20})
+        local DoughKingPara = MiscTab:CreateParagraph({Title="Dough King", Content="🔴 Not Spawned | Progress: 0/500 | Remaining: 500 | Sweet Chalice: ❌",, Image="rbxassetid://6034834832", ImageSize=20})
+        local MiragePara = MiscTab:CreateParagraph({Title="Mirage Status", Content="🔴 Not Spawned",, Image="rbxassetid://6034453535", ImageSize=20})
+        local KitsunePara = MiscTab:CreateParagraph({Title="Kitsune Status", Content="🔴 Not Spawned",, Image="rbxassetid://6034453535", ImageSize=20})
+        local SeaEventPara = MiscTab:CreateParagraph({Title="Sea Events", Content="No active sea events detected.",, Image="rbxassetid://6034453535", ImageSize=20})
+        local ElitePara = MiscTab:CreateParagraph({Title="Elite Hunters Killed", Content="N/A",, Image="rbxassetid://6034834832", ImageSize=20})
+        local SwordPara = MiscTab:CreateParagraph({Title="Legendary Swords Owned", Content="0 / 3",, Image="rbxassetid://6034834832", ImageSize=20})
+        local NetworkPara = MiscTab:CreateParagraph({Title="Network", Content="FPS: -- | Ping: -- ms",, Image="rbxassetid://6031280882", ImageSize=20})
 
         local uiStartClock = os.clock()
         local lastInputClock = os.clock()
@@ -3655,3 +3693,4 @@ end)
 
 
 task.spawn(function() while task.wait(10) do if _G.Settings.Misc["Save Settings"] then pcall(saveSettings) end end end)
+
