@@ -57,6 +57,7 @@ local HttpService = game:GetService("HttpService")
 local Lighting = game:GetService("Lighting")
 
 local LocalPlayer = Players.LocalPlayer
+local autoFindLeviathanStep
 repeat task.wait() until LocalPlayer:FindFirstChild("PlayerGui")
 
 local Remotes = ReplicatedStorage:FindFirstChild("Remotes")
@@ -127,6 +128,8 @@ _G.Settings = {
         ["Kill Aura Range"] = 25,
         ["Attack Speed"] = 1,
         ["Auto Enable Haki"] = false,
+        ["Auto Attack Selected Player"] = false,
+        ["PvP Hover Height"] = 8,
     },
     Fruits = {
         ["Fruit ESP"] = false,
@@ -207,6 +210,10 @@ _G.Settings = {
         ["Auto Draco Trail"] = false,
         ["Auto Frozen Dimension"] = false,
         ["Auto Drive Hydra"] = false,
+        ["Auto Find Leviathan"] = false,
+        ["Leviathan Sea Zone"] = "Zone 6",
+        ["Auto Bribe Spy"] = true,
+        ["Leviathan Boat"] = "Beast Hunter",
     },
     Raid = {
         ["Selected Chip"] = "Flame",
@@ -231,7 +238,6 @@ _G.Settings = {
     Visuals = {
         ["ESP Players"] = false,
         ["ESP Bosses"] = false,
-        ["ESP Fruits"] = false,
         ["ESP Chests"] = false,
         ["ESP Enemies"] = false,
         ["ESP Mirage Island"] = false,
@@ -1196,6 +1202,7 @@ end
 -- Independent controllers; each stops as soon as its own flag becomes false.
 task.spawn(function() while task.wait(0.15) do if _G.Settings.Main["Auto Farm Material"] then pcall(integratedMaterialStep) else MaterialState.Target=nil end end end)
 task.spawn(function() while task.wait(0.25) do if _G.Settings.SubFarm["Auto Farm Leviathan"] then pcall(integratedLeviathanStep) end end end)
+task.spawn(function() while task.wait(0.35) do if _G.Settings.Sea["Auto Find Leviathan"] then pcall(autoFindLeviathanStep) end end end)
 
 --------------------------------------------------------------------------------
 -- 10B. RAID ENGINE v2 - persistent scanner / delayed-spawn safe
@@ -1358,26 +1365,26 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
         AetherUI:Notify({Title = "Haroon Hub V12 Active", Content = "Successfully loaded all modules in 100% English!", Duration = 4})
 
         local Window = AetherUI:CreateWindow({
-            Title = "Haroon Hub | Blox Fruits",
-            Subtitle = "by: Mic198888",
+            Title = "Haroon Hub | Blox Fruits Master",
+            Subtitle = "by: 3amek4222",
             ToggleKey = Enum.KeyCode.RightControl
         })
 
-        local MainTab = Window:CreateTab("Main", "rbxassetid://6034287594")
-        local QuestsTab = Window:CreateTab("Quests", "rbxassetid://6034453535")
-        local ShopTab = Window:CreateTab("Shop", "rbxassetid://6031280882")
-        local SubFarmTab = Window:CreateTab("Sub Farm", "rbxassetid://6034834832")
-        local RaidTab = Window:CreateTab("Raids", "rbxassetid://6034834832")
-        local SeaTab = Window:CreateTab("Sea Events", "rbxassetid://6034453535")
-        local RaceTab = Window:CreateTab("Race V4", "rbxassetid://6034453535")
-        local ItemsTab = Window:CreateTab("Items", "rbxassetid://6034834832")
-        local FruitsTab = Window:CreateTab("Fruits", "rbxassetid://6034453535")
+        local MainTab = Window:CreateTab("Main Farm", "rbxassetid://6034287594")
+        local QuestsTab = Window:CreateTab("All Quests", "rbxassetid://6034453535")
+        local ShopTab = Window:CreateTab("Shop & Upgrades", "rbxassetid://6031280882")
+        local SubFarmTab = Window:CreateTab("Subs Farm", "rbxassetid://6034834832")
+        local RaidTab = Window:CreateTab("Dungeons & Raids", "rbxassetid://6034834832")
+        local SeaTab = Window:CreateTab("Sea Events & Prehistoric", "rbxassetid://6034453535")
+        local RaceTab = Window:CreateTab("Race V4 & Mirage", "rbxassetid://6034453535")
+        local ItemsTab = Window:CreateTab("Items & Swords", "rbxassetid://6034834832")
+        local FruitsTab = Window:CreateTab("Fruits & Sniper", "rbxassetid://6034453535")
         local DragonDojoTab = Window:CreateTab("Dragon Dojo", "rbxassetid://6034453535")
-        local CombatTab = Window:CreateTab("Combat", "rbxassetid://6034834832")
+        local CombatTab = Window:CreateTab("Combat & PVP", "rbxassetid://6034834832")
         local CraftingTab = Window:CreateTab("Crafting", "rbxassetid://6034834832")
         local TeleportsTab = Window:CreateTab("Teleports", "rbxassetid://6034453535")
-        local VisualTab = Window:CreateTab("Visuals", "rbxassetid://6034453535")
-        local MiscTab = Window:CreateTab("Misc", "rbxassetid://6031280882")
+        local VisualTab = Window:CreateTab("Visuals & ESP", "rbxassetid://6034453535")
+        local MiscTab = Window:CreateTab("Misc & Server Status", "rbxassetid://6031280882")
         local SettingsTab = Window:CreateTab("Settings", "rbxassetid://6031280882")
 
         ---------------------------------------------------------
@@ -1692,6 +1699,25 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
             if not state then StopTween() end
         end)
 
+        SeaTab:CreateSection("Leviathan Hunter")
+
+        SeaTab:CreateToggle("Auto Find Leviathan", "AutoFindLeviathanFlag", false, function(state)
+            _G.Settings.Sea["Auto Find Leviathan"] = state
+            if not state then StopTween("LeviathanSpy"); StopTween("Leviathan") end
+        end)
+
+        SeaTab:CreateToggle("Auto Bribe Spy (4 × 1500 Fragments)", "AutoBribeSpyFlag", true, function(state)
+            _G.Settings.Sea["Auto Bribe Spy"] = state
+        end)
+
+        SeaTab:CreateDropdown("Leviathan Sea Danger", "LeviathanSeaZoneDropdown", {"Zone 4","Zone 5","Zone 6"}, "Zone 6", function(value)
+            _G.Settings.Sea["Leviathan Sea Zone"] = value
+        end)
+
+        SeaTab:CreateDropdown("Leviathan Boat", "LeviathanBoatDropdown", {"Beast Hunter","Guardian"}, "Beast Hunter", function(value)
+            _G.Settings.Sea["Leviathan Boat"] = value
+        end)
+
         SeaTab:CreateSection("Advanced Sea Engines")
 
         SeaTab:CreateToggle("Auto Attack Leviathan", "AutoLeviathanFlag", false, function(state)
@@ -1786,7 +1812,6 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
                 local island = GetKitsuneIsland()
                 if island then
                     local cf = GetModelCFrame(island)
-                    local cf = GetModelCFrame(island)
                     local _, hrp, hum = GetCharacter()
                     if cf and hrp then
                         if hum then pcall(function() hum.Sit=false end) end
@@ -1848,7 +1873,6 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
             if World3 then
                 local island = GetMirageIsland()
                 if island then
-                    local cf = GetModelCFrame(island)
                     local cf = GetModelCFrame(island)
                     local _, hrp, hum = GetCharacter()
                     if cf and hrp then
@@ -2095,9 +2119,9 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
             if state then task.spawn(function() while _G.Settings.Fruits["Auto Roll Fruit"] and getgenv().HaroonFruitRollToken==token do pcall(rollFruitOnce); task.wait(3) end end) end
         end)
 
+        FruitsTab:CreateSection("🍎 Fruit Notifier / ESP")
         FruitsTab:CreateToggle("Fruit Notifier (ESP)", "FruitESPFlag", false, function(state)
             _G.Settings.Fruits["Fruit ESP"] = state
-            _G.Settings.Visuals["ESP Fruits"] = state
         end)
 
         FruitsTab:CreateToggle("Fruit Sniper (Tween to Fruit)", "FruitSniperFlag", false, function(state)
@@ -2175,7 +2199,7 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
         ---------------------------------------------------------
         -- 📌 11. TAB: COMBAT & PVP
         ---------------------------------------------------------
-        CombatTab:CreateSection("Target Player Selector")
+        CombatTab:CreateSection("🎯 Target Player Selection")
 
         local playerList = {}
         for _, p in pairs(Players:GetPlayers()) do
@@ -2184,6 +2208,17 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
 
         local PVPPlayerDropdown = CombatTab:CreateDropdown("Select Player Target", "PVPPlayerDropdown", playerList, playerList[1] or "None", function(selected)
             _G.Settings.Combat["Selected Player"] = selected
+        end)
+
+        CombatTab:CreateSection("⚔️ Selected Player Combat")
+
+        CombatTab:CreateToggle("Auto Attack Selected Player", "AutoAttackSelectedPlayerFlag", false, function(state)
+            _G.Settings.Combat["Auto Attack Selected Player"] = state
+            if not state then StopTween("CombatPVP") end
+        end)
+
+        CombatTab:CreateSlider("PvP Hover Height", "PvPHoverHeightSlider", 4, 18, 8, function(value)
+            _G.Settings.Combat["PvP Hover Height"] = value
         end)
 
         CombatTab:CreateToggle("Spectate Selected Player", "SpectateFlag", false, function(state)
@@ -2201,6 +2236,7 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
             end
         end)
 
+        CombatTab:CreateSection("🎯 Aim & Position")
         CombatTab:CreateToggle("Aimbot Gun", "AimbotGunFlag", false, function(state)
             _G.Settings.Combat["Aimbot Gun"] = state
         end)
@@ -2261,8 +2297,9 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
             task.delay(0.05, refreshPlayerDropdownLive)
         end)
 
-        CombatTab:CreateSection("Combat Assist Toggles")
+        CombatTab:CreateSection("🛡️ Combat Assistance")
 
+        CombatTab:CreateSection("🗡️ Nearby Combat")
         CombatTab:CreateToggle("Kill Aura (Attack Nearby Enemies)", "KillAuraFlag", false, function(state)
             _G.Settings.Combat["Kill Aura"] = state
         end)
@@ -2311,19 +2348,37 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
             local root = model and model:FindFirstChild("HumanoidRootPart")
             local hum = model and model:FindFirstChildOfClass("Humanoid")
             if not root or not hum or hum.Health <= 0 then return false end
-            AutoHaki()
             local char, hrp, myHum = GetCharacter()
-            if not hrp or not myHum then return false end
+            if not hrp or not myHum or myHum.Health <= 0 then return false end
             myHum.Sit = false
-            local hover = 8
+            AutoHaki()
+            local hover = math.clamp(tonumber(_G.Settings.Combat["PvP Hover Height"]) or 8, 4, 18)
             local above = root.Position + Vector3.new(0, hover, 0)
-            if (hrp.Position-above).Magnitude > 12 then
+            local distance = (hrp.Position - above).Magnitude
+            if distance > 18 then
                 TweenPlayer(CFrame.lookAt(above, root.Position), nil, "CombatPVP")
-            else
-                pcall(function() hrp.CFrame = CFrame.lookAt(above, root.Position); hrp.AssemblyLinearVelocity=Vector3.zero end)
-                AimAtTarget(root.Position)
-                SmartAttackMob(model, _G.Settings.Main["Select Weapon"])
+                return true
             end
+            pcall(function()
+                if currentTween and currentTweenOwner == "CombatPVP" then currentTween:Cancel() end
+                currentTween = nil
+                currentTweenOwner = "CombatPVP"
+                hrp.CFrame = CFrame.lookAt(above, root.Position)
+                hrp.AssemblyLinearVelocity = Vector3.zero
+                hrp.AssemblyAngularVelocity = Vector3.zero
+                myHum.AutoRotate = false
+            end)
+            AimAtTarget(root.Position)
+            EquipWeapon(_G.Settings.Main["Select Weapon"])
+            local tool = char and char:FindFirstChildOfClass("Tool")
+            if tool then
+                pcall(function() tool:Activate() end)
+            end
+            pcall(function()
+                VirtualInputManager:SendMouseButtonEvent(0,0,0,true,game,0)
+                VirtualInputManager:SendMouseButtonEvent(0,0,0,false,game,0)
+            end)
+            FastAttackTarget(model)
             return true
         end
 
@@ -2364,7 +2419,7 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
                         end
                     end
                     if C["Auto Enable Haki"] then AutoHaki() end
-                    if p and C["Aimbot Gun"] then attackPlayerTarget(playerModel(p)) end
+                    if p and (C["Aimbot Gun"] or C["Auto Attack Selected Player"]) then attackPlayerTarget(playerModel(p)) end
                     if C["Auto PvP Escape"] then
                         local _, myRoot, myHum = GetCharacter()
                         if myRoot and myHum then
@@ -2458,9 +2513,10 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
         ---------------------------------------------------------
         VisualTab:CreateSection("Visual Object Detectors")
 
+        VisualTab:CreateSection("👤 Players")
         VisualTab:CreateToggle("ESP Players", "ESPPlayersFlag", false, function(state) _G.Settings.Visuals["ESP Players"] = state end)
+        VisualTab:CreateSection("⚔️ World Objects")
         VisualTab:CreateToggle("ESP Bosses", "ESPBossesFlag", false, function(state) _G.Settings.Visuals["ESP Bosses"] = state end)
-        VisualTab:CreateToggle("ESP Fruits", "ESPFruitsFlag", false, function(state) _G.Settings.Visuals["ESP Fruits"] = state end)
         VisualTab:CreateToggle("ESP Chests", "ESPChestsFlag", false, function(state) _G.Settings.Visuals["ESP Chests"] = state end)
         VisualTab:CreateToggle("ESP Enemies", "ESPEnemiesFlag", false, function(state) _G.Settings.Visuals["ESP Enemies"] = state end)
         VisualTab:CreateToggle("ESP Mirage Island", "ESPMirageFlag", false, function(state) _G.Settings.Visuals["ESP Mirage Island"] = state end)
@@ -2929,6 +2985,7 @@ LocalPlayer.CharacterAdded:Connect(function(char)
         pcall(function()
             if _G.Settings.Race["Auto Find Mirage"] or _G.Settings.Race["Teleport To Mirage"] then mirageStep() end
             if _G.Settings.Sea["Auto Find Kitsune Island"] or _G.Settings.Sea["Teleport To Kitsune Island"] then kitsuneStep() end
+            if _G.Settings.Sea["Auto Find Leviathan"] then autoFindLeviathanStep() end
         end)
     end)
 end)
@@ -3553,6 +3610,170 @@ local function ensureBoat()
     return nil
 end
 
+local LeviathanRuntime = {Bribes=0, LastBribe=0, LastBoat=0, LastMove=0}
+
+local function findLeviathanSpy()
+    local roots = {workspace:FindFirstChild("Map"), getLocationsFolder(), workspace}
+    for _, root in ipairs(roots) do
+        if root then
+            for _, obj in ipairs(root:GetDescendants()) do
+                if obj:IsA("Model") then
+                    local n=tostring(obj.Name):lower()
+                    if n=="spy" or n:find("leviathan spy",1,true) then return obj end
+                end
+            end
+        end
+    end
+    return nil
+end
+
+local function playerHasFragments(amount)
+    local data=LocalPlayer:FindFirstChild("Data")
+    local f=data and data:FindFirstChild("Fragments")
+    return tonumber(f and f.Value) and tonumber(f.Value) >= amount or false
+end
+
+local function readLeviathanClue()
+    local pg=LocalPlayer:FindFirstChild("PlayerGui")
+    if not pg then return "" end
+    local hits={}
+    for _,obj in ipairs(pg:GetDescendants()) do
+        if obj:IsA("TextLabel") or obj:IsA("TextButton") then
+            local t=tostring(obj.Text or "")
+            if #t>0 then table.insert(hits,t:lower()) end
+        end
+    end
+    return table.concat(hits," ")
+end
+
+local function interactSpyBribe(spy)
+    if not spy then return false end
+    local part=GetModelCFrame(spy)
+    if part then
+        local _,hrp=GetCharacter()
+        if hrp and (hrp.Position-part.Position).Magnitude>25 then
+            TweenPlayer(part*CFrame.new(0,3,0),nil,"LeviathanSpy")
+            task.wait(0.25)
+        end
+    end
+    local prompt=spy:FindFirstChildWhichIsA("ProximityPrompt",true)
+    if prompt and type(fireproximityprompt)=="function" then pcall(fireproximityprompt,prompt,1,true); task.wait(0.25) end
+    if CommF_ then
+        -- Try the known dialog-style variants; failed variants are ignored.
+        for _,args in ipairs({{"Spy","Clues"},{"Spy","Bribe"},{"Spy","Bribe",true},{"Spy","Clues","Bribe"}}) do
+            pcall(function() CommF_:InvokeServer(table.unpack(args)) end)
+            task.wait(0.15)
+        end
+    end
+    local clue=readLeviathanClue()
+    return clue:find("leviathan is out there",1,true) ~= nil or clue:find("bribe",1,true) ~= nil
+end
+
+local function getLeviathanBribeStage()
+    if not CommF_ then return 0 end
+    local ok, value = pcall(function() return CommF_:InvokeServer("InfoLeviathan", "1") end)
+    local n = tonumber(value)
+    return n or 0
+end
+
+local function ensureLeviathanBribed()
+    if not World3 then return false end
+    if not _G.Settings.Sea["Auto Bribe Spy"] then return true end
+    local stage = getLeviathanBribeStage()
+    if stage >= 5 then return true end
+    local spy = findLeviathanSpy()
+    if not spy then return false end
+    for _ = 1, 4 do
+        stage = getLeviathanBribeStage()
+        if stage >= 5 then return true end
+        if not playerHasFragments(1500) then return false end
+        if os.clock() - LeviathanRuntime.LastBribe < 1.0 then task.wait(1.0) end
+        -- Move to the Spy first; the server-side InfoLeviathan state decides whether a bribe is accepted.
+        local spyCF = GetModelCFrame(spy)
+        local _, hrp = GetCharacter()
+        if spyCF and hrp and (hrp.Position - spyCF.Position).Magnitude > 25 then
+            TweenPlayer(spyCF * CFrame.new(0,3,0), nil, "LeviathanSpy")
+            task.wait(0.25)
+        end
+        local prompt = spy:FindFirstChildWhichIsA("ProximityPrompt", true)
+        if prompt and type(fireproximityprompt) == "function" then
+            pcall(function() fireproximityprompt(prompt, 1, true) end)
+            task.wait(0.2)
+        end
+        if CommF_ then
+            pcall(function() CommF_:InvokeServer("Spy", "Bribe") end)
+            task.wait(0.25)
+        end
+        LeviathanRuntime.LastBribe = os.clock()
+    end
+    return getLeviathanBribeStage() >= 5
+end
+
+local function findLeviathanBoat()
+    local boats=workspace:FindFirstChild("Boats")
+    if not boats then return nil end
+    for _,boat in ipairs(boats:GetChildren()) do
+        if boat:IsA("Model") and boat:FindFirstChildWhichIsA("VehicleSeat",true) then
+            local n=boat.Name:lower()
+            local owner=getBoatOwnerName(boat)
+            if owner and (owner==LocalPlayer.Name or owner==tostring(LocalPlayer.UserId)) then
+                if n:find("beast",1,true) or n:find("hydra",1,true) or n:find("leviathan",1,true) then return boat end
+            end
+        end
+    end
+    return nil
+end
+
+local function ensureLeviathanBoat()
+    local boat=findLeviathanBoat()
+    if boat then mountMyBoat(boat); return boat end
+    local old=_G.Settings.Sea["Selected Boat"]
+    _G.Settings.Sea["Selected Boat"]=_G.Settings.Sea["Leviathan Boat"] or "Beast Hunter"
+    boat=ensureBoat()
+    _G.Settings.Sea["Selected Boat"]=old
+    return boat
+end
+
+local function findFrozenDimensionOrLeviathan()
+    local roots={workspace:FindFirstChild("Map"),getLocationsFolder(),workspace:FindFirstChild("_WorldOrigin"),workspace}
+    local keys={"frozen dimension","frozendimension","leviathan gate","leviathan","frost gate"}
+    for _,root in ipairs(roots) do
+        if root then
+            for _,obj in ipairs(root:GetDescendants()) do
+                local n=tostring(obj.Name):lower():gsub("[%s_%-%p]","")
+                for _,k in ipairs(keys) do
+                    local kk=k:gsub("[%s_%-%p]","")
+                    if n:find(kk,1,true) then
+                        local cf=GetModelCFrame(obj)
+                        if cf then return obj,cf end
+                    end
+                end
+            end
+        end
+    end
+    return nil
+end
+
+autoFindLeviathanStep = function()
+    if not World3 or not _G.Settings.Sea["Auto Find Leviathan"] then return false end
+    if not ensureLeviathanBribed() then return false end
+    local boat=ensureLeviathanBoat()
+    if not boat then return false end
+    local _,hrp,hum=GetCharacter()
+    if not hrp or not hum then return false end
+    local target,cf=findFrozenDimensionOrLeviathan()
+    if target and cf then
+        moveBoatOverSea(boat,cf,true)
+        return true
+    end
+    -- Frozen Dimension only spawns in Sea Danger Level 6; keep the boat in the selected danger zone while scanning.
+    local zoneName=_G.Settings.Sea["Leviathan Sea Zone"] or "Zone 6"
+    local zone=ZoneCFrames[zoneName] or ZoneCFrames["Zone 6"]
+    moveBoatOverSea(boat,zone,true)
+    return true
+end
+
+
 local MirageSearchRoute = {
     CFrame.new(-26780, 31, -823),
     CFrame.new(-31172, 31, -2257),
@@ -3572,39 +3793,52 @@ end
 
 function moveBoatOverSea(boat, targetCF, precise)
     if not boat or not boat.Parent or typeof(targetCF) ~= "CFrame" then return false end
-    local seat=getBoatSeat(boat)
+    local seat = getBoatSeat(boat)
     if not seat then return false end
-    local _,hrp,hum=GetCharacter()
+    local _, hrp, hum = GetCharacter()
     if not hrp or not hum then return false end
-    if not hum.Sit then pcall(function() hrp.CFrame=seat.CFrame*CFrame.new(0,2.5,0); seat:Sit(hum) end); return false end
-    local p=seat.Position
-    local target=Vector3.new(targetCF.Position.X,getBoatHeight(),targetCF.Position.Z)
-    local dist=(p-target).Magnitude
-    local threshold=precise and 35 or 70
-    if dist<=threshold then return true end
+    if not hum.Sit then
+        pcall(function()
+            hrp.CFrame = seat.CFrame * CFrame.new(0,2.5,0)
+            seat:Sit(hum)
+        end)
+        return false
+    end
+    local current = boat:GetPivot()
+    local targetPos = Vector3.new(targetCF.Position.X, getBoatHeight(), targetCF.Position.Z)
+    local distance = (current.Position - targetPos).Magnitude
+    local threshold = precise and 45 or 80
+    if distance <= threshold then return true end
     if boat:GetAttribute("HaroonBoatMoving") then return false end
-    local speed=math.max(60,tonumber(_G.Settings.Sea["Boat Tween Speed"]) or 200)
-    local stepDistance=math.min(dist, math.max(250,speed*1.8))
-    local dir=(target-p)
-    if dir.Magnitude<1 then return true end
-    local waypoint=p+dir.Unit*stepDistance
-    waypoint=Vector3.new(waypoint.X,getBoatHeight(),waypoint.Z)
-    local look=Vector3.new(target.X, getBoatHeight(), target.Z)
-    local goal=CFrame.lookAt(waypoint,look)
-    local duration=math.clamp(stepDistance/speed,0.35,2.5)
-    boat:SetAttribute("HaroonBoatMoving",true)
-    local tween
-    local ok=pcall(function()
-        local pivot=boat:GetPivot()
-        local targetPivot=pivot*CFrame.new(waypoint-pivot.Position)
-        targetPivot=CFrame.lookAt(waypoint,look)
-        tween=TweenService:Create(boat.PrimaryPart or seat,TweenInfo.new(duration,Enum.EasingStyle.Linear),{CFrame=targetPivot})
+    local speed = math.clamp(tonumber(_G.Settings.Sea["Boat Tween Speed"]) or 200, 50, 500)
+    local stepDistance = math.min(distance, math.max(300, speed * 2.0))
+    local dir = targetPos - current.Position
+    if dir.Magnitude < 1 then return true end
+    local waypoint = current.Position + dir.Unit * stepDistance
+    waypoint = Vector3.new(waypoint.X, getBoatHeight(), waypoint.Z)
+    local look = Vector3.new(targetPos.X, getBoatHeight(), targetPos.Z)
+    local goal = CFrame.lookAt(waypoint, look)
+    local duration = math.clamp(stepDistance / speed, 0.25, 2.2)
+    boat:SetAttribute("HaroonBoatMoving", true)
+    local cv = Instance.new("CFrameValue")
+    cv.Value = current
+    local conn = cv:GetPropertyChangedSignal("Value"):Connect(function()
+        if boat and boat.Parent then pcall(function() boat:PivotTo(cv.Value) end) end
+    end)
+    local ok = pcall(function()
+        local tween = TweenService:Create(cv, TweenInfo.new(duration, Enum.EasingStyle.Linear), {Value = goal})
         tween.Completed:Connect(function()
-            if boat and boat.Parent then boat:SetAttribute("HaroonBoatMoving",nil) end
+            if conn then conn:Disconnect() end
+            if cv then cv:Destroy() end
+            if boat and boat.Parent then boat:SetAttribute("HaroonBoatMoving", nil) end
         end)
         tween:Play()
     end)
-    if not ok then boat:SetAttribute("HaroonBoatMoving",nil) end
+    if not ok then
+        if conn then conn:Disconnect() end
+        cv:Destroy()
+        boat:SetAttribute("HaroonBoatMoving", nil)
+    end
     return false
 end
 
@@ -3689,8 +3923,13 @@ local function mirageStep()
     if not _G.Settings.Race["Auto Find Mirage"] then return end
     local boat = ensureBoat()
     if not boat then return end
+    local _, _, hum = GetCharacter()
     local seat = getBoatSeat(boat)
-    if seat and not (GetCharacter()) then return end
+    if not seat or not hum then return end
+    if not hum.Sit then
+        mountMyBoat(boat)
+        return
+    end
     if os.clock()-MirageLastMove < 0.75 then return end
     MirageLastMove = os.clock()
     local route = MirageSearchRoute[MirageRouteIndex]
@@ -3716,6 +3955,9 @@ local function kitsuneStep()
     if not _G.Settings.Sea["Auto Find Kitsune Island"] then return end
     local boat = ensureBoat()
     if not boat then return end
+    local _, _, hum = GetCharacter()
+    if not hum then return end
+    if not hum.Sit then mountMyBoat(boat); return end
     if os.clock()-KitsuneLastMove < 0.75 then return end
     KitsuneLastMove = os.clock()
     local target = isFullMoonLikely() and KitsuneDanger6Point or KitsuneHoldingPoint
@@ -4034,6 +4276,8 @@ local function getPlayerLevelText(player)
     if level and tonumber(level.Value) then
         return "Lv." .. tostring(level.Value)
     end
+    local attrLevel = player:GetAttribute("Level")
+    if tonumber(attrLevel) then return "Lv." .. tostring(attrLevel) end
     return "Lv.?"
 end
 
@@ -4048,7 +4292,6 @@ local function espTick()
     if not hrp then return end
     local seen = {}
     local S = _G.Settings.Visuals
-    if _G.Settings.Fruits["Fruit ESP"] then S["ESP Fruits"] = true end
     if _G.Settings.Fruits["Player ESP"] then S["ESP Players"] = true end
     if _G.Settings.Fruits["Chest ESP"] then S["ESP Chests"] = true end
 
@@ -4086,16 +4329,35 @@ local function espTick()
         end
     end
 
-    if S["ESP Fruits"] then
-        for _, obj in ipairs(workspace:GetChildren()) do
-            if obj:IsA("Tool") then
-                local n = obj.Name:lower()
-                if n:find("fruit") or n:find("blox") then
+    if _G.Settings.Fruits["Fruit ESP"] then
+        -- Fruit Notifier: fruits can be Tools, Models, or nested inside world folders.
+        local fruitNameHints = {
+            "rocket","spin","blade","bomb","smoke","flame","ice","sand","dark","light","rubber",
+            "barrier","ghost","magma","quake","buddha","love","spider","sound","phoenix","portal",
+            "rumble","pain","blizzard","gravity","mammoth","trex","dough","shadow","venom","control",
+            "spirit","dragon","leopard","yeti","kitsune","gas","diamond","falcon","eagle","spring",
+            "chop","revive","barrier","paw","buddha","falcon"
+        }
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            local isCandidate = obj:IsA("Tool") or obj:IsA("Model") or obj:IsA("BasePart")
+            if isCandidate then
+                local n = tostring(obj.Name):lower()
+                local attr = tostring(obj:GetAttribute("Fruit") or obj:GetAttribute("FruitName") or obj:GetAttribute("ItemType") or ""):lower()
+                local looksFruit = n:find("fruit",1,true) or n:find("blox fruit",1,true) or attr:find("fruit",1,true)
+                if not looksFruit then
+                    for _, hint in ipairs(fruitNameHints) do
+                        if n == hint or n:find(hint .. " fruit",1,true) or n:find(hint,1,true) and (obj:IsA("Tool") or obj:IsA("Model")) then
+                            looksFruit = true
+                            break
+                        end
+                    end
+                end
+                if looksFruit then
                     local part = getEspPart(obj)
                     if part then
                         local key = "F:" .. obj:GetDebugId()
                         seen[key] = true
-                        EnsureESP(key, part, "🍎 " .. obj.Name, Color3.fromRGB(255,180,40), false)
+                        EnsureESP(key, part, "🍎 " .. tostring(obj.Name), Color3.fromRGB(255,180,40), false)
                     end
                 end
             end
@@ -4140,7 +4402,7 @@ local function espTick()
         if not seen[key] then RemoveESP(key) end
     end
 
-    if not (S["ESP Players"] or S["ESP Enemies"] or S["ESP Bosses"] or S["ESP Fruits"] or S["ESP Chests"] or S["ESP Mirage Island"] or S["ESP Kitsune Island"]) then
+    if not (S["ESP Players"] or S["ESP Enemies"] or S["ESP Bosses"] or _G.Settings.Fruits["Fruit ESP"] or S["ESP Chests"] or S["ESP Mirage Island"] or S["ESP Kitsune Island"]) then
         RemoveAllESP()
     end
 end
@@ -4148,6 +4410,18 @@ end
 task.spawn(function()
     while task.wait(0.25) do pcall(espTick) end
 end)
+
+-- Robust Fruit Notifier / Mirage / Leviathan recovery watcher.
+task.spawn(function()
+    while task.wait(0.5) do
+        pcall(function()
+            if _G.Settings.Fruits["Fruit ESP"] then espTick() end
+            if _G.Settings.Race["Auto Find Mirage"] or _G.Settings.Race["Teleport To Mirage"] then mirageStep() end
+            if _G.Settings.Sea["Auto Find Leviathan"] then autoFindLeviathanStep() end
+        end)
+    end
+end)
+
 
 --------------------------------------------------------------------------------
 -- Factory Core Auto Farm
