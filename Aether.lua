@@ -1293,7 +1293,7 @@ local AetherUI = rawget(getgenv and getgenv() or _G, "AetherUI")
 local success_ui, err_ui = true, nil
 if not AetherUI then
     success_ui, err_ui = pcall(function()
-        local source = safeHttpGet("https://pastebin.com/raw/yeULgMe0")
+        local source = safeHttpGet("https://pastebin.com/raw/y3wUhBTN")
         AetherUI = assert(loadstring(source))()
         pcall(function() getgenv().AetherUI = AetherUI end)
     end)
@@ -1357,13 +1357,13 @@ do
         end
     end
 end
-AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Modules & Auto Engines...", function()
+AetherUI:InitLoadingScreen("Aether Hub | V1", "Initializing Modules & Auto Engines...", function()
     AetherUI:InitKeySystem({"HAROON-2025-VIP", "HAROON-KEY-100"}, function()
-        AetherUI:Notify({Title = "Haroon Hub V12 Active", Content = "Successfully loaded all modules in 100% English!", Duration = 4})
+        AetherUI:Notify({Title = "Aether Hub", Content = "Successfully loaded all modules 100%!", Duration = 4})
 
         local Window = AetherUI:CreateWindow({
-            Title = "Haroon Hub | Blox Fruits Master",
-            Subtitle = "by: 3amek4222",
+            Title = "Aether Hub | V1",
+            Subtitle = "by: Mic198888",
             ToggleKey = Enum.KeyCode.RightControl
         })
 
