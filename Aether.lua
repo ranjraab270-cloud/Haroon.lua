@@ -283,40 +283,12 @@ _G.Settings = {
         ["Custom Jump"] = false,
         ["Jump Power"] = 50,
         ["Infinity Jump"] = false,
-        ["Save Settings"] = false,
     }
 }
 
 --------------------------------------------------------------------------------
--- 2B. Persistent Settings / Profile
+-- 2B. Settings persistence removed as requested.
 --------------------------------------------------------------------------------
-local SETTINGS_FILE = "HaroonHub_Settings_V21.json"
-local function canFile()
-    return type(isfile)=="function" and type(readfile)=="function" and type(writefile)=="function"
-end
-local function deepMerge(dst, src)
-    if type(src) ~= "table" then return dst end
-    for k,v in pairs(src) do
-        if type(v)=="table" and type(dst[k])=="table" then deepMerge(dst[k],v) else dst[k]=v end
-    end
-    return dst
-end
-local function loadSettings()
-    if not canFile() then return false end
-    local ok, raw = pcall(readfile, SETTINGS_FILE)
-    if not ok or type(raw)~="string" or raw=="" then return false end
-    local decoded
-    local good=pcall(function() decoded=HttpService:JSONDecode(raw) end)
-    if good and type(decoded)=="table" then deepMerge(_G.Settings,decoded); return true end
-    return false
-end
-local function saveSettings()
-    if not canFile() then return false end
-    local ok, raw=pcall(function() return HttpService:JSONEncode(_G.Settings) end)
-    if not ok then return false end
-    return pcall(writefile, SETTINGS_FILE, raw)
-end
-loadSettings()
 
 --------------------------------------------------------------------------------
 -- 3. Promo Codes Master Engine
@@ -885,6 +857,47 @@ local FullIslandLocations = {
     }
 }
 
+-- Smart cross-island teleport: stage instantly at a nearby island, then tween at the single hub speed.
+local TELEPORT_TWEEN_SPEED = 180
+local function getCurrentSeaTable()
+    if World1 then return FullIslandLocations.Sea1 end
+    if World2 then return FullIslandLocations.Sea2 end
+    if World3 then return FullIslandLocations.Sea3 end
+    return {}
+end
+local function nearestIslandCF(position, excludeName)
+    local bestName, bestCF, bestDist
+    for name, cf in pairs(getCurrentSeaTable()) do
+        if name ~= excludeName then
+            local d=(position-cf.Position).Magnitude
+            if not bestDist or d<bestDist then bestName,bestCF,bestDist=name,cf,d end
+        end
+    end
+    return bestName,bestCF,bestDist
+end
+local PreferredTeleportStages={
+    ["Haunted Castle"]="Castle on the Sea",
+    ["Cake Land"]="Castle on the Sea",
+    ["Tiki Outpost"]="Castle on the Sea",
+}
+local function SmartTeleportIsland(name, cf, owner)
+    if typeof(cf) ~= "CFrame" then return false end
+    local _,hrp=GetCharacter(); if not hrp then return false end
+    local sea=getCurrentSeaTable()
+    local stageName=PreferredTeleportStages[name]
+    local stageCF=stageName and sea[stageName] or nil
+    if not stageCF then stageName,stageCF=nearestIslandCF(hrp.Position,name) end
+    local oldSpeed=_G.Settings.Main["Player Tween Speed"]
+    _G.Settings.Main["Player Tween Speed"]=180
+    if stageCF and stageName and stageName ~= name and (hrp.Position-cf.Position).Magnitude > 1200 then
+        SafeTeleport100(stageCF, owner or "IslandTeleportStage")
+        task.wait(0.12)
+    end
+    TweenPlayer(cf, Vector3.new(0,100,0), owner or "IslandTeleport")
+    _G.Settings.Main["Player Tween Speed"]=oldSpeed
+    return true
+end
+
 local DungeonChips = {
     "Flame", "Ice", "Quake", "Light", "Dark", "Spider", "Rumble", "Magma", "Buddha", "Dough"
 }
@@ -1165,49 +1178,19 @@ local function integratedFrozenStep()
     end
 end
 
--- Robust boat movement helper (fixes the old undefined moveBoatOverSea call).
-local function moveBoatOverSea(boat, targetCF, force)
-    if not boat or not boat.Parent or not targetCF then return false end
-    local seat = getBoatSeat(boat)
-    local char, hrp, hum = GetCharacter()
-    if not seat or not hrp or not hum then return false end
-    if not hum.Sit then
-        pcall(function() hrp.CFrame = seat.CFrame * CFrame.new(0, 2.5, 0) end)
-        return false
-    end
-    local target = Vector3.new(targetCF.Position.X, math.max(25, targetCF.Position.Y), targetCF.Position.Z)
-    local distance = (seat.Position - target).Magnitude
-    if distance <= 90 then return true end
-    local speed = math.max(120, tonumber(_G.Settings.Sea["Boat Tween Speed"]) or 200)
-    local duration = math.clamp(distance / speed, 0.65, 10)
-    local primary = boat.PrimaryPart or seat
-    if not primary then return false end
-    if force then
-        pcall(function() boat:PivotTo(CFrame.lookAt(target, target + Vector3.new(1,0,0))) end)
-        return true
-    end
-    if boat:GetAttribute("HaroonSeaMoveBusy") then return false end
-    boat:SetAttribute("HaroonSeaMoveBusy", true)
-    pcall(function()
-        local tween = TweenService:Create(primary, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
-            CFrame = CFrame.lookAt(target, target + Vector3.new(60,0,0))
-        })
-        tween:Play()
-        task.spawn(function()
-            tween.Completed:Wait()
-            if boat and boat.Parent then boat:SetAttribute("HaroonSeaMoveBusy", nil) end
-        end)
-    end)
-    return false
-end
-
 local function integratedHydraStep()
-    local boat=GetMyBoatIntegrated and GetMyBoatIntegrated() or nil
-    if not boat then ensureBoat(); return end
+    local boat=GetMyBoatIntegrated()
+    if not boat then return end
     local seat=getBoatSeat(boat)
     local _,hrp,hum=GetCharacter()
-    if seat and hum and not hum.Sit then pcall(function() hrp.CFrame=seat.CFrame*CFrame.new(0,2.5,0) end); return end
-    if seat then moveBoatOverSea(boat,CFrame.new(5433,35,290),true) end
+    if seat and hum and not hum.Sit then
+        pcall(function() hrp.CFrame=seat.CFrame*CFrame.new(0,2.5,0); seat:Sit(hum) end)
+        return
+    end
+    if seat then
+        local target=CFrame.new(5433,getBoatHeight(),290)
+        moveBoatOverSea(boat,target,true)
+    end
 end
 
 -- Independent controllers; each stops as soon as its own flag becomes false.
@@ -1293,7 +1276,7 @@ local AetherUI = rawget(getgenv and getgenv() or _G, "AetherUI")
 local success_ui, err_ui = true, nil
 if not AetherUI then
     success_ui, err_ui = pcall(function()
-        local source = safeHttpGet("https://pastebin.com/raw/y3wUhBTN")
+        local source = safeHttpGet("https://pastebin.com/raw/yeULgMe0")
         AetherUI = assert(loadstring(source))()
         pcall(function() getgenv().AetherUI = AetherUI end)
     end)
@@ -1357,13 +1340,13 @@ do
         end
     end
 end
-AetherUI:InitLoadingScreen("Aether Hub | V1", "Initializing Modules & Auto Engines...", function()
+AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Modules & Auto Engines...", function()
     AetherUI:InitKeySystem({"HAROON-2025-VIP", "HAROON-KEY-100"}, function()
-        AetherUI:Notify({Title = "Aether Hub", Content = "Successfully loaded all modules 100%!", Duration = 4})
+        AetherUI:Notify({Title = "Haroon Hub V12 Active", Content = "Successfully loaded all modules in 100% English!", Duration = 4})
 
         local Window = AetherUI:CreateWindow({
-            Title = "Aether Hub | V1",
-            Subtitle = "by: Mic198888",
+            Title = "Haroon Hub | Blox Fruits Master",
+            Subtitle = "by: 3amek4222",
             ToggleKey = Enum.KeyCode.RightControl
         })
 
@@ -1383,7 +1366,6 @@ AetherUI:InitLoadingScreen("Aether Hub | V1", "Initializing Modules & Auto Engin
         local VisualTab = Window:CreateTab("Visuals & ESP", "rbxassetid://6034453535")
         local MiscTab = Window:CreateTab("Misc & Server Status", "rbxassetid://6031280882")
         local SettingsTab = Window:CreateTab("Settings", "rbxassetid://6031280882")
-        local CreditsTab = Window:CreateTab("Credits", "rbxassetid://6034453535")
 
         ---------------------------------------------------------
         -- 📌 1. TAB: MAIN FARM
@@ -1410,7 +1392,7 @@ AetherUI:InitLoadingScreen("Aether Hub | V1", "Initializing Modules & Auto Engin
             local giver = BFFindSubmergedQuest(picked.Giver)
             local cf = giver and GetModelCFrame(giver)
             if not cf then cf = picked.Giver == "Submerged Quest Giver 1" and CFrame.new(-11034,-201,-9330) or picked.Giver == "Submerged Quest Giver 2" and CFrame.new(-10439,-316,-9484) or CFrame.new(-10420,-405,-10470) end
-            SafeTeleport100(cf * CFrame.new(0, -100, 0), "SubmergedTP")
+            SmartTeleportIsland("Submerged Island", cf * CFrame.new(0,-100,0), "SubmergedTP")
             AetherUI:Notify({Title="Submerged Island", Content="Smart route selected for Level "..tostring(level).." → "..picked.Mob..".", Duration=3})
         end)
 
@@ -1678,7 +1660,7 @@ AetherUI:InitLoadingScreen("Aether Hub | V1", "Initializing Modules & Auto Engin
         SeaTab:CreateSection("Prehistoric Island Engine")
 
         SeaTab:CreateButton("Teleport to Prehistoric Island", function()
-            TweenPlayer(MobSpecificTeleports["Prehistoric Island"])
+            SmartTeleportIsland("Prehistoric Island", MobSpecificTeleports["Prehistoric Island"], "PrehistoricTP")
             AetherUI:Notify({Title = "Teleport", Content = "Teleporting to Prehistoric Island...", Duration = 2})
         end)
 
@@ -1795,7 +1777,7 @@ AetherUI:InitLoadingScreen("Aether Hub | V1", "Initializing Modules & Auto Engin
                     local _, hrp, hum = GetCharacter()
                     if cf and hrp then
                         if hum then pcall(function() hum.Sit=false end) end
-                        pcall(function() hrp.CFrame=cf*CFrame.new(0,100,0) end)
+                        pcall(function() SmartTeleportIsland("Kitsune Island", cf, "KitsuneTP") end)
                     end
                     AetherUI:Notify({Title = "Kitsune Island", Content = "Teleporting to Kitsune Island...", Duration = 2})
                 else
@@ -1858,7 +1840,7 @@ AetherUI:InitLoadingScreen("Aether Hub | V1", "Initializing Modules & Auto Engin
                     local _, hrp, hum = GetCharacter()
                     if cf and hrp then
                         if hum then pcall(function() hum.Sit=false end) end
-                        pcall(function() hrp.CFrame=cf*CFrame.new(0,100,0) end)
+                        pcall(function() SmartTeleportIsland("Mirage Island", cf, "MirageTP") end)
                     end
                     AetherUI:Notify({Title = "Mirage Island", Content = "Teleporting to Mirage Island...", Duration = 2})
                 else
@@ -2414,7 +2396,7 @@ AetherUI:InitLoadingScreen("Aether Hub | V1", "Initializing Modules & Auto Engin
             TeleportsTab:CreateToggle("Teleport to " .. islandName, key, false, function(state)
                 _G.Settings.Teleports[key] = state
                 if state then
-                    SafeTeleport100(cf, "IslandTeleport")
+                    SmartTeleportIsland(islandName, cf, "IslandTeleport")
                     task.wait(1)
                     _G.Settings.Teleports[key] = false
                 end
@@ -2427,7 +2409,7 @@ AetherUI:InitLoadingScreen("Aether Hub | V1", "Initializing Modules & Auto Engin
             TeleportsTab:CreateToggle("Teleport to " .. islandName, key, false, function(state)
                 _G.Settings.Teleports[key] = state
                 if state then
-                    SafeTeleport100(cf, "IslandTeleport")
+                    SmartTeleportIsland(islandName, cf, "IslandTeleport")
                     task.wait(1)
                     _G.Settings.Teleports[key] = false
                 end
@@ -2442,7 +2424,7 @@ AetherUI:InitLoadingScreen("Aether Hub | V1", "Initializing Modules & Auto Engin
             for _,r in ipairs(SubmergedQuests) do if lv>=r.Min and lv<=r.Max then chosen=r break end end
             local giver=BFFindSubmergedQuest(chosen.Giver)
             local cf=giver and GetModelCFrame(giver)
-            if cf then SafeTeleport100(cf*CFrame.new(0,-100,0), "SubmergedTP") else SafeTeleport100(chosen.Giver=="Submerged Quest Giver 1" and CFrame.new(-11034,-201,-9330) or chosen.Giver=="Submerged Quest Giver 2" and CFrame.new(-10439,-316,-9484) or CFrame.new(-10420,-405,-10470), "SubmergedTP") end
+            if cf then SmartTeleportIsland("Submerged Island", cf*CFrame.new(0,-100,0), "SubmergedTP") else SmartTeleportIsland("Submerged Island", chosen.Giver=="Submerged Quest Giver 1" and CFrame.new(-11034,-201,-9330) or chosen.Giver=="Submerged Quest Giver 2" and CFrame.new(-10439,-316,-9484) or CFrame.new(-10420,-405,-10470), "SubmergedTP") end
         end)
 
         TeleportsTab:CreateSection("Third Sea Islands Teleport")
@@ -2451,7 +2433,7 @@ AetherUI:InitLoadingScreen("Aether Hub | V1", "Initializing Modules & Auto Engin
             TeleportsTab:CreateToggle("Teleport to " .. islandName, key, false, function(state)
                 _G.Settings.Teleports[key] = state
                 if state then
-                    SafeTeleport100(cf, "IslandTeleport")
+                    SmartTeleportIsland(islandName, cf, "IslandTeleport")
                     task.wait(1)
                     _G.Settings.Teleports[key] = false
                 end
@@ -2530,20 +2512,30 @@ AetherUI:InitLoadingScreen("Aether Hub | V1", "Initializing Modules & Auto Engin
         end
 
         local function fetchPublicServers()
-            local url = "https://games.roblox.com/v1/games/"..tostring(game.PlaceId).."/servers/Public?sortOrder=Asc&limit="..SERVER_PAGE_LIMIT
-            local raw = safeHttpGet(url)
-            if not raw then
-                local resp = safeRequest({Url=url, Method="GET"})
-                raw = resp and (resp.Body or resp.body)
-            end
-            if not raw then return {} end
-            local ok, data = pcall(function() return HttpService:JSONDecode(raw) end)
-            if not ok or type(data) ~= "table" then return {} end
-            local list = {}
-            for _, server in ipairs(data.data or {}) do
-                if server.id and server.id ~= tostring(game.JobId) and tonumber(server.playing or 0) < tonumber(server.maxPlayers or 0) then
-                    table.insert(list, server.id)
+            local list, seen = {}, {}
+            local cursor = nil
+            for _ = 1, 5 do
+                local url = "https://games.roblox.com/v1/games/"..tostring(game.PlaceId).."/servers/Public?sortOrder=Asc&limit="..SERVER_PAGE_LIMIT
+                if cursor and cursor ~= "" then url = url .. "&cursor=" .. HttpService:UrlEncode(cursor) end
+                local raw = safeHttpGet(url)
+                if not raw then
+                    local resp = safeRequest({Url=url, Method="GET"})
+                    raw = resp and (resp.Body or resp.body)
                 end
+                if not raw then break end
+                local ok, data = pcall(function() return HttpService:JSONDecode(raw) end)
+                if not ok or type(data) ~= "table" then break end
+                for _, server in ipairs(data.data or {}) do
+                    local id = tostring(server.id or "")
+                    local playing = tonumber(server.playing or 0) or 0
+                    local maxPlayers = tonumber(server.maxPlayers or 0) or 0
+                    if id ~= "" and id ~= tostring(game.JobId) and playing < maxPlayers and not seen[id] then
+                        seen[id] = true
+                        table.insert(list, id)
+                    end
+                end
+                cursor = data.nextPageCursor
+                if not cursor or cursor == "" then break end
             end
             return list
         end
@@ -2564,6 +2556,7 @@ AetherUI:InitLoadingScreen("Aether Hub | V1", "Initializing Modules & Auto Engin
             TeleportService:TeleportToPlaceInstance(game.PlaceId, target, LocalPlayer)
             return true
         end
+        GEN.HaroonHopForMode = hopForMode
 
         MiscTab:CreateSection("Real Server Finder")
         local function addServerJoinButton(label, mode, allowed)
@@ -2811,6 +2804,16 @@ AetherUI:InitLoadingScreen("Aether Hub | V1", "Initializing Modules & Auto Engin
         MiscTab:CreateButton("Join Near Full Moon Server", function() joinRandomPublicServer(true) end)
         MiscTab:CreateButton("Join Full Moon Server", function() joinRandomPublicServer(true) end)
 
+        MiscTab:CreateButton("Server Hub • Public Server Hop", function()
+            local servers=fetchPublicServers()
+            if #servers==0 then
+                AetherUI:Notify({Title="Server Hub",Content="No available public servers were returned.",Duration=3})
+                return
+            end
+            local target=servers[math.random(1,#servers)]
+            TeleportService:TeleportToPlaceInstance(game.PlaceId,target,LocalPlayer)
+        end)
+
         MiscTab:CreateButton("Manual Server Hop", function()
             local success, targetServer = pcall(function()
                 local placeId = game.PlaceId
@@ -2855,46 +2858,16 @@ AetherUI:InitLoadingScreen("Aether Hub | V1", "Initializing Modules & Auto Engin
         SettingsTab:CreateToggle("Infinity Jump", "SettingsInfinityJump", false, function(state)
             _G.Settings.Misc["Infinity Jump"] = state
         end)
-
-        SettingsTab:CreateSection("Persistence")
-        SettingsTab:CreateToggle("Enable Settings Save", "SettingsSaveFlag", _G.Settings.Misc["Save Settings"], function(state)
-            _G.Settings.Misc["Save Settings"]=state
-            local ok=state and saveSettings() or true
-            if AetherUI and state then AetherUI:Notify({Title="Settings",Content=ok and "Configuration saved." or "File API unavailable.",Duration=3}) end
-        end)
-        SettingsTab:CreateButton("Save Current Configuration", function()
-            local ok=saveSettings()
-            if AetherUI then AetherUI:Notify({Title="Settings",Content=ok and "Toggles, dropdowns and sliders saved." or "Could not save configuration.",Duration=3}) end
-        end)
-        SettingsTab:CreateButton("Rejoin & Restore Saved Configuration", function()
-            saveSettings()
-            TeleportService:Teleport(game.PlaceId, LocalPlayer)
-        end)
-
         SettingsTab:CreateSection("Hub Controls")
 
         SettingsTab:CreateButton("Rejoin Current Server", function()
-            TeleportService:Teleport(game.PlaceId, LocalPlayer)
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
         end)
 
         SettingsTab:CreateButton("Destroy Hub Interface", function()
             local master = game:GetService("CoreGui"):FindFirstChild("HaroonHub_Master") or game:GetService("Players").LocalPlayer.PlayerGui:FindFirstChild("HaroonHub_Master")
             if master then master:Destroy() end
         end)
-
-        CreditsTab:CreateSection("Official Credits")
-        CreditsTab:CreateParagraph({
-            Title = "Coolkidd28653  ✓",
-            Desc = "Verified Owner • Haroon Hub",
-            Image = "rbxassetid://6034287594",
-            ImageSize = 28
-        })
-        CreditsTab:CreateParagraph({
-            Title = "Haroon Hub",
-            Desc = "Official build • Smart systems • Live status engine",
-            Image = "rbxassetid://6034453535",
-            ImageSize = 22
-        })
     end)
 end)
 
@@ -3523,20 +3496,48 @@ local function boatPivot(boat, position, lookAt)
     end)
 end
 
-local function ensureBoat()
-    local boat = GetMyBoatIntegrated()
-    if boat then return boat end
-    local _, hrp = GetCharacter()
-    if CommF_ and World3 then
-        -- Buy from the current dock/dealer when close, otherwise move to a stable Third Sea dealer area.
-        local buyCF = CFrame.new(-16927.451, 14, 433.864)
-        if hrp and (hrp.Position - buyCF.Position).Magnitude > 80 then
-            TweenPlayer(buyCF, nil, "BoatBuy")
-        else
-            pcall(function() CommF_:InvokeServer("BuyBoat", _G.Settings.Sea["Selected Boat"] or "Guardian") end)
+local function findBoatDealer()
+    local keys={"boat dealer","luxury boat dealer","dealer"}
+    for _,obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") then
+            local n=obj.Name:lower()
+            for _,k in ipairs(keys) do
+                if n==k or n:find(k,1,true) then return obj end
+            end
         end
     end
-    return GetMyBoatIntegrated()
+end
+local function mountMyBoat(boat)
+    local _,hrp,hum=GetCharacter()
+    local seat=getBoatSeat(boat)
+    if not hrp or not hum or not seat then return false end
+    pcall(function() hrp.CFrame=seat.CFrame*CFrame.new(0,2.5,0) end)
+    task.wait(0.08)
+    pcall(function() seat:Sit(hum) end)
+    return true
+end
+local function ensureBoat()
+    local boat = GetMyBoatIntegrated()
+    if boat then mountMyBoat(boat); return boat end
+    local _, hrp = GetCharacter()
+    if CommF_ then
+        local dealer=findBoatDealer()
+        local dealerCF=dealer and GetModelCFrame(dealer)
+        if dealerCF and hrp and (hrp.Position-dealerCF.Position).Magnitude>90 then
+            TweenPlayer(dealerCF*CFrame.new(0,4,0),nil,"BoatBuy")
+            task.wait(0.15)
+        elseif not dealerCF and World3 and hrp and (hrp.Position-CFrame.new(-16927.451,14,433.864).Position).Magnitude>90 then
+            TweenPlayer(CFrame.new(-16927.451,14,433.864),nil,"BoatBuy")
+            task.wait(0.15)
+        end
+        pcall(function() CommF_:InvokeServer("BuyBoat", _G.Settings.Sea["Selected Boat"] or "Guardian") end)
+    end
+    for _=1,25 do
+        boat=GetMyBoatIntegrated()
+        if boat then mountMyBoat(boat); return boat end
+        task.wait(0.12)
+    end
+    return nil
 end
 
 local MirageSearchRoute = {
@@ -3552,38 +3553,45 @@ local MirageRouteIndex = 1
 local MirageLastMove = 0
 local KitsuneLastMove = 0
 
-local function getBoatHeight()
+function getBoatHeight()
     return math.clamp(tonumber(_G.Settings.Sea["Boat Height"]) or 30, 15, 120)
 end
 
-local function moveBoatOverSea(boat, targetCF, precise)
+function moveBoatOverSea(boat, targetCF, precise)
     if not boat or not boat.Parent or typeof(targetCF) ~= "CFrame" then return false end
-    local seat = getBoatSeat(boat)
+    local seat=getBoatSeat(boat)
     if not seat then return false end
-    local _, hrp, hum = GetCharacter()
-    if hum and not hum.Sit then
-        pcall(function() hrp.CFrame = seat.CFrame * CFrame.new(0, 2.5, 0); hum.Sit = true end)
-        return false
-    end
-    local current = seat.Position
-    local target = Vector3.new(targetCF.Position.X, getBoatHeight(), targetCF.Position.Z)
-    local dist = (current-target).Magnitude
-    if dist <= (precise and 35 or 70) then return true end
-    local primary = boat.PrimaryPart or seat
-    if not primary then return false end
-    local look = Vector3.new(target.X + 60, target.Y, target.Z)
-    local goal = CFrame.lookAt(target, look)
-    if boat:GetAttribute("HaroonBoatMoving") then
-        return false
-    end
-    boat:SetAttribute("HaroonBoatMoving", true)
-    local speed = math.max(60, tonumber(_G.Settings.Sea["Boat Tween Speed"]) or 200)
-    local duration = math.clamp(dist / speed, 0.35, 10)
-    local tween = TweenService:Create(primary, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = goal})
-    tween.Completed:Connect(function()
-        if boat and boat.Parent then boat:SetAttribute("HaroonBoatMoving", nil) end
+    local _,hrp,hum=GetCharacter()
+    if not hrp or not hum then return false end
+    if not hum.Sit then pcall(function() hrp.CFrame=seat.CFrame*CFrame.new(0,2.5,0); seat:Sit(hum) end); return false end
+    local p=seat.Position
+    local target=Vector3.new(targetCF.Position.X,getBoatHeight(),targetCF.Position.Z)
+    local dist=(p-target).Magnitude
+    local threshold=precise and 35 or 70
+    if dist<=threshold then return true end
+    if boat:GetAttribute("HaroonBoatMoving") then return false end
+    local speed=math.max(60,tonumber(_G.Settings.Sea["Boat Tween Speed"]) or 200)
+    local stepDistance=math.min(dist, math.max(250,speed*1.8))
+    local dir=(target-p)
+    if dir.Magnitude<1 then return true end
+    local waypoint=p+dir.Unit*stepDistance
+    waypoint=Vector3.new(waypoint.X,getBoatHeight(),waypoint.Z)
+    local look=Vector3.new(target.X, getBoatHeight(), target.Z)
+    local goal=CFrame.lookAt(waypoint,look)
+    local duration=math.clamp(stepDistance/speed,0.35,2.5)
+    boat:SetAttribute("HaroonBoatMoving",true)
+    local tween
+    local ok=pcall(function()
+        local pivot=boat:GetPivot()
+        local targetPivot=pivot*CFrame.new(waypoint-pivot.Position)
+        targetPivot=CFrame.lookAt(waypoint,look)
+        tween=TweenService:Create(boat.PrimaryPart or seat,TweenInfo.new(duration,Enum.EasingStyle.Linear),{CFrame=targetPivot})
+        tween.Completed:Connect(function()
+            if boat and boat.Parent then boat:SetAttribute("HaroonBoatMoving",nil) end
+        end)
+        tween:Play()
     end)
-    tween:Play()
+    if not ok then boat:SetAttribute("HaroonBoatMoving",nil) end
     return false
 end
 
@@ -3642,7 +3650,7 @@ local function mirageStep()
     local island = GetMirageIsland()
     if island then
         MirageRouteIndex = 1
-        if _G.Settings.Race["Teleport To Mirage"] or _G.Settings.Race["Auto Find Mirage"] then
+        if _G.Settings.Race["Teleport To Mirage"] then
             forceTeleportToIsland(island, "MirageTP")
         end
         if _G.Settings.Race["Tween To Highest Mirage"] or _G.Settings.Race["Auto Find Mirage"] then
@@ -3682,7 +3690,7 @@ local function kitsuneStep()
     if not World3 then return end
     local island = GetKitsuneIsland()
     if island then
-        if _G.Settings.Sea["Teleport To Kitsune Island"] or _G.Settings.Sea["Auto Find Kitsune Island"] then
+        if _G.Settings.Sea["Teleport To Kitsune Island"] then
             forceTeleportToIsland(island, "KitsuneTP")
         end
         if _G.Settings.Sea["Auto Collect Azure Embers"] then
@@ -4555,14 +4563,10 @@ task.spawn(function()
             if AetherUI then pcall(function() AetherUI:Notify({Title="Server Finder",Content="Target server condition found.",Duration=4}) end) end
         elseif HUB_SCRIPT_URL_GLOBAL ~= "" then
             task.wait(1)
-            hopForMode(mode)
+            local f=GEN.HaroonHopForMode; if type(f)=="function" then f(mode) end
         end
     end
 end)
-
-task.spawn(function() while task.wait(10) do if _G.Settings.Misc["Save Settings"] then pcall(saveSettings) end end end)
-
-
 
 -- Sea Events fallback combat engine V26: supports sea models that do not expose a Humanoid.
 local function findSeaTargetFallback()
