@@ -1274,10 +1274,23 @@ end)
 --------------------------------------------------------------------------------
 local AetherUI = rawget(getgenv and getgenv() or _G, "AetherUI")
 local success_ui, err_ui = true, nil
+local AETHERUI_SOURCE_URL = (type(getgenv)=="function" and getgenv().HAROON_AETHERUI_URL) or "https://pastebin.com/raw/y3wUhBTN"
 if not AetherUI then
     success_ui, err_ui = pcall(function()
-        local source = safeHttpGet("https://pastebin.com/raw/y3wUhBTN")
-        AetherUI = assert(loadstring(source))()
+        local source = safeHttpGet(AETHERUI_SOURCE_URL)
+        if type(source) ~= "string" or #source < 100 then
+            error("AetherUI download returned empty/invalid source")
+        end
+        -- Repair known malformed AetherUI endings before compilation.
+        if source:find("AetherUAetherUI.Executor", 1, true) then
+            source = source:gsub("return%s+AetherUAetherUI%.Executor%s*=%s*detectExecutorName%(%)", "AetherUI.Executor = detectExecutorName()")
+        end
+        source = source:gsub("\nI%s*$", "\n")
+        local compiled, compileErr = loadstring(source)
+        if not compiled then
+            error("AetherUI source compile failed: " .. tostring(compileErr))
+        end
+        AetherUI = compiled()
         pcall(function() getgenv().AetherUI = AetherUI end)
     end)
 end
@@ -1340,31 +1353,31 @@ do
         end
     end
 end
-AetherUI:InitLoadingScreen("Aether Hub | V1", "Initializing Modules & Auto Engines...", function()
+AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Modules & Auto Engines...", function()
     AetherUI:InitKeySystem({"HAROON-2025-VIP", "HAROON-KEY-100"}, function()
-        AetherUI:Notify({Title = "Aether Hub | V1", Content = "Successfully loaded all modules 100%!", Duration = 4})
+        AetherUI:Notify({Title = "Haroon Hub V12 Active", Content = "Successfully loaded all modules in 100% English!", Duration = 4})
 
         local Window = AetherUI:CreateWindow({
-            Title = "Aether Hub | V1",
+            Title = "Haroon Hub | Blox Fruits",
             Subtitle = "by: Mic198888",
             ToggleKey = Enum.KeyCode.RightControl
         })
 
-        local MainTab = Window:CreateTab("Main Farm", "rbxassetid://6034287594")
-        local QuestsTab = Window:CreateTab("All Quests", "rbxassetid://6034453535")
-        local ShopTab = Window:CreateTab("Shop & Upgrades", "rbxassetid://6031280882")
-        local SubFarmTab = Window:CreateTab("Subs Farm", "rbxassetid://6034834832")
-        local RaidTab = Window:CreateTab("Dungeons & Raids", "rbxassetid://6034834832")
-        local SeaTab = Window:CreateTab("Sea Events & Prehistoric", "rbxassetid://6034453535")
-        local RaceTab = Window:CreateTab("Race V4 & Mirage", "rbxassetid://6034453535")
-        local ItemsTab = Window:CreateTab("Items & Swords", "rbxassetid://6034834832")
-        local FruitsTab = Window:CreateTab("Fruits & Sniper", "rbxassetid://6034453535")
+        local MainTab = Window:CreateTab("Main", "rbxassetid://6034287594")
+        local QuestsTab = Window:CreateTab("Quests", "rbxassetid://6034453535")
+        local ShopTab = Window:CreateTab("Shop", "rbxassetid://6031280882")
+        local SubFarmTab = Window:CreateTab("Sub Farm", "rbxassetid://6034834832")
+        local RaidTab = Window:CreateTab("Raids", "rbxassetid://6034834832")
+        local SeaTab = Window:CreateTab("Sea Events", "rbxassetid://6034453535")
+        local RaceTab = Window:CreateTab("Race V4", "rbxassetid://6034453535")
+        local ItemsTab = Window:CreateTab("Items", "rbxassetid://6034834832")
+        local FruitsTab = Window:CreateTab("Fruits", "rbxassetid://6034453535")
         local DragonDojoTab = Window:CreateTab("Dragon Dojo", "rbxassetid://6034453535")
-        local CombatTab = Window:CreateTab("Combat & PVP", "rbxassetid://6034834832")
+        local CombatTab = Window:CreateTab("Combat", "rbxassetid://6034834832")
         local CraftingTab = Window:CreateTab("Crafting", "rbxassetid://6034834832")
         local TeleportsTab = Window:CreateTab("Teleports", "rbxassetid://6034453535")
-        local VisualTab = Window:CreateTab("Visuals & ESP", "rbxassetid://6034453535")
-        local MiscTab = Window:CreateTab("Misc & Server Status", "rbxassetid://6031280882")
+        local VisualTab = Window:CreateTab("Visuals", "rbxassetid://6034453535")
+        local MiscTab = Window:CreateTab("Misc", "rbxassetid://6031280882")
         local SettingsTab = Window:CreateTab("Settings", "rbxassetid://6031280882")
 
         ---------------------------------------------------------
