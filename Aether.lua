@@ -5,6 +5,44 @@ task.wait(1)
 --------------------------------------------------------------------------------
 -- 1. Core Services & Network Remotes
 --------------------------------------------------------------------------------
+--============================================================
+-- Executor Compatibility Layer (Delta / Xeno / Arceus / KRNL / generic)
+--============================================================
+local GEN = (type(getgenv) == "function" and getgenv()) or _G
+local function resolveGlobal(name)
+    local ok, value = pcall(function() return GEN[name] end)
+    if ok and value ~= nil then return value end
+    return _G[name]
+end
+
+local function safeHttpGet(url)
+    local getter = resolveGlobal("httpget") or resolveGlobal("HttpGet")
+    if type(getter) == "function" then
+        local ok, result = pcall(getter, url)
+        if ok and type(result) == "string" then return result end
+    end
+    local ok, result = pcall(function() return game:HttpGet(url) end)
+    if ok and type(result) == "string" then return result end
+    return nil
+end
+
+local function safeRequest(options)
+    local req = resolveGlobal("request") or resolveGlobal("http_request") or resolveGlobal("http")
+    if type(req) == "function" then
+        local ok, result = pcall(req, options)
+        if ok then return result end
+    end
+    return nil
+end
+
+local function safeQueueOnTeleport(code)
+    local q = resolveGlobal("queue_on_teleport") or resolveGlobal("queueonteleport") or resolveGlobal("queueonteleport")
+    if type(q) == "function" and type(code) == "string" and #code > 0 then
+        return pcall(q, code)
+    end
+    return false
+end
+
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
@@ -73,7 +111,8 @@ _G.Settings = {
         ["Auto Farm Material"] = false,
         ["Selected Boss"] = "The Gorilla King",
         ["Auto Farm Boss"] = false,
-        ["Auto Farm All Boss"] = false
+        ["Auto Farm All Boss"] = false,
+        ["Auto Farm Factory"] = false
     },
     Combat = {
         ["Selected Player"] = nil,
@@ -236,6 +275,7 @@ _G.Settings = {
         ["Bypass Anticheat"] = false,
         ["Show Ping"] = false,
         ["Show FPS"] = false,
+        ["Server Join Mode"] = nil,
         ["Custom Speed"] = false,
         ["Walk Speed"] = 16,
         ["Custom Jump"] = false,
@@ -1232,7 +1272,7 @@ local AetherUI = rawget(getgenv and getgenv() or _G, "AetherUI")
 local success_ui, err_ui = true, nil
 if not AetherUI then
     success_ui, err_ui = pcall(function()
-        local source = game:HttpGet("https://pastebin.com/raw/yeULgMe0")
+        local source = safeHttpGet("https://pastebin.com/raw/yeULgMe0")
         AetherUI = assert(loadstring(source))()
         pcall(function() getgenv().AetherUI = AetherUI end)
     end)
@@ -1395,6 +1435,11 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
         MainTab:CreateToggle("Auto Farm All Available Bosses", "FarmAllBossFlag", _G.Settings.Main["Auto Farm All Boss"], function(state)
             _G.Settings.Main["Auto Farm All Boss"] = state
             if not state then StopTween("BossFarm") end
+        end)
+
+        MainTab:CreateToggle("Auto Farm Factory Core", "AutoFarmFactoryFlag", _G.Settings.Main["Auto Farm Factory"], function(state)
+            _G.Settings.Main["Auto Farm Factory"] = state
+            if not state then StopTween("Factory") end
         end)
 
         ---------------------------------------------------------
@@ -2069,15 +2114,20 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
                 if p ~= LocalPlayer then table.insert(fresh, p.Name) end
             end
             table.sort(fresh)
-            _G.Settings.Combat["Selected Player"] = fresh[1]
+            local defaultName = fresh[1] or "None"
+            _G.Settings.Combat["Selected Player"] = defaultName
             if PVPPlayerDropdown and type(PVPPlayerDropdown.SetValues) == "function" then
-                PVPPlayerDropdown:SetValues(fresh)
-            elseif AetherUI.Elements and AetherUI.Elements.PVPPlayerDropdown and type(AetherUI.Elements.PVPPlayerDropdown.SetValues) == "function" then
-                AetherUI.Elements.PVPPlayerDropdown:SetValues(fresh)
-            elseif AetherUI.Elements and AetherUI.Elements["PVPPlayerDropdown"] and type(AetherUI.Elements["PVPPlayerDropdown"].SetValues) == "function" then
-                AetherUI.Elements["PVPPlayerDropdown"]:SetValues(fresh)
+                pcall(function() PVPPlayerDropdown:SetValues(fresh, defaultName) end)
+            elseif PVPPlayerDropdown and type(PVPPlayerDropdown.Set) == "function" then
+                pcall(function() PVPPlayerDropdown:Set(defaultName) end)
+            elseif AetherUI.Elements and AetherUI.Elements.PVPPlayerDropdown then
+                local elem = AetherUI.Elements.PVPPlayerDropdown
+                if type(elem.SetValues) == "function" then pcall(function() elem:SetValues(fresh, defaultName) end) end
+                if type(elem.Set) == "function" and defaultName ~= "None" then pcall(function() elem:Set(defaultName) end) end
             end
-            AetherUI:Notify({Title="Players", Content="Player list refreshed: "..tostring(#fresh), Duration=2})
+            if AetherUI then
+                AetherUI:Notify({Title="Players", Content=(#fresh > 0 and ("Refreshed " .. tostring(#fresh) .. " players.") or "No other players in this server."), Duration=2})
+            end
         end)
 
         CombatTab:CreateSection("Combat Assist Toggles")
@@ -2191,6 +2241,102 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
             AetherUI:Notify({Title = "Codes", Content = "Redeeming all working codes automatically...", Duration = 4})
         end)
 
+        ----------------------------------------------------------------------
+        -- Real server join helpers: join a candidate, verify locally, then hop
+        -- again when the requested condition is not present. Cross-server
+        -- Roblox public-server listings do not expose Blox Fruits event state.
+        ----------------------------------------------------------------------
+        local SERVER_PAGE_LIMIT = 100
+        local HUB_SCRIPT_URL = (type(GEN.HAROON_HUB_URL) == "string" and GEN.HAROON_HUB_URL) or ""
+
+        local function moonStage()
+            local sky = Lighting:FindFirstChildOfClass("Sky")
+            local id = sky and tostring(sky.MoonTextureId or "") or ""
+            local stageMap = {
+                ["9709149431"] = 100,
+                ["9709149052"] = 75,
+                ["9709143733"] = 50,
+                ["9709150401"] = 25,
+                ["9709149680"] = 15,
+            }
+            local key = id:match("id=(%d+)") or id:match("(%d+)$")
+            if key and stageMap[key] then return stageMap[key] end
+            local ok, phase = pcall(function() return Lighting:GetMoonPhase() end)
+            if ok and type(phase) == "number" then
+                return math.floor(math.clamp(phase,0,1)*100 + 0.5)
+            end
+            return nil
+        end
+
+        local function localJoinCondition(mode)
+            mode = tostring(mode or "")
+            if mode == "Mirage" then return GetMirageIsland() ~= nil end
+            if mode == "Kitsune" then return GetKitsuneIsland() ~= nil end
+            if mode == "FourHour" then return (tonumber(workspace.DistributedGameTime) or 0) >= 4*60*60 end
+            if mode == "FullMoon" then return moonStage() == 100 end
+            if mode == "NearFullMoon" then
+                local stage = moonStage()
+                return stage ~= nil and stage >= 75
+            end
+            return false
+        end
+
+        local function queueResumeMode(mode)
+            GEN.HaroonServerJoinMode = mode
+            if HUB_SCRIPT_URL ~= "" then
+                local code = string.format([[local g=(getgenv and getgenv()) or _G; g.HaroonServerJoinMode=%q; local s=game:HttpGet(%q); local f=loadstring(s); if f then f() end]], mode, HUB_SCRIPT_URL)
+                safeQueueOnTeleport(code)
+            end
+        end
+
+        local function fetchPublicServers()
+            local url = "https://games.roblox.com/v1/games/"..tostring(game.PlaceId).."/servers/Public?sortOrder=Asc&limit="..SERVER_PAGE_LIMIT
+            local raw = safeHttpGet(url)
+            if not raw then
+                local resp = safeRequest({Url=url, Method="GET"})
+                raw = resp and (resp.Body or resp.body)
+            end
+            if not raw then return {} end
+            local ok, data = pcall(function() return HttpService:JSONDecode(raw) end)
+            if not ok or type(data) ~= "table" then return {} end
+            local list = {}
+            for _, server in ipairs(data.data or {}) do
+                if server.id and server.id ~= tostring(game.JobId) and tonumber(server.playing or 0) < tonumber(server.maxPlayers or 0) then
+                    table.insert(list, server.id)
+                end
+            end
+            return list
+        end
+
+        local function hopForMode(mode)
+            if localJoinCondition(mode) then
+                GEN.HaroonServerJoinMode = nil
+                if AetherUI then AetherUI:Notify({Title="Server Finder", Content="Condition found in this server.", Duration=3}) end
+                return true
+            end
+            queueResumeMode(mode)
+            local servers = fetchPublicServers()
+            if #servers == 0 then
+                if AetherUI then AetherUI:Notify({Title="Server Finder", Content="No joinable public server returned.", Duration=3}) end
+                return false
+            end
+            local target = servers[math.random(1,#servers)]
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, target, LocalPlayer)
+            return true
+        end
+
+        MiscTab:CreateSection("Real Server Finder")
+        local function addServerJoinButton(label, mode, allowed)
+            if allowed then
+                MiscTab:CreateButton(label, function() hopForMode(mode) end)
+            end
+        end
+        addServerJoinButton("Join 4 Hour Server", "FourHour", World1 or World2 or World3)
+        addServerJoinButton("Join Mirage Island Server", "Mirage", World3)
+        addServerJoinButton("Join Kitsune Island Server", "Kitsune", World3)
+        addServerJoinButton("Join Near Full Moon Server", "NearFullMoon", World3)
+        addServerJoinButton("Join Full Moon Server", "FullMoon", World3)
+
         MiscTab:CreateSection("Live Server & World Status")
 
         local function UpdateParagraph(paragraph, description)
@@ -2237,10 +2383,17 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
             return string.format("%02d:%02d:%02d", math.floor(sec/3600), math.floor((sec%3600)/60), sec%60)
         end
 
+        local localServerStart = os.clock()
+        local function getServerClock()
+            local ok, value = pcall(function() return workspace:GetServerTimeNow() end)
+            if ok and type(value) == "number" and value > 0 then return value end
+            return os.time()
+        end
+
         local function liveServerElapsed()
             local v = workspace.DistributedGameTime
             if type(v) == "number" and v > 0 then return v end
-            return os.clock()
+            return math.max(0, os.clock() - localServerStart)
         end
 
         do
@@ -2265,7 +2418,8 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
                     local serverElapsed = liveServerElapsed()
                     local afkElapsed = os.clock() - lastInputClock
                     UpdateParagraph(SessionTimePara, fmtHMS(sessionElapsed))
-                    UpdateParagraph(ServerTimePara, "Uptime: " .. fmtHMS(serverElapsed) .. " | Clock: " .. os.date("%H:%M:%S"))
+                    local serverEpoch = getServerClock()
+                    UpdateParagraph(ServerTimePara, "Uptime: " .. fmtHMS(serverElapsed) .. " | Server: " .. os.date("%H:%M:%S", serverEpoch) .. " | UTC: " .. os.date("!%H:%M:%S", serverEpoch))
                     UpdateParagraph(AFKTimePara, "Idle: " .. fmtHMS(afkElapsed) .. (afkElapsed >= 60 and " | AFK" or ""))
                     UpdateParagraph(TimezonePara, "Local: " .. os.date("%H:%M:%S") .. " | UTC: " .. os.date("!%H:%M:%S"))
 
@@ -2284,7 +2438,7 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
                     UpdateParagraph(StatsPara, "Level: " .. tostring(level) .. " | Beli: " .. tostring(beli) .. " | Fragments: " .. tostring(frags))
 
                     local pCount = #Players:GetPlayers()
-                    UpdateParagraph(ServerInfoPara, "Players: " .. pCount .. "/" .. tostring(Players.MaxPlayers) .. " | Server: " .. fmtHMS(serverElapsed))
+                    UpdateParagraph(ServerInfoPara, "Players: " .. pCount .. "/" .. tostring(Players.MaxPlayers) .. " | Uptime: " .. fmtHMS(serverElapsed) .. " | Job: " .. string.sub(tostring(game.JobId),1,8))
 
                     local princeResult = "🔴 Not Spawned | Progress: 0/500 | Remaining: 500"
                     pcall(function() princeResult=getCakePrinceProgressIntegrated() end)
@@ -3594,6 +3748,21 @@ local function EnsureESP(key, part, title, color, showHP, maxHP, hp)
     end
 end
 
+local function getPlayerLevelText(player)
+    if not player then return "Lv.?" end
+    local data = player:FindFirstChild("Data")
+    local level = data and data:FindFirstChild("Level")
+    if level and tonumber(level.Value) then
+        return "Lv." .. tostring(level.Value)
+    end
+    local leaderstats = player:FindFirstChild("leaderstats")
+    level = leaderstats and leaderstats:FindFirstChild("Level")
+    if level and tonumber(level.Value) then
+        return "Lv." .. tostring(level.Value)
+    end
+    return "Lv.?"
+end
+
 local function isBossModel(obj)
     if not obj:IsA("Model") then return false end
     local name = obj.Name:lower()
@@ -3617,7 +3786,7 @@ local function espTick()
                 if part then
                     local key = "P:" .. p.UserId
                     seen[key] = true
-                    EnsureESP(key, part, "👤 " .. p.Name, Color3.fromRGB(255,90,90), true, h and h.MaxHealth or 100, h and h.Health or 0)
+                    EnsureESP(key, part, "👤 " .. p.Name .. "  [" .. getPlayerLevelText(p) .. "]", Color3.fromRGB(255,90,90), true, h and h.MaxHealth or 100, h and h.Health or 0)
                 end
             end
         end
@@ -3704,6 +3873,70 @@ end
 
 task.spawn(function()
     while task.wait(0.25) do pcall(espTick) end
+end)
+
+--------------------------------------------------------------------------------
+-- Factory Core Auto Farm
+--------------------------------------------------------------------------------
+local FactoryState = {Target=nil, LastHop=0}
+local FactoryCorePosition = CFrame.new(448.46756, 199.35678, -441.38925)
+
+local function findFactoryCore()
+    local enemies = workspace:FindFirstChild("Enemies")
+    local roots = {enemies, workspace:FindFirstChild("Map"), workspace:FindFirstChild("_WorldOrigin")}
+    for _, root in ipairs(roots) do
+        if root then
+            for _, obj in ipairs(root:GetDescendants()) do
+                if obj:IsA("Model") and obj.Name == "Core" then
+                    local hum = obj:FindFirstChildOfClass("Humanoid")
+                    local part = obj:FindFirstChild("HumanoidRootPart") or obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart", true)
+                    if part and (not hum or hum.Health > 0) then return obj, part, hum end
+                end
+            end
+        end
+    end
+    return nil
+end
+
+local function factoryStep()
+    if not _G.Settings.Main["Auto Farm Factory"] or not World2 then return end
+    local _, hrp, hum = GetCharacter()
+    if not hrp or not hum or hum.Health <= 0 then return end
+    local core, root, coreHum = findFactoryCore()
+    if core and root then
+        pcall(function() hum.Sit=false end)
+        local desired = root.Position + Vector3.new(0, 28, 0)
+        if (hrp.Position-desired).Magnitude > 12 then
+            TweenPlayer(CFrame.lookAt(desired, root.Position), nil, "Factory")
+        else
+            pcall(function()
+                hrp.CFrame = CFrame.lookAt(desired, root.Position)
+                hrp.AssemblyLinearVelocity = Vector3.zero
+                hrp.AssemblyAngularVelocity = Vector3.zero
+            end)
+        end
+        AutoHaki()
+        SmartAttackMob(core, "Melee")
+        FactoryState.Target = core
+        return
+    end
+    FactoryState.Target = nil
+    if os.clock() - FactoryState.LastHop > 0.75 then
+        FactoryState.LastHop = os.clock()
+        local target = CFrame.new(632.69, 73.10, 918.66)
+        if (hrp.Position-target.Position).Magnitude > 80 then
+            TweenPlayer(target, Vector3.new(0,10,0), "Factory")
+        else
+            -- Move into the core area and wait for the raid to open.
+            TweenPlayer(FactoryCorePosition, nil, "Factory")
+        end
+    end
+end
+
+task.spawn(function()
+    while task.wait(0.12) do
+        pcall(factoryStep)
+    end
 end)
 
 --------------------------------------------------------------------------------
@@ -3884,29 +4117,193 @@ local function chestFarmStepV4()
 end
 
 task.spawn(function() while task.wait(0.15) do pcall(chestFarmStepV4) end end)
--- Highest priority for spawned Cake Prince / Dough King; otherwise their existing preparation routines keep running.
-task.spawn(function()
-    while task.wait(0.12) do
-        pcall(function()
-            local enemies=workspace:FindFirstChild("Enemies")
-            if _G.Settings.Cake["Auto Kill Cake Prince"] then
-                local boss=enemies and enemies:FindFirstChild("Cake Prince")
-                if boss and boss:FindFirstChild("HumanoidRootPart") then
-                    integratedCakeStep()
-                else
-                    integratedCakeStep()
-                    pcall(integratedSummonCake)
-                end
-            elseif _G.Settings.Cake["Auto Spawn Cake Prince"] then
-                pcall(integratedSummonCake)
-            elseif _G.Settings.Cake["Auto Kill Dough King"] then
-                local boss=enemies and enemies:FindFirstChild("Dough King")
-                integratedDoughStep()
-                if boss and boss:FindFirstChild("HumanoidRootPart") then
-                    -- integratedDoughStep handles the active boss first.
+-- Highest priority for spawned Cake Prince / Dough King; ordered Dough King controller.
+local DoughController = {Stage="NeedGodsChalice", LastAction=0, LastNotice=0}
+local DoughCakeLandPosition = CFrame.new(-2077, 252, -12373)
+local DoughChocolatePosition = CFrame.new(231.75, 23.90, -12200.29)
+local DoughCorePosition = CFrame.new(-2155, 149, -12404)
+
+local function findItemAnywhere(name)
+    local lower = tostring(name):lower()
+    local containers = {LocalPlayer:FindFirstChildOfClass("Backpack"), LocalPlayer.Character, workspace}
+    for _, root in ipairs(containers) do
+        if root then
+            for _, obj in ipairs(root:GetDescendants()) do
+                if (obj:IsA("Tool") or obj:IsA("Model") or obj:IsA("BasePart")) and obj.Name:lower() == lower then
+                    return obj
                 end
             end
+        end
+    end
+    return nil
+end
+
+local function getDoughRequirementState()
+    local gods = integratedItem("God's Chalice") ~= nil or findItemAnywhere("God's Chalice") ~= nil
+    local sweet = integratedItem("Sweet Chalice") ~= nil or findItemAnywhere("Sweet Chalice") ~= nil
+    local cocoa = integratedMaterialCount("Conjured Cocoa")
+    local _, remaining, spawned = integratedCakeProgress()
+    return gods, sweet, cocoa, remaining, spawned
+end
+
+local function farmEliteForGodsChalice()
+    -- This reuses the same reliable elite-targeting logic as the normal Elite Hunter module,
+    -- but does not permanently switch the user's Elite toggle.
+    local questGui = LocalPlayer.PlayerGui:FindFirstChild("Main") and LocalPlayer.PlayerGui.Main:FindFirstChild("Quest")
+    local hasQuest = false
+    if questGui and questGui.Visible then
+        local title = questGui.Container.QuestTitle.Title.Text
+        hasQuest = title:find("Diablo",1,true) or title:find("Urban",1,true) or title:find("Deandre",1,true)
+    end
+    if not hasQuest and CommF_ then
+        pcall(function() CommF_:InvokeServer("EliteHunter") end)
+    end
+    for _, eliteName in ipairs({"Diablo","Urban","Deandre"}) do
+        local enemy = workspace:FindFirstChild("Enemies") and workspace.Enemies:FindFirstChild(eliteName)
+        if not enemy then enemy = ReplicatedStorage:FindFirstChild(eliteName) end
+        if enemy and enemy:IsA("Model") then
+            local root = enemy:FindFirstChild("HumanoidRootPart") or enemy.PrimaryPart
+            local eh = enemy:FindFirstChildOfClass("Humanoid")
+            if root and eh and eh.Health > 0 then
+                AutoHaki()
+                TweenPlayer(root.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0), "DoughKingGods")
+                SmartAttackMob(enemy, "Melee")
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local function doughKingOrderedStep()
+    if not _G.Settings.Cake["Auto Kill Dough King"] or not World3 then return end
+    local _, hrp, hum = GetCharacter()
+    if not hrp or not hum or hum.Health <= 0 then return end
+
+    local gods, sweet, cocoa, remaining, spawned = getDoughRequirementState()
+    local boss = workspace:FindFirstChild("Enemies") and workspace.Enemies:FindFirstChild("Dough King")
+    if boss and boss:FindFirstChild("HumanoidRootPart") and boss:FindFirstChildOfClass("Humanoid") and boss.Humanoid.Health > 0 then
+        DoughController.Stage = "Kill"
+        AutoHaki()
+        local root = boss.HumanoidRootPart
+        local desired = root.Position + Vector3.new(0, 30, 0)
+        if (hrp.Position-desired).Magnitude > 12 then TweenPlayer(CFrame.lookAt(desired,root.Position),nil,"DoughKing") else pcall(function() hrp.CFrame=CFrame.lookAt(desired,root.Position); hrp.AssemblyLinearVelocity=Vector3.zero end) end
+        SmartAttackMob(boss, "Melee")
+        return
+    end
+
+    -- Stage 1: God's Chalice first.
+    if not gods then
+        DoughController.Stage = "NeedGodsChalice"
+        if findItemAnywhere("God's Chalice") then
+            return
+        end
+        if not farmEliteForGodsChalice() then
+            -- Search visible chests/drops before starting another elite cycle.
+            local found = findItemAnywhere("God's Chalice")
+            if found and GetModelCFrame(found) then
+                TweenPlayer(GetModelCFrame(found), Vector3.new(0,4,0), "DoughGods")
+            end
+        end
+        return
+    end
+
+    -- Stage 2: Conjured Cocoa only after God's Chalice is secured.
+    if not sweet and cocoa < 10 then
+        DoughController.Stage = "NeedCocoa"
+        local mob = integratedFindEnemy({"Cocoa Warrior","Chocolate Bar Battler"}, hrp.Position, 1800)
+        if mob then
+            AutoHaki()
+            TweenPlayer(mob.HumanoidRootPart.CFrame, Vector3.new(0,_G.Settings.Main["Farm Distance"],0), "DoughCocoa")
+            SmartAttackMob(mob, "Melee")
+        else
+            TweenPlayer(DoughChocolatePosition, Vector3.new(0,25,0), "DoughCocoa")
+        end
+        return
+    end
+
+    -- Stage 3: trade both items for Sweet Chalice.
+    if not sweet then
+        DoughController.Stage = "CraftSweetChalice"
+        local crafter = findWorldObjectByNames({"Sweet Crafter","SweetCrafter"})
+        local cf = crafter and GetModelCFrame(crafter)
+        if cf then TweenPlayer(cf, Vector3.new(0,4,0), "DoughCrafter") end
+        if CommF_ and (not cf or (hrp.Position-cf.Position).Magnitude <= 25) then
+            pcall(function() CommF_:InvokeServer("SweetChaliceNpc") end)
+        end
+        return
+    end
+
+    -- Stage 4: 500 Cake Land kills.
+    if not spawned and (remaining or 500) > 0 then
+        DoughController.Stage = "Need500CakeLand"
+        local mob = integratedFindEnemy({"Cookie Crafter","Cake Guard"}, hrp.Position, 2200)
+        if mob then
+            AutoHaki()
+            TweenPlayer(mob.HumanoidRootPart.CFrame, Vector3.new(0,_G.Settings.Main["Farm Distance"],0), "Dough500")
+            SmartAttackMob(mob, "Melee")
+        else
+            TweenPlayer(DoughCakeLandPosition, nil, "Dough500")
+            -- Query the progress endpoint without forcing a premature summon.
+            pcall(function() CommF_:InvokeServer("CakePrinceSpawner") end)
+        end
+        return
+    end
+
+    -- Stage 5: summon only once the 500 requirement is actually met.
+    DoughController.Stage = "Summon"
+    if CommF_ and os.clock()-DoughController.LastAction > 1.0 then
+        DoughController.LastAction=os.clock()
+        local mama=findWorldObjectByNames({"drip_mama","Drip Mama","Jeffery"})
+        local cf=mama and GetModelCFrame(mama)
+        if cf then TweenPlayer(cf,Vector3.new(0,4,0),"DoughSummon") end
+        if not cf or (hrp.Position-cf.Position).Magnitude <= 25 then
+            -- Only the player holding Sweet Chalice should interact with drip_mama.
+            pcall(function() CommF_:InvokeServer("CakePrinceSpawner",true) end)
+        end
+    end
+end
+
+task.spawn(function()
+    while task.wait(0.15) do
+        pcall(function()
+            if _G.Settings.Cake["Auto Kill Cake Prince"] then
+                integratedCakeStep()
+                pcall(integratedSummonCake)
+            end
+            if _G.Settings.Cake["Auto Spawn Cake Prince"] then
+                pcall(integratedSummonCake)
+            end
+            doughKingOrderedStep()
         end)
+    end
+end)
+
+
+-- Resume a requested server search after queue_on_teleport/reload.
+task.spawn(function()
+    task.wait(2.0)
+    local mode = GEN.HaroonServerJoinMode
+    if mode then
+        local function condition()
+            if mode == "Mirage" then return GetMirageIsland() ~= nil end
+            if mode == "Kitsune" then return GetKitsuneIsland() ~= nil end
+            if mode == "FourHour" then return (tonumber(workspace.DistributedGameTime) or 0) >= 14400 end
+            if mode == "FullMoon" or mode == "NearFullMoon" then
+                local sky=Lighting:FindFirstChildOfClass("Sky"); local id=sky and tostring(sky.MoonTextureId or "") or ""
+                local stage=({["9709149431"]=100,["9709149052"]=75,["9709143733"]=50,["9709150401"]=25,["9709149680"]=15})[id:match("(%d+)$") or ""]
+                if mode=="FullMoon" then return stage==100 end
+                return stage and stage>=75 or false
+            end
+            return false
+        end
+        if condition() then
+            GEN.HaroonServerJoinMode=nil
+            if AetherUI then pcall(function() AetherUI:Notify({Title="Server Finder",Content="Target server condition found.",Duration=4}) end) end
+        elseif HUB_SCRIPT_URL ~= "" then
+            task.wait(1)
+            hopForMode(mode)
+        end
     end
 end)
 
