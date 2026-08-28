@@ -9,6 +9,7 @@ task.wait(1)
 -- Executor Compatibility Layer (Delta / Xeno / Arceus / KRNL / generic)
 --============================================================
 local GEN = (type(getgenv) == "function" and getgenv()) or _G
+local HUB_SCRIPT_URL_GLOBAL = type(GEN.HAROON_HUB_URL) == "string" and GEN.HAROON_HUB_URL or ""
 local function resolveGlobal(name)
     local ok, value = pcall(function() return GEN[name] end)
     if ok and value ~= nil then return value end
@@ -36,7 +37,7 @@ local function safeRequest(options)
 end
 
 local function safeQueueOnTeleport(code)
-    local q = resolveGlobal("queue_on_teleport") or resolveGlobal("queueonteleport") or resolveGlobal("queueonteleport")
+    local q = resolveGlobal("queue_on_teleport") or resolveGlobal("queueonteleport") or resolveGlobal("queue_on_tp")
     if type(q) == "function" and type(code) == "string" and #code > 0 then
         return pcall(q, code)
     end
@@ -186,6 +187,7 @@ _G.Settings = {
         ["Selected Boat"] = "Guardian",
         ["Selected Zone"] = "Zone 5",
         ["Boat Tween Speed"] = 200,
+        ["Boat Height"] = 30,
         ["Sail Boat"] = false,
         ["Ship Noclip"] = false,
         ["Auto Attack Sea Events"] = false,
@@ -391,6 +393,25 @@ RunService.Stepped:Connect(function()
         end)
     end
 end)
+
+local DEFAULT_SAFE_TELEPORT_HEIGHT = 100
+
+local function SafeTeleport100(cf: CFrame, owner: string?)
+    if typeof(cf) ~= "CFrame" then return false end
+    local char, hrp, hum = GetCharacter()
+    if not hrp then return false end
+    if hum then pcall(function() hum.Sit = false end) end
+    local pos = cf.Position
+    local target = Vector3.new(pos.X, pos.Y + DEFAULT_SAFE_TELEPORT_HEIGHT, pos.Z)
+    local look = target + Vector3.new(cf.LookVector.X, 0, cf.LookVector.Z)
+    if (look-target).Magnitude < 0.01 then look = target + Vector3.new(0,0,-1) end
+    pcall(function()
+        hrp.CFrame = CFrame.lookAt(target, look)
+        hrp.AssemblyLinearVelocity = Vector3.zero
+        hrp.AssemblyAngularVelocity = Vector3.zero
+    end)
+    return true
+end
 
 local function TweenPlayer(pos: CFrame | Vector3 | BasePart, offset: Vector3?, owner: string?): Tween?
     local char, hrp, hum = GetCharacter()
@@ -1376,6 +1397,22 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
 
         MainTab:CreateSection("Update 28 • Submerged Island")
         MainTab:CreateParagraph({Title="Max Level", Desc="2800 (MAX) | Lv. 1 → 2800 complete route | 2525+ Tiki → Submerged | Coral Pirate Lv. 2625 → Grand Devotee Lv. 2725", Image="rbxassetid://6034453535", ImageSize=20})
+        MainTab:CreateButton("Smart Teleport: Submerged Island", function()
+            local level = BFGetLevel()
+            if not World3 or level < 2600 then
+                AetherUI:Notify({Title="Submerged Island", Content="Requires Third Sea and Level 2600+.", Duration=3})
+                return
+            end
+            local picked = SubmergedQuests[#SubmergedQuests]
+            for _, route in ipairs(SubmergedQuests) do
+                if level >= route.Min and level <= route.Max then picked = route break end
+            end
+            local giver = BFFindSubmergedQuest(picked.Giver)
+            local cf = giver and GetModelCFrame(giver)
+            if not cf then cf = picked.Giver == "Submerged Quest Giver 1" and CFrame.new(-11034,-201,-9330) or picked.Giver == "Submerged Quest Giver 2" and CFrame.new(-10439,-316,-9484) or CFrame.new(-10420,-405,-10470) end
+            SafeTeleport100(cf * CFrame.new(0, -100, 0), "SubmergedTP")
+            AetherUI:Notify({Title="Submerged Island", Content="Smart route selected for Level "..tostring(level).." → "..picked.Mob..".", Duration=3})
+        end)
 
         MainTab:CreateToggle("Include Boss Quests", "IncludeBossQuestFlag", false, function(state)
             _G.Settings.Main["Include Boss Quests"] = state
@@ -1687,6 +1724,14 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
             _G.Settings.Sea["Selected Zone"] = selected
         end)
 
+        SeaTab:CreateSlider("Boat Speed", "BoatSpeedSlider", 50, 500, tonumber(_G.Settings.Sea["Boat Tween Speed"]) or 200, function(value)
+            _G.Settings.Sea["Boat Tween Speed"] = value
+        end)
+
+        SeaTab:CreateSlider("Boat Height", "BoatHeightSlider", 15, 120, tonumber(_G.Settings.Sea["Boat Height"]) or 30, function(value)
+            _G.Settings.Sea["Boat Height"] = value
+        end)
+
         SeaTab:CreateToggle("Auto Set Sail", "SailBoatFlag", false, function(state)
             _G.Settings.Sea["Sail Boat"] = state
             if not state then StopTween() end
@@ -1750,7 +1795,7 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
                     local _, hrp, hum = GetCharacter()
                     if cf and hrp then
                         if hum then pcall(function() hum.Sit=false end) end
-                        pcall(function() hrp.CFrame=cf*CFrame.new(0,12,0) end)
+                        pcall(function() hrp.CFrame=cf*CFrame.new(0,100,0) end)
                     end
                     AetherUI:Notify({Title = "Kitsune Island", Content = "Teleporting to Kitsune Island...", Duration = 2})
                 else
@@ -1813,7 +1858,7 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
                     local _, hrp, hum = GetCharacter()
                     if cf and hrp then
                         if hum then pcall(function() hum.Sit=false end) end
-                        pcall(function() hrp.CFrame=cf*CFrame.new(0,12,0) end)
+                        pcall(function() hrp.CFrame=cf*CFrame.new(0,100,0) end)
                     end
                     AetherUI:Notify({Title = "Mirage Island", Content = "Teleporting to Mirage Island...", Duration = 2})
                 else
@@ -1912,6 +1957,75 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
         RaceTab:CreateToggle("Auto Complete Trial", "AutoTrialFlag", false, function(state)
             _G.Settings.Race["Auto Trial"] = state
             if not state then StopTween() end
+        end)
+
+        ---------------------------------------------------------
+        -- Race V4 Runtime Engine V26
+        ---------------------------------------------------------
+        local function promptText(obj)
+            if not obj then return "" end
+            if obj:IsA("ProximityPrompt") then return (tostring(obj.ObjectText).." "..tostring(obj.ActionText)):lower() end
+            if obj:IsA("TextLabel") or obj:IsA("TextButton") then return tostring(obj.Text):lower() end
+            return tostring(obj.Name):lower()
+        end
+        local function findRaceInteraction(keywords, radius)
+            local _, hrp = GetCharacter()
+            if not hrp then return nil end
+            local best, bestD = nil, radius or 5000
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                local text = promptText(obj)
+                local match = false
+                for _, k in ipairs(keywords) do if text:find(k,1,true) then match=true break end end
+                if match then
+                    local part = obj:IsA("BasePart") and obj or (obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart",true))) or (obj.Parent and obj.Parent:IsA("BasePart") and obj.Parent)
+                    if part then
+                        local d=(hrp.Position-part.Position).Magnitude
+                        if d<bestD then best,bestD=obj,d end
+                    end
+                end
+            end
+            return best
+        end
+        local function interactRaceObject(obj)
+            if not obj then return false end
+            if obj:IsA("ProximityPrompt") and type(fireproximityprompt)=="function" then return pcall(fireproximityprompt,obj) end
+            local pp=obj:FindFirstChildWhichIsA("ProximityPrompt",true)
+            if pp and type(fireproximityprompt)=="function" then return pcall(fireproximityprompt,pp) end
+            if type(fireclickdetector)=="function" then
+                local cd=obj:IsA("ClickDetector") and obj or obj:FindFirstChildWhichIsA("ClickDetector",true)
+                if cd then return pcall(fireclickdetector,cd) end
+            end
+            local part=obj:IsA("BasePart") and obj or (obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart",true)))
+            if part then SafeTeleport100(part.CFrame*CFrame.new(0,-100,0), "RaceV4") return true end
+            return false
+        end
+        task.spawn(function()
+            while task.wait(0.35) do
+                pcall(function()
+                    local R=_G.Settings.Race
+                    if not World3 then return end
+                    if R["Auto Race V3 Ability"] then
+                        if CommE then CommE:FireServer("ActivateAbility") end
+                    end
+                    if R["Auto Trial"] then
+                        local obj=findRaceInteraction({"trial of flames","trial","race trial","start trial","trial button"}, 5000)
+                        if obj then interactRaceObject(obj) end
+                    end
+                    if R["Auto Train"] then
+                        local obj=findRaceInteraction({"train","training","ancient","gear"}, 5000)
+                        if obj then interactRaceObject(obj) end
+                    end
+                    if R["Auto Collect Flowers"] then
+                        for _,obj in ipairs(workspace:GetDescendants()) do
+                            local n=tostring(obj.Name):lower()
+                            if n:find("flower",1,true) then
+                                local cf=GetModelCFrame(obj)
+                                if cf then SafeTeleport100(cf*CFrame.new(0,-100,0), "RaceFlower"); interactRaceObject(obj); break end
+                            end
+                        end
+                    end
+                end)
+            end
         end)
 
         ---------------------------------------------------------
@@ -2092,6 +2206,10 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
             end
         end)
 
+        CombatTab:CreateToggle("Aimbot Gun", "AimbotGunFlag", false, function(state)
+            _G.Settings.Combat["Aimbot Gun"] = state
+        end)
+
         CombatTab:CreateToggle("Teleport To Player", "TPPlayerFlag", false, function(state)
             _G.Settings.Combat["Teleport To Player"] = state
             if not state then StopTween() end
@@ -2130,6 +2248,24 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
             end
         end)
 
+        -- Live player list synchronization.
+        local function refreshPlayerDropdownLive()
+            local fresh = {}
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer then table.insert(fresh, p.Name) end
+            end
+            table.sort(fresh)
+            if #fresh == 0 then _G.Settings.Combat["Selected Player"] = nil end
+            if PVPPlayerDropdown and type(PVPPlayerDropdown.SetValues) == "function" then
+                pcall(function() PVPPlayerDropdown:SetValues(fresh, _G.Settings.Combat["Selected Player"]) end)
+            end
+        end
+        Players.PlayerAdded:Connect(function() task.delay(0.25, refreshPlayerDropdownLive) end)
+        Players.PlayerRemoving:Connect(function(player)
+            if _G.Settings.Combat["Selected Player"] == player.Name then _G.Settings.Combat["Selected Player"] = nil end
+            task.delay(0.05, refreshPlayerDropdownLive)
+        end)
+
         CombatTab:CreateSection("Combat Assist Toggles")
 
         CombatTab:CreateToggle("Kill Aura (Attack Nearby Enemies)", "KillAuraFlag", false, function(state)
@@ -2161,6 +2297,99 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
             _G.Settings.Combat["Return HP %"] = val
         end)
 
+
+        ---------------------------------------------------------
+        -- Combat Runtime Engine V26
+        ---------------------------------------------------------
+        local CombatRuntime = {LastTarget=nil, LastAttack=0}
+        local function getSelectedPlayer()
+            local name = _G.Settings.Combat["Selected Player"]
+            if not name or name == "None" then return nil end
+            local p = Players:FindFirstChild(name)
+            if p == LocalPlayer then return nil end
+            return p
+        end
+        local function playerModel(p)
+            return p and p.Character or nil
+        end
+        local function attackPlayerTarget(model)
+            local root = model and model:FindFirstChild("HumanoidRootPart")
+            local hum = model and model:FindFirstChildOfClass("Humanoid")
+            if not root or not hum or hum.Health <= 0 then return false end
+            AutoHaki()
+            local char, hrp, myHum = GetCharacter()
+            if not hrp or not myHum then return false end
+            myHum.Sit = false
+            local hover = 8
+            local above = root.Position + Vector3.new(0, hover, 0)
+            if (hrp.Position-above).Magnitude > 12 then
+                TweenPlayer(CFrame.lookAt(above, root.Position), nil, "CombatPVP")
+            else
+                pcall(function() hrp.CFrame = CFrame.lookAt(above, root.Position); hrp.AssemblyLinearVelocity=Vector3.zero end)
+                AimAtTarget(root.Position)
+                SmartAttackMob(model, _G.Settings.Main["Select Weapon"])
+            end
+            return true
+        end
+
+        task.spawn(function()
+            while task.wait(0.12) do
+                pcall(function()
+                    local C = _G.Settings.Combat
+                    local p = getSelectedPlayer()
+                    if C["Spectate Player"] and p and p.Character then
+                        local ph = p.Character:FindFirstChildOfClass("Humanoid")
+                        if ph then workspace.CurrentCamera.CameraSubject = ph end
+                    elseif not C["Spectate Player"] then
+                        local _, _, h = GetCharacter()
+                        if h then workspace.CurrentCamera.CameraSubject = h end
+                    end
+                    if C["Teleport To Player"] and p and p.Character then
+                        local root = p.Character:FindFirstChild("HumanoidRootPart")
+                        if root then
+                            local safe = root.Position + Vector3.new(0,100,0)
+                            local char, hrp = GetCharacter()
+                            if hrp and (hrp.Position-safe).Magnitude > 20 then
+                                TweenPlayer(CFrame.lookAt(safe, root.Position), nil, "CombatPVP")
+                            end
+                        end
+                    end
+                    if C["Kill Aura"] then
+                        local _, hrp = GetCharacter()
+                        local enemies = workspace:FindFirstChild("Enemies")
+                        local range = tonumber(C["Kill Aura Range"]) or 25
+                        if hrp and enemies then
+                            local nearest
+                            for _, mob in ipairs(enemies:GetChildren()) do
+                                local mh=mob:IsA("Model") and mob:FindFirstChildOfClass("Humanoid")
+                                local mr=mob:IsA("Model") and (mob:FindFirstChild("HumanoidRootPart") or mob.PrimaryPart)
+                                if mh and mh.Health>0 and mr and (hrp.Position-mr.Position).Magnitude<=range then nearest=mob break end
+                            end
+                            if nearest then SmartAttackMob(nearest) end
+                        end
+                    end
+                    if C["Auto Enable Haki"] then AutoHaki() end
+                    if p and C["Aimbot Gun"] then attackPlayerTarget(playerModel(p)) end
+                    if C["Auto PvP Escape"] then
+                        local _, myRoot, myHum = GetCharacter()
+                        if myRoot and myHum then
+                            local hpPercent=(myHum.Health/math.max(myHum.MaxHealth,1))*100
+                            if hpPercent <= (tonumber(C["Escape HP %"]) or 30) then
+                                CombatRuntime.SafeReturn = CombatRuntime.SafeReturn or myRoot.CFrame
+                                local safe = CombatRuntime.SafeReturn * CFrame.new(0,100,0)
+                                pcall(function() myRoot.CFrame=safe; myRoot.AssemblyLinearVelocity=Vector3.zero end)
+                            elseif CombatRuntime.SafeReturn and hpPercent >= (tonumber(C["Return HP %"]) or 70) then
+                                pcall(function() myRoot.CFrame=CombatRuntime.SafeReturn end)
+                                CombatRuntime.SafeReturn=nil
+                            end
+                        end
+                    else
+                        CombatRuntime.SafeReturn=nil
+                    end
+                end)
+            end
+        end)
+
         ---------------------------------------------------------
         -- 📌 12. TAB: CRAFTING (Extracted from script_1)
         ---------------------------------------------------------
@@ -2185,7 +2414,7 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
             TeleportsTab:CreateToggle("Teleport to " .. islandName, key, false, function(state)
                 _G.Settings.Teleports[key] = state
                 if state then
-                    TweenPlayer(cf, Vector3.new(0, 30, 0))
+                    SafeTeleport100(cf, "IslandTeleport")
                     task.wait(1)
                     _G.Settings.Teleports[key] = false
                 end
@@ -2198,12 +2427,23 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
             TeleportsTab:CreateToggle("Teleport to " .. islandName, key, false, function(state)
                 _G.Settings.Teleports[key] = state
                 if state then
-                    TweenPlayer(cf, Vector3.new(0, 30, 0))
+                    SafeTeleport100(cf, "IslandTeleport")
                     task.wait(1)
                     _G.Settings.Teleports[key] = false
                 end
             end)
         end
+
+        TeleportsTab:CreateSection("Submerged Island • Level 2600-2800")
+        TeleportsTab:CreateButton("Smart Submerged Route (Level Based)", function()
+            local lv=BFGetLevel()
+            if not World3 or lv<2600 then AetherUI:Notify({Title="Submerged",Content="Requires Level 2600+ in Third Sea.",Duration=3}); return end
+            local chosen=SubmergedQuests[#SubmergedQuests]
+            for _,r in ipairs(SubmergedQuests) do if lv>=r.Min and lv<=r.Max then chosen=r break end end
+            local giver=BFFindSubmergedQuest(chosen.Giver)
+            local cf=giver and GetModelCFrame(giver)
+            if cf then SafeTeleport100(cf*CFrame.new(0,-100,0), "SubmergedTP") else SafeTeleport100(chosen.Giver=="Submerged Quest Giver 1" and CFrame.new(-11034,-201,-9330) or chosen.Giver=="Submerged Quest Giver 2" and CFrame.new(-10439,-316,-9484) or CFrame.new(-10420,-405,-10470), "SubmergedTP") end
+        end)
 
         TeleportsTab:CreateSection("Third Sea Islands Teleport")
         for islandName, cf in pairs(FullIslandLocations.Sea3) do
@@ -2211,7 +2451,7 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
             TeleportsTab:CreateToggle("Teleport to " .. islandName, key, false, function(state)
                 _G.Settings.Teleports[key] = state
                 if state then
-                    TweenPlayer(cf, Vector3.new(0, 30, 0))
+                    SafeTeleport100(cf, "IslandTeleport")
                     task.wait(1)
                     _G.Settings.Teleports[key] = false
                 end
@@ -2247,7 +2487,7 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
         -- Roblox public-server listings do not expose Blox Fruits event state.
         ----------------------------------------------------------------------
         local SERVER_PAGE_LIMIT = 100
-        local HUB_SCRIPT_URL = (type(GEN.HAROON_HUB_URL) == "string" and GEN.HAROON_HUB_URL) or ""
+        local HUB_SCRIPT_URL = HUB_SCRIPT_URL_GLOBAL
 
         local function moonStage()
             local sky = Lighting:FindFirstChildOfClass("Sky")
@@ -2416,6 +2656,8 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
                     local stats = LocalPlayer:FindFirstChild("Data") or LocalPlayer:FindFirstChild("leaderstats")
                     local sessionElapsed = os.clock() - uiStartClock
                     local serverElapsed = liveServerElapsed()
+                    local serverNow = 0
+                    pcall(function() serverNow = workspace:GetServerTimeNow() end)
                     local afkElapsed = os.clock() - lastInputClock
                     UpdateParagraph(SessionTimePara, fmtHMS(sessionElapsed))
                     local serverEpoch = getServerClock()
@@ -3310,32 +3552,43 @@ local MirageRouteIndex = 1
 local MirageLastMove = 0
 local KitsuneLastMove = 0
 
-local function moveBoatSmart(boat, targetCF)
+local function getBoatHeight()
+    return math.clamp(tonumber(_G.Settings.Sea["Boat Height"]) or 30, 15, 120)
+end
+
+local function moveBoatOverSea(boat, targetCF, precise)
+    if not boat or not boat.Parent or typeof(targetCF) ~= "CFrame" then return false end
     local seat = getBoatSeat(boat)
     if not seat then return false end
-    local char, hrp, hum = GetCharacter()
+    local _, hrp, hum = GetCharacter()
     if hum and not hum.Sit then
-        pcall(function() hrp.CFrame = seat.CFrame * CFrame.new(0, 2.5, 0) end)
+        pcall(function() hrp.CFrame = seat.CFrame * CFrame.new(0, 2.5, 0); hum.Sit = true end)
         return false
     end
-    local target = Vector3.new(targetCF.Position.X, math.max(25, targetCF.Position.Y), targetCF.Position.Z)
     local current = seat.Position
-    local distance = (current-target).Magnitude
-    if distance <= 90 then return true end
-    if boat:GetAttribute("HaroonSmartBoatMoving") then return false end
-    boat:SetAttribute("HaroonSmartBoatMoving", true)
-    local speed = math.max(120, tonumber(_G.Settings.Sea["Boat Tween Speed"]) or 200)
-    local duration = math.clamp(distance/speed, 0.8, 8)
-    local goal = CFrame.lookAt(target, target + Vector3.new(60,0,0))
-    pcall(function()
-        local primary = boat.PrimaryPart or seat
-        local tween = TweenService:Create(primary, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame=goal})
-        tween:Play()
-        task.delay(duration+0.1, function()
-            if boat and boat.Parent then boat:SetAttribute("HaroonSmartBoatMoving", nil) end
-        end)
+    local target = Vector3.new(targetCF.Position.X, getBoatHeight(), targetCF.Position.Z)
+    local dist = (current-target).Magnitude
+    if dist <= (precise and 35 or 70) then return true end
+    local primary = boat.PrimaryPart or seat
+    if not primary then return false end
+    local look = Vector3.new(target.X + 60, target.Y, target.Z)
+    local goal = CFrame.lookAt(target, look)
+    if boat:GetAttribute("HaroonBoatMoving") then
+        return false
+    end
+    boat:SetAttribute("HaroonBoatMoving", true)
+    local speed = math.max(60, tonumber(_G.Settings.Sea["Boat Tween Speed"]) or 200)
+    local duration = math.clamp(dist / speed, 0.35, 10)
+    local tween = TweenService:Create(primary, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = goal})
+    tween.Completed:Connect(function()
+        if boat and boat.Parent then boat:SetAttribute("HaroonBoatMoving", nil) end
     end)
+    tween:Play()
     return false
+end
+
+local function moveBoatSmart(boat, targetCF)
+    return moveBoatOverSea(boat, targetCF, false)
 end
 
 local function teleportToDetectedIsland(island, owner)
@@ -3351,7 +3604,7 @@ local function forceTeleportToIsland(island, owner)
     if not hrp then return false end
     if hum then pcall(function() hum.Sit = false end) end
     pcall(function()
-        hrp.CFrame = cf * CFrame.new(0, 12, 0)
+        hrp.CFrame = cf * CFrame.new(0, 100, 0)
         hrp.AssemblyLinearVelocity = Vector3.zero
         hrp.AssemblyAngularVelocity = Vector3.zero
     end)
@@ -4300,7 +4553,7 @@ task.spawn(function()
         if condition() then
             GEN.HaroonServerJoinMode=nil
             if AetherUI then pcall(function() AetherUI:Notify({Title="Server Finder",Content="Target server condition found.",Duration=4}) end) end
-        elseif HUB_SCRIPT_URL ~= "" then
+        elseif HUB_SCRIPT_URL_GLOBAL ~= "" then
             task.wait(1)
             hopForMode(mode)
         end
@@ -4308,3 +4561,86 @@ task.spawn(function()
 end)
 
 task.spawn(function() while task.wait(10) do if _G.Settings.Misc["Save Settings"] then pcall(saveSettings) end end end)
+
+
+
+-- Sea Events fallback combat engine V26: supports sea models that do not expose a Humanoid.
+local function findSeaTargetFallback()
+    local S=_G.Settings.Sea
+    local wanted={}
+    local function add(flag,names) if S[flag] then for _,n in ipairs(names) do wanted[n:lower()]=true end end end
+    add("Auto Farm Shark",{"Shark"}); add("Auto Farm Piranha",{"Piranha"}); add("Auto Farm Fish Crew Member",{"Fish Crew Member","FishCrewMember"})
+    add("Auto Farm Ghost Ship",{"Ghost Ship","FishBoat"}); add("Auto Farm Terrorshark",{"Terrorshark"}); add("Auto Farm Seabeasts",{"Sea Beast","SeaBeast1","Sea Beast 1"})
+    if next(wanted)==nil then return nil end
+    local _,hrp=GetCharacter(); if not hrp then return nil end
+    local best,bestD=nil,math.huge
+    for _,root in ipairs({workspace:FindFirstChild("Enemies"),workspace:FindFirstChild("SeaBeasts"),workspace:FindFirstChild("Map")}) do
+        if root then
+            for _,obj in ipairs(root:GetDescendants()) do
+                if obj:IsA("Model") and wanted[obj.Name:lower()] then
+                    local part=obj:FindFirstChild("HumanoidRootPart") or obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart",true)
+                    if part then
+                        local d=(hrp.Position-part.Position).Magnitude
+                        if d<bestD then best,bestD=obj,d end
+                    end
+                end
+            end
+        end
+    end
+    return best
+end
+
+local function attackSeaFallback(target)
+    if not target then return false end
+    local part=target:FindFirstChild("HumanoidRootPart") or target.PrimaryPart or target:FindFirstChildWhichIsA("BasePart",true)
+    if not part then return false end
+    local _,hrp,hum=GetCharacter(); if not hrp or not hum then return false end
+    hum.Sit=false
+    local above=part.Position+Vector3.new(0,math.max(25,tonumber(_G.Settings.Main["Farm Distance"]) or 28),0)
+    if (hrp.Position-above).Magnitude>18 then
+        TweenPlayer(CFrame.lookAt(above,part.Position),nil,"SeaCombatV26")
+    else
+        pcall(function() hrp.CFrame=CFrame.lookAt(above,part.Position); hrp.AssemblyLinearVelocity=Vector3.zero end)
+        AutoHaki()
+        local th=target:FindFirstChildOfClass("Humanoid")
+        if th then
+            FastAttackTarget(target)
+        elseif ShootGunEvent then
+            pcall(function() ShootGunEvent:FireServer(part.Position,{part}) end)
+        end
+    end
+    return true
+end
+
+task.spawn(function()
+    while task.wait(0.15) do
+        pcall(function()
+            if not _G.Settings.Sea["Auto Attack Sea Events"] then return end
+            local target=findSeaTargetFallback()
+            if target then attackSeaFallback(target) end
+        end)
+    end
+end)
+
+-- Boat safety/height stabilizer V26
+task.spawn(function()
+    while task.wait(0.12) do
+        pcall(function()
+            local S=_G.Settings.Sea
+            if not (S["Sail Boat"] or S["Auto Find Kitsune Island"] or _G.Settings.Race["Auto Find Mirage"] or S["Auto Attack Sea Events"]) then return end
+            local boat=GetMyBoatIntegrated()
+            if not boat then return end
+            local seat=getBoatSeat(boat)
+            if not seat then return end
+            local targetY=getBoatHeight()
+            if math.abs(seat.Position.Y-targetY)>10 and not boat:GetAttribute("HaroonBoatMoving") then
+                local primary=boat.PrimaryPart or seat
+                if primary then
+                    local p=primary.Position
+                    local cf=CFrame.lookAt(Vector3.new(p.X,targetY,p.Z), Vector3.new(p.X+60,targetY,p.Z))
+                    boat:PivotTo(cf)
+                end
+            end
+        end)
+    end
+end)
