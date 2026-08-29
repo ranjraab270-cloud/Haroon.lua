@@ -238,6 +238,7 @@ _G.Settings = {
     Visuals = {
         ["ESP Players"] = false,
         ["ESP Bosses"] = false,
+        ["ESP Fruits"] = false,
         ["ESP Chests"] = false,
         ["ESP Enemies"] = false,
         ["ESP Mirage Island"] = false,
@@ -357,13 +358,6 @@ RunService.Stepped:Connect(function()
             for _, v in pairs(char:GetDescendants()) do
                 if v:IsA("BasePart") then v.CanCollide = false end
             end
-            if not hrp:FindFirstChild("HaroonBV") then
-                local bv = Instance.new("BodyVelocity")
-                bv.Name = "HaroonBV"
-                bv.Parent = hrp
-                bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
-                bv.Velocity = Vector3.zero
-            end
         end)
     else
         pcall(function()
@@ -373,25 +367,26 @@ RunService.Stepped:Connect(function()
 end)
 
 local DEFAULT_SAFE_TELEPORT_HEIGHT = 100
+local TweenPlayer
 
+-- Tween-only safe teleport. No BodyVelocity/BodyGyro/temporary Part is created.
 local function SafeTeleport100(cf: CFrame, owner: string?)
-    if typeof(cf) ~= "CFrame" then return false end
-    local char, hrp, hum = GetCharacter()
-    if not hrp then return false end
+    if typeof(cf) ~= "CFrame" then return nil end
+    local _, hrp, hum = GetCharacter()
+    if not hrp then return nil end
     if hum then pcall(function() hum.Sit = false end) end
+
     local pos = cf.Position
-    local target = Vector3.new(pos.X, pos.Y + DEFAULT_SAFE_TELEPORT_HEIGHT, pos.Z)
-    local look = target + Vector3.new(cf.LookVector.X, 0, cf.LookVector.Z)
-    if (look-target).Magnitude < 0.01 then look = target + Vector3.new(0,0,-1) end
-    pcall(function()
-        hrp.CFrame = CFrame.lookAt(target, look)
-        hrp.AssemblyLinearVelocity = Vector3.zero
-        hrp.AssemblyAngularVelocity = Vector3.zero
-    end)
-    return true
+    local flatLook = Vector3.new(cf.LookVector.X, 0, cf.LookVector.Z)
+    if flatLook.Magnitude < 0.01 then flatLook = Vector3.new(0, 0, -1) end
+    local target = pos + Vector3.new(0, DEFAULT_SAFE_TELEPORT_HEIGHT, 0)
+    local targetCF = CFrame.lookAt(target, target + flatLook.Unit)
+
+    -- Always use the same Tween engine/speed; never instantiate a movement object.
+    return TweenPlayer(targetCF, nil, owner or "SafeTeleport100")
 end
 
-local function TweenPlayer(pos: CFrame | Vector3 | BasePart, offset: Vector3?, owner: string?): Tween?
+TweenPlayer = function(pos: CFrame | Vector3 | BasePart, offset: Vector3?, owner: string?): Tween?
     local char, hrp, hum = GetCharacter()
     if not char or not hrp or not hum then return nil end
     if hum.Sit then hum.Sit = false end
@@ -406,11 +401,11 @@ local function TweenPlayer(pos: CFrame | Vector3 | BasePart, offset: Vector3?, o
     local distance = (hrp.Position - targetCFrame.Position).Magnitude
     local uprightCFrame = CFrame.new(targetCFrame.Position, targetCFrame.Position + Vector3.new(targetCFrame.LookVector.X, 0, targetCFrame.LookVector.Z))
     if distance <= 25 then
-        hrp.CFrame = uprightCFrame
         if currentTween then currentTween:Cancel() end
-        currentTween = nil
-        currentTweenOwner = nil
-        return nil
+        currentTweenOwner = owner or "Generic"
+        currentTween = TweenService:Create(hrp, TweenInfo.new(0.06, Enum.EasingStyle.Linear), {CFrame = uprightCFrame})
+        currentTween:Play()
+        return currentTween
     end
 
     local speed = _G.Settings.Main["Player Tween Speed"] or 180
@@ -1360,31 +1355,31 @@ do
         end
     end
 end
-AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Modules & Auto Engines...", function()
+AetherUI:InitLoadingScreen("Aether Hub Team | V1", "Initializing Modules & Auto Engines...", function()
     AetherUI:InitKeySystem({"HAROON-2025-VIP", "HAROON-KEY-100"}, function()
-        AetherUI:Notify({Title = "Haroon Hub V12 Active", Content = "Successfully loaded all modules in 100% English!", Duration = 4})
+        AetherUI:Notify({Title = "Aether Hub", Content = "Successfully loaded all modules 100%", Duration = 4})
 
         local Window = AetherUI:CreateWindow({
-            Title = "Haroon Hub | Blox Fruits Master",
-            Subtitle = "by: 3amek4222",
+            Title = "Aether Hub | V1",
+            Subtitle = "by: Mic198888",
             ToggleKey = Enum.KeyCode.RightControl
         })
 
-        local MainTab = Window:CreateTab("Main Farm", "rbxassetid://6034287594")
-        local QuestsTab = Window:CreateTab("All Quests", "rbxassetid://6034453535")
-        local ShopTab = Window:CreateTab("Shop & Upgrades", "rbxassetid://6031280882")
-        local SubFarmTab = Window:CreateTab("Subs Farm", "rbxassetid://6034834832")
-        local RaidTab = Window:CreateTab("Dungeons & Raids", "rbxassetid://6034834832")
-        local SeaTab = Window:CreateTab("Sea Events & Prehistoric", "rbxassetid://6034453535")
-        local RaceTab = Window:CreateTab("Race V4 & Mirage", "rbxassetid://6034453535")
-        local ItemsTab = Window:CreateTab("Items & Swords", "rbxassetid://6034834832")
-        local FruitsTab = Window:CreateTab("Fruits & Sniper", "rbxassetid://6034453535")
+        local MainTab = Window:CreateTab("Main", "rbxassetid://6034287594")
+        local QuestsTab = Window:CreateTab("Quests", "rbxassetid://6034453535")
+        local ShopTab = Window:CreateTab("Shop", "rbxassetid://6031280882")
+        local SubFarmTab = Window:CreateTab("Sub Farm", "rbxassetid://6034834832")
+        local RaidTab = Window:CreateTab("Raids", "rbxassetid://6034834832")
+        local SeaTab = Window:CreateTab("Sea Events", "rbxassetid://6034453535")
+        local RaceTab = Window:CreateTab("Race V4", "rbxassetid://6034453535")
+        local ItemsTab = Window:CreateTab("Items", "rbxassetid://6034834832")
+        local FruitsTab = Window:CreateTab("Fruits", "rbxassetid://6034453535")
         local DragonDojoTab = Window:CreateTab("Dragon Dojo", "rbxassetid://6034453535")
-        local CombatTab = Window:CreateTab("Combat & PVP", "rbxassetid://6034834832")
+        local CombatTab = Window:CreateTab("Combat", "rbxassetid://6034834832")
         local CraftingTab = Window:CreateTab("Crafting", "rbxassetid://6034834832")
         local TeleportsTab = Window:CreateTab("Teleports", "rbxassetid://6034453535")
-        local VisualTab = Window:CreateTab("Visuals & ESP", "rbxassetid://6034453535")
-        local MiscTab = Window:CreateTab("Misc & Server Status", "rbxassetid://6031280882")
+        local VisualTab = Window:CreateTab("Visuals", "rbxassetid://6034453535")
+        local MiscTab = Window:CreateTab("Misc", "rbxassetid://6031280882")
         local SettingsTab = Window:CreateTab("Settings", "rbxassetid://6031280882")
 
         ---------------------------------------------------------
@@ -1476,10 +1471,6 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
             if not state then StopTween("BossFarm") end
         end)
 
-        MainTab:CreateToggle("Auto Farm Factory Core", "AutoFarmFactoryFlag", _G.Settings.Main["Auto Farm Factory"], function(state)
-            _G.Settings.Main["Auto Farm Factory"] = state
-            if not state then StopTween("Factory") end
-        end)
 
         ---------------------------------------------------------
         -- 📌 2. TAB: ALL QUESTS (Including Citizen Quests)
@@ -1623,6 +1614,13 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
         SubFarmTab:CreateToggle("Auto Elite Hunter Hop", "EliteHopFlag", false, function(state)
             _G.Settings.SubFarm["Auto Elite Hunter Hop"] = state
             if not state then StopTween() end
+        end)
+
+        SubFarmTab:CreateSection("Factory Core Farming")
+
+        SubFarmTab:CreateToggle("Auto Farm Factory Core", "AutoFarmFactoryFlag", _G.Settings.Main["Auto Farm Factory"], function(state)
+            _G.Settings.Main["Auto Farm Factory"] = state
+            if not state then StopTween("Factory") end
         end)
 
         SubFarmTab:CreateSection("Chests Farming")
@@ -2121,8 +2119,6 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
             if state then task.spawn(function() while _G.Settings.Fruits["Auto Roll Fruit"] and getgenv().HaroonFruitRollToken==token do pcall(rollFruitOnce); task.wait(3) end end) end
         end)
 
-        FruitsTab:CreateSection("Fruit Notifier & ESP")
-
         FruitsTab:CreateToggle("Fruit Notifier (ESP)", "FruitESPFlag", false, function(state)
             _G.Settings.Fruits["Fruit ESP"] = state
         end)
@@ -2299,7 +2295,7 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
             task.delay(0.05, refreshPlayerDropdownLive)
         end)
 
-        CombatTab:CreateSection("Combat Assist")
+        CombatTab:CreateSection("Combat Assist Toggles")
 
         CombatTab:CreateToggle("Kill Aura (Attack Nearby Enemies)", "KillAuraFlag", false, function(state)
             _G.Settings.Combat["Kill Aura"] = state
@@ -2313,12 +2309,10 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
             _G.Settings.Combat["Attack Speed"] = val
         end)
 
-        CombatTab:CreateSection("Haki & Attack Assistance")
         CombatTab:CreateToggle("Auto Enable Buso Haki (Once Per Life)", "AutoHakiOnceFlag", false, function(state)
             _G.Settings.Combat["Auto Enable Haki"] = state
         end)
 
-        CombatTab:CreateSection("PvP Safety")
         CombatTab:CreateToggle("Auto PvP Escape & Safety Return", "AutoPvPEscapeFlag", false, function(state)
             _G.Settings.Combat["Auto PvP Escape"] = state
             if not state then StopTween() end
@@ -2357,28 +2351,26 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
             myHum.Sit = false
             local hover = math.clamp(tonumber(_G.Settings.Combat["PvP Hover Height"]) or 8, 4, 18)
             local above = root.Position + Vector3.new(0, hover, 0)
-            if (hrp.Position-above).Magnitude > 14 then
+            if (hrp.Position-above).Magnitude > 12 then
                 TweenPlayer(CFrame.lookAt(above, root.Position), nil, "CombatPVP")
-                pcall(function() myHum.AutoRotate = false end)
+            else
+                pcall(function()
+                    hrp.CFrame = CFrame.lookAt(above, root.Position)
+                    hrp.AssemblyLinearVelocity=Vector3.zero
+                    myHum.AutoRotate = false
+                end)
+                AimAtTarget(root.Position)
+                EquipWeapon(_G.Settings.Main["Select Weapon"])
+                pcall(function()
+                    local tool = char:FindFirstChildOfClass("Tool")
+                    if tool and type(tool.Activate)=="function" then tool:Activate() end
+                end)
+                pcall(function()
+                    VirtualInputManager:SendMouseButtonEvent(0,0,0,true,game,0)
+                    VirtualInputManager:SendMouseButtonEvent(0,0,0,false,game,0)
+                end)
+                FastAttackTarget(model)
             end
-            -- Once close, continuously lock above the target and attack. This avoids the
-            -- old state where the tween completed but the combat loop stopped applying damage.
-            pcall(function()
-                hrp.CFrame = CFrame.lookAt(above, root.Position)
-                hrp.AssemblyLinearVelocity = Vector3.zero
-                myHum.AutoRotate = false
-            end)
-            AimAtTarget(root.Position)
-            EquipWeapon(_G.Settings.Main["Select Weapon"])
-            pcall(function()
-                local tool = char:FindFirstChildOfClass("Tool")
-                if tool and type(tool.Activate)=="function" then tool:Activate() end
-            end)
-            pcall(function()
-                VirtualInputManager:SendMouseButtonEvent(0,0,0,true,game,0)
-                VirtualInputManager:SendMouseButtonEvent(0,0,0,false,game,0)
-            end)
-            FastAttackTarget(model)
             return true
         end
 
@@ -2665,7 +2657,7 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
         local KitsunePara = MiscTab:CreateParagraph({Title="Kitsune Status", Desc="🔴 Not Spawned", Image="rbxassetid://6034453535", ImageSize=20})
         local AzureEmberPara = MiscTab:CreateParagraph({Title="Azure Embers", Desc="0 found | Auto Collect: OFF", Image="rbxassetid://6034453535", ImageSize=20})
         local SeaEventPara = MiscTab:CreateParagraph({Title="Sea Events", Desc="No active sea events detected.", Image="rbxassetid://6034453535", ImageSize=20})
-        local ElitePara = MiscTab:CreateParagraph({Title="Elite Hunters Killed", Desc="N/A", Image="rbxassetid://6034834832", ImageSize=20})
+        local ElitePara = MiscTab:CreateParagraph({Title="Elite Hunter Status", Desc="🔴 Not Spawned", Image="rbxassetid://6034834832", ImageSize=20})
         local SwordPara = MiscTab:CreateParagraph({Title="Legendary Swords Owned", Desc="0 / 3", Image="rbxassetid://6034834832", ImageSize=20})
         local NetworkPara = MiscTab:CreateParagraph({Title="Network", Desc="FPS: -- | Ping: -- ms", Image="rbxassetid://6031280882", ImageSize=20})
 
@@ -2790,13 +2782,17 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
                         end
                     end
 
-                    local ek = "N/A"
-                    if stats then
-                        for _, v in ipairs(stats:GetChildren()) do
-                            if v.Name:lower():find("elite") then ek = tostring(v.Value) break end
+                    local eliteNames = {"Diablo", "Deandre", "Urban", "Deandre"}
+                    local eliteFound = nil
+                    local enemiesFolder = workspace:FindFirstChild("Enemies")
+                    if enemiesFolder then
+                        for _, eliteName in ipairs(eliteNames) do
+                            local e = enemiesFolder:FindFirstChild(eliteName)
+                            local eh = e and e:FindFirstChildOfClass("Humanoid")
+                            if e and eh and eh.Health > 0 then eliteFound = eliteName break end
                         end
                     end
-                    UpdateParagraph(ElitePara, ek)
+                    UpdateParagraph(ElitePara, eliteFound and ("🟢 Spawned: " .. eliteFound) or "🔴 Not Spawned")
                     local swords = 0
                     local bp = LocalPlayer:FindFirstChildOfClass("Backpack"); local c = LocalPlayer.Character
                     for _, name in ipairs({"Shisui", "Saddi", "Wando"}) do
@@ -3704,8 +3700,7 @@ local function ensureLeviathanBoat()
     local boat=findLeviathanBoat()
     if boat then mountMyBoat(boat); return boat end
     local old=_G.Settings.Sea["Selected Boat"]
-    -- Leviathan hunting requires the Beast Hunter boat for the intended heart/harpoon flow.
-    _G.Settings.Sea["Selected Boat"]="Beast Hunter"
+    _G.Settings.Sea["Selected Boat"]=_G.Settings.Sea["Leviathan Boat"] or "Beast Hunter"
     boat=ensureBoat()
     _G.Settings.Sea["Selected Boat"]=old
     return boat
@@ -3736,15 +3731,6 @@ autoFindLeviathanStep = function()
     if not ensureLeviathanBribed() then return false end
     local boat=ensureLeviathanBoat()
     if not boat then return false end
-    -- Do not start the sea search until the driver is actually seated in the boat.
-    local _, boatHRP, boatHum = GetCharacter()
-    local seat = getBoatSeat(boat)
-    if not seat or not boatHum then return false end
-    if boatHum.SeatPart ~= seat then
-        mountMyBoat(boat)
-        task.wait(0.12)
-        if boatHum.SeatPart ~= seat then return false end
-    end
     local _,hrp,hum=GetCharacter()
     if not hrp or not hum then return false end
     local target,cf=findFrozenDimensionOrLeviathan()
@@ -4243,8 +4229,6 @@ local function getPlayerLevelText(player)
     return "Lv.?"
 end
 
-local FruitRuntimeSeen = {}
-
 local function isBossModel(obj)
     if not obj:IsA("Model") then return false end
     local name = obj.Name:lower()
@@ -4256,7 +4240,7 @@ local function espTick()
     if not hrp then return end
     local seen = {}
     local S = _G.Settings.Visuals
-    local fruitEnabled = _G.Settings.Fruits["Fruit ESP"] == true
+    if _G.Settings.Fruits["Fruit ESP"] then S["ESP Fruits"] = true end
     if _G.Settings.Fruits["Player ESP"] then S["ESP Players"] = true end
     if _G.Settings.Fruits["Chest ESP"] then S["ESP Chests"] = true end
 
@@ -4294,40 +4278,20 @@ local function espTick()
         end
     end
 
-    if fruitEnabled then
-        -- Robust Fruit Notifier: real spawned fruit Tools/Models use fruit names,
-        -- not necessarily the word "Fruit" in the instance name.
-        local FruitNames = {
-            ["rocket-rocket"]=true,["spin-spin"]=true,["blade-blade"]=true,["bomb-bomb"]=true,["smoke-smoke"]=true,
-            ["spike-spike"]=true,["flame-flame"]=true,["falcon-falcon"]=true,["ice-ice"]=true,["sand-sand"]=true,
-            ["dark-dark"]=true,["diamond-diamond"]=true,["light-light"]=true,["rubber-rubber"]=true,["barrier-barrier"]=true,
-            ["ghost-ghost"]=true,["magma-magma"]=true,["quake-quake"]=true,["buddha-buddha"]=true,["love-love"]=true,
-            ["spider-spider"]=true,["sound-sound"]=true,["phoenix-phoenix"]=true,["portal-portal"]=true,["rumble-rumble"]=true,
-            ["pain-pain"]=true,["blizzard-blizzard"]=true,["gravity-gravity"]=true,["mammoth-mammoth"]=true,["t-rex-t-rex"]=true,
-            ["dough-dough"]=true,["shadow-shadow"]=true,["venom-venom"]=true,["control-control"]=true,["spirit-spirit"]=true,
-            ["dragon-dragon"]=true,["leopard-leopard"]=true,["yeti-yeti"]=true,["kitsune-kitsune"]=true,["gas-gas"]=true,
-            ["creation-creation"]=true,["eagle-eagle"]=true,["meme-meme"]=true
-        }
-        local function isSpawnedFruit(obj)
-            if not (obj:IsA("Tool") or obj:IsA("Model")) then return false end
-            local raw = tostring(obj:GetAttribute("Fruit") or obj:GetAttribute("FruitName") or obj:GetAttribute("DisplayName") or obj.Name)
-            local n = raw:lower():gsub("%s+","-")
-            if FruitNames[n] then return true end
-            if n:find("fruit",1,true) or n:find("bloxfruit",1,true) or n:find("blox-fruit",1,true) then return true end
-            local parentName = obj.Parent and tostring(obj.Parent.Name):lower() or ""
-            return parentName:find("fruit",1,true) ~= nil
-        end
+    if S["ESP Fruits"] then
+        -- Fruit Notifier: fruits can be Tools, Models, or nested inside world folders.
         for _, obj in ipairs(workspace:GetDescendants()) do
-            if isSpawnedFruit(obj) then
-                local part = getEspPart(obj)
-                if part then
-                    local key = "F:" .. obj:GetDebugId()
-                    seen[key] = true
-                    local title = "🍎 " .. tostring(obj.Name)
-                    EnsureESP(key, part, title, Color3.fromRGB(255,180,40), false)
-                    if not FruitRuntimeSeen[key] then
-                        FruitRuntimeSeen[key] = true
-                        if AetherUI then AetherUI:Notify({Title="Fruit Notifier", Content="Spawned: "..tostring(obj.Name), Duration=4}) end
+            local isCandidate = obj:IsA("Tool") or obj:IsA("Model")
+            if isCandidate then
+                local n = tostring(obj.Name):lower()
+                local attr = tostring(obj:GetAttribute("Fruit") or obj:GetAttribute("FruitName") or ""):lower()
+                local looksFruit = n:find("fruit",1,true) or n:find("blox",1,true) or attr:find("fruit",1,true)
+                if looksFruit then
+                    local part = getEspPart(obj)
+                    if part then
+                        local key = "F:" .. obj:GetDebugId()
+                        seen[key] = true
+                        EnsureESP(key, part, "🍎 " .. tostring(obj.Name), Color3.fromRGB(255,180,40), false)
                     end
                 end
             end
@@ -4372,7 +4336,7 @@ local function espTick()
         if not seen[key] then RemoveESP(key) end
     end
 
-    if not (S["ESP Players"] or S["ESP Enemies"] or S["ESP Bosses"] or fruitEnabled or S["ESP Chests"] or S["ESP Mirage Island"] or S["ESP Kitsune Island"]) then
+    if not (S["ESP Players"] or S["ESP Enemies"] or S["ESP Bosses"] or S["ESP Fruits"] or S["ESP Chests"] or S["ESP Mirage Island"] or S["ESP Kitsune Island"]) then
         RemoveAllESP()
     end
 end
@@ -4636,24 +4600,96 @@ end
 
 task.spawn(function() while task.wait(0.15) do pcall(chestFarmStepV4) end end)
 -- Highest priority for spawned Cake Prince / Dough King; ordered Dough King controller.
-local DoughController = {Stage="NeedGodsChalice", LastAction=0, LastNotice=0}
+local DoughController = {Stage="NeedGodsChalice", LastAction=0, LastNotice=0, ChestTarget=nil}
 local DoughCakeLandPosition = CFrame.new(-2077, 252, -12373)
 local DoughChocolatePosition = CFrame.new(231.75, 23.90, -12200.29)
 local DoughCorePosition = CFrame.new(-2155, 149, -12404)
+local DoughPortalNames = {"DoughKingPortal","DoughPortal","Portal","DimensionalShift","Dimensional Shift"}
 
 local function findItemAnywhere(name)
     local lower = tostring(name):lower()
-    local containers = {LocalPlayer:FindFirstChildOfClass("Backpack"), LocalPlayer.Character, workspace}
+    local containers = {LocalPlayer:FindFirstChildOfClass("Backpack"), LocalPlayer.Character}
     for _, root in ipairs(containers) do
         if root then
             for _, obj in ipairs(root:GetDescendants()) do
-                if (obj:IsA("Tool") or obj:IsA("Model") or obj:IsA("BasePart")) and obj.Name:lower() == lower then
+                if obj.Name:lower() == lower and (obj:IsA("Tool") or obj:IsA("Model") or obj:IsA("BasePart")) then
                     return obj
                 end
             end
         end
     end
     return nil
+end
+
+local function findDoughChestTarget()
+    local _, hrp = GetCharacter()
+    if not hrp then return nil end
+    local best, bestD = nil, math.huge
+    local seen = {}
+    local roots = {workspace:FindFirstChild("ChestModels"), workspace:FindFirstChild("Map"), workspace:FindFirstChild("_WorldOrigin"), workspace}
+    for _, root in ipairs(roots) do
+        if root then
+            for _, obj in ipairs(root:GetDescendants()) do
+                if obj:IsA("Model") and not seen[obj] then
+                    local n = obj.Name:lower()
+                    if n:find("chest",1,true) and not obj:GetAttribute("HaroonDoughChestVisited") then
+                        seen[obj] = true
+                        local part = anyPart(obj)
+                        if part then
+                            local d = (hrp.Position - part.Position).Magnitude
+                            if d < bestD then best, bestD = obj, d end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return best
+end
+
+local function collectChestsForGodsChalice()
+    local _, hrp = GetCharacter()
+    if not hrp then return false end
+    if findItemAnywhere("God's Chalice") then return true end
+
+    local target = DoughController.ChestTarget
+    if not target or not target.Parent or not anyPart(target) then
+        target = findDoughChestTarget()
+        DoughController.ChestTarget = target
+    end
+    if not target then
+        -- Reset scan once every currently known chest has been visited.
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("Model") and obj.Name:lower():find("chest",1,true) then
+                obj:SetAttribute("HaroonDoughChestVisited", nil)
+            end
+        end
+        target = findDoughChestTarget()
+        DoughController.ChestTarget = target
+    end
+    if not target then return false end
+
+    local part = anyPart(target)
+    if not part then DoughController.ChestTarget=nil; return false end
+    local targetPos = part.Position + Vector3.new(0, 3, 0)
+    if (hrp.Position-targetPos).Magnitude > 10 then
+        TweenPlayer(CFrame.new(targetPos), nil, "DoughChest")
+    else
+        -- Approach the chest with Tween, then use the normal chest touch when the executor exposes it.
+        pcall(function() hrp.CFrame = CFrame.new(targetPos) end)
+        local chestPart = anyPart(target)
+        if chestPart and type(firetouchinterest) == "function" then
+            pcall(function()
+                firetouchinterest(hrp, chestPart, 0)
+                task.wait(0.05)
+                firetouchinterest(hrp, chestPart, 1)
+            end)
+        end
+        target:SetAttribute("HaroonDoughChestVisited", true)
+        DoughController.ChestTarget=nil
+        task.wait(0.18)
+    end
+    return false
 end
 
 local function getDoughRequirementState()
@@ -4664,31 +4700,60 @@ local function getDoughRequirementState()
     return gods, sweet, cocoa, remaining, spawned
 end
 
-local function farmEliteForGodsChalice()
-    -- This reuses the same reliable elite-targeting logic as the normal Elite Hunter module,
-    -- but does not permanently switch the user's Elite toggle.
-    local questGui = LocalPlayer.PlayerGui:FindFirstChild("Main") and LocalPlayer.PlayerGui.Main:FindFirstChild("Quest")
-    local hasQuest = false
-    if questGui and questGui.Visible then
-        local title = questGui.Container.QuestTitle.Title.Text
-        hasQuest = title:find("Diablo",1,true) or title:find("Urban",1,true) or title:find("Deandre",1,true)
+local function eliteTargetForChalice()
+    local enemies = workspace:FindFirstChild("Enemies")
+    if not enemies then return nil end
+    for _, name in ipairs({"Diablo","Urban","Deandre"}) do
+        local e = enemies:FindFirstChild(name)
+        local h = e and e:FindFirstChildOfClass("Humanoid")
+        if e and h and h.Health > 0 then return e end
     end
-    if not hasQuest and CommF_ then
+    return nil
+end
+
+local function ensureEliteHunterQuest()
+    local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+    local main = playerGui and playerGui:FindFirstChild("Main")
+    local quest = main and main:FindFirstChild("Quest")
+    if quest and quest.Visible then
+        local ok, title = pcall(function() return quest.Container.QuestTitle.Title.Text end)
+        if ok and type(title)=="string" and (title:find("Diablo",1,true) or title:find("Urban",1,true) or title:find("Deandre",1,true)) then
+            return true
+        end
+    end
+    if CommF_ then
         pcall(function() CommF_:InvokeServer("EliteHunter") end)
     end
-    for _, eliteName in ipairs({"Diablo","Urban","Deandre"}) do
-        local enemy = workspace:FindFirstChild("Enemies") and workspace.Enemies:FindFirstChild(eliteName)
-        if not enemy then enemy = ReplicatedStorage:FindFirstChild(eliteName) end
-        if enemy and enemy:IsA("Model") then
-            local root = enemy:FindFirstChild("HumanoidRootPart") or enemy.PrimaryPart
-            local eh = enemy:FindFirstChildOfClass("Humanoid")
-            if root and eh and eh.Health > 0 then
-                AutoHaki()
-                TweenPlayer(root.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0), "DoughKingGods")
-                SmartAttackMob(enemy, "Melee")
-                return true
-            end
+    return false
+end
+
+local function farmEliteForGodsChalice()
+    ensureEliteHunterQuest()
+    local elite = eliteTargetForChalice()
+    if elite then
+        local root = elite:FindFirstChild("HumanoidRootPart") or elite.PrimaryPart
+        local hum = elite:FindFirstChildOfClass("Humanoid")
+        if root and hum and hum.Health > 0 then
+            AutoHaki()
+            TweenPlayer(CFrame.lookAt(root.Position + Vector3.new(0, _G.Settings.Main["Farm Distance"], 0), root.Position), nil, "DoughKingGods")
+            SmartAttackMob(elite, "Melee")
+            return true
         end
+    end
+    -- No active Elite Pirate: switch to global chest scanning until God's Chalice appears.
+    DoughController.ChestTarget = DoughController.ChestTarget and DoughController.ChestTarget.Parent and DoughController.ChestTarget or nil
+    collectChestsForGodsChalice()
+    return false
+end
+
+local function enterDoughPortalIfNeeded()
+    local boss = workspace:FindFirstChild("Enemies") and workspace.Enemies:FindFirstChild("Dough King")
+    if boss then return true end
+    local portal = findWorldObjectByNames(DoughPortalNames)
+    local cf = portal and GetModelCFrame(portal)
+    if cf then
+        TweenPlayer(cf, Vector3.new(0, 3, 0), "DoughPortal")
+        return true
     end
     return false
 end
@@ -4700,39 +4765,36 @@ local function doughKingOrderedStep()
 
     local gods, sweet, cocoa, remaining, spawned = getDoughRequirementState()
     local boss = workspace:FindFirstChild("Enemies") and workspace.Enemies:FindFirstChild("Dough King")
+
+    -- Stage 0: kill the boss immediately if already spawned.
     if boss and boss:FindFirstChild("HumanoidRootPart") and boss:FindFirstChildOfClass("Humanoid") and boss.Humanoid.Health > 0 then
         DoughController.Stage = "Kill"
         AutoHaki()
         local root = boss.HumanoidRootPart
         local desired = root.Position + Vector3.new(0, 30, 0)
-        if (hrp.Position-desired).Magnitude > 12 then TweenPlayer(CFrame.lookAt(desired,root.Position),nil,"DoughKing") else pcall(function() hrp.CFrame=CFrame.lookAt(desired,root.Position); hrp.AssemblyLinearVelocity=Vector3.zero end) end
+        if (hrp.Position-desired).Magnitude > 12 then
+            TweenPlayer(CFrame.lookAt(desired,root.Position),nil,"DoughKing")
+        else
+            pcall(function() hrp.CFrame=CFrame.lookAt(desired,root.Position); hrp.AssemblyLinearVelocity=Vector3.zero end)
+        end
         SmartAttackMob(boss, "Melee")
         return
     end
 
-    -- Stage 1: God's Chalice first.
+    -- Stage 1: God's Chalice first. Elite Pirate, then world chests fallback.
     if not gods then
         DoughController.Stage = "NeedGodsChalice"
-        if findItemAnywhere("God's Chalice") then
-            return
-        end
-        if not farmEliteForGodsChalice() then
-            -- Search visible chests/drops before starting another elite cycle.
-            local found = findItemAnywhere("God's Chalice")
-            if found and GetModelCFrame(found) then
-                TweenPlayer(GetModelCFrame(found), Vector3.new(0,4,0), "DoughGods")
-            end
-        end
+        farmEliteForGodsChalice()
         return
     end
 
-    -- Stage 2: Conjured Cocoa only after God's Chalice is secured.
+    -- Stage 2: collect the 10 Conjured Cocoa after God's Chalice is secured.
     if not sweet and cocoa < 10 then
         DoughController.Stage = "NeedCocoa"
-        local mob = integratedFindEnemy({"Cocoa Warrior","Chocolate Bar Battler"}, hrp.Position, 1800)
+        local mob = integratedFindEnemy({"Cocoa Warrior","Chocolate Bar Battler"}, hrp.Position, 2200)
         if mob then
             AutoHaki()
-            TweenPlayer(mob.HumanoidRootPart.CFrame, Vector3.new(0,_G.Settings.Main["Farm Distance"],0), "DoughCocoa")
+            TweenPlayer(CFrame.lookAt(mob.HumanoidRootPart.Position + Vector3.new(0,_G.Settings.Main["Farm Distance"],0), mob.HumanoidRootPart.Position), nil, "DoughCocoa")
             SmartAttackMob(mob, "Melee")
         else
             TweenPlayer(DoughChocolatePosition, Vector3.new(0,25,0), "DoughCocoa")
@@ -4740,47 +4802,62 @@ local function doughKingOrderedStep()
         return
     end
 
-    -- Stage 3: trade both items for Sweet Chalice.
+    -- Stage 3: craft Sweet Chalice, then verify it really exists.
     if not sweet then
         DoughController.Stage = "CraftSweetChalice"
-        local crafter = findWorldObjectByNames({"Sweet Crafter","SweetCrafter"})
-        local cf = crafter and GetModelCFrame(crafter)
-        if cf then TweenPlayer(cf, Vector3.new(0,4,0), "DoughCrafter") end
-        if CommF_ and (not cf or (hrp.Position-cf.Position).Magnitude <= 25) then
+        local crafter=findWorldObjectByNames({"Sweet Crafter","SweetCrafter"})
+        local cf=crafter and GetModelCFrame(crafter)
+        if cf then TweenPlayer(cf,Vector3.new(0,4,0),"DoughCrafter") end
+        if CommF_ and cf and (hrp.Position-cf.Position).Magnitude<=25 then
             pcall(function() CommF_:InvokeServer("SweetChaliceNpc") end)
+            task.wait(0.25)
         end
         return
     end
 
-    -- Stage 4: 500 Cake Land kills.
-    if not spawned and (remaining or 500) > 0 then
+    -- Stage 4: Cake Land requirement. Stop at 2 remaining so a fresh spawn can be seen cleanly.
+    if not spawned and (remaining or 500) > 2 then
         DoughController.Stage = "Need500CakeLand"
-        local mob = integratedFindEnemy({"Cookie Crafter","Cake Guard"}, hrp.Position, 2200)
+        local mob=integratedFindEnemy({"Cookie Crafter","Cake Guard"},hrp.Position,2200)
         if mob then
             AutoHaki()
-            TweenPlayer(mob.HumanoidRootPart.CFrame, Vector3.new(0,_G.Settings.Main["Farm Distance"],0), "Dough500")
-            SmartAttackMob(mob, "Melee")
+            TweenPlayer(CFrame.lookAt(mob.HumanoidRootPart.Position + Vector3.new(0,_G.Settings.Main["Farm Distance"],0), mob.HumanoidRootPart.Position),nil,"Dough500")
+            SmartAttackMob(mob,"Melee")
         else
-            TweenPlayer(DoughCakeLandPosition, nil, "Dough500")
-            -- Query the progress endpoint without forcing a premature summon.
-            pcall(function() CommF_:InvokeServer("CakePrinceSpawner") end)
+            TweenPlayer(DoughCakeLandPosition,nil,"Dough500")
         end
         return
     end
 
-    -- Stage 5: summon only once the 500 requirement is actually met.
-    DoughController.Stage = "Summon"
-    if CommF_ and os.clock()-DoughController.LastAction > 1.0 then
-        DoughController.LastAction=os.clock()
+    -- Stage 5: with 2 or fewer remaining, stop the grinder and only wait/check for spawn.
+    if not spawned and (remaining or 500) <= 2 then
+        DoughController.Stage = "WaitingForDoughSpawn"
+        if os.clock()-DoughController.LastAction > 0.8 then
+            DoughController.LastAction=os.clock()
+            pcall(function() CommF_:InvokeServer("CakePrinceSpawner") end)
+        end
+        local _, _, _, remNow, spawnedNow = getDoughRequirementState()
+        if spawnedNow or (remNow or 500) <= 0 then
+            spawned=true
+        end
+        if not spawned then return end
+    end
+
+    -- Stage 6: summon with Sweet Chalice held by this player, then enter the portal.
+    if not boss then
+        DoughController.Stage = "Summon"
         local mama=findWorldObjectByNames({"drip_mama","Drip Mama","Jeffery"})
         local cf=mama and GetModelCFrame(mama)
         if cf then TweenPlayer(cf,Vector3.new(0,4,0),"DoughSummon") end
-        if not cf or (hrp.Position-cf.Position).Magnitude <= 25 then
-            -- Only the player holding Sweet Chalice should interact with drip_mama.
+        if CommF_ and cf and (hrp.Position-cf.Position).Magnitude<=25 and os.clock()-DoughController.LastAction>1 then
+            DoughController.LastAction=os.clock()
             pcall(function() CommF_:InvokeServer("CakePrinceSpawner",true) end)
+            task.wait(0.35)
         end
+        enterDoughPortalIfNeeded()
     end
 end
+
 
 task.spawn(function()
     while task.wait(0.15) do
