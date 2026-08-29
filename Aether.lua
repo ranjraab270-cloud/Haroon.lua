@@ -408,10 +408,12 @@ local function TweenPlayer(pos: CFrame | Vector3 | BasePart, offset: Vector3?, o
     else return nil end
     if offset then targetCFrame = targetCFrame * CFrame.new(offset) end
 
-    -- Keep every teleport above the destination while travelling. No helper
-    -- Parts/BodyVelocity/Instance objects are created by this system.
-    local safeY = targetCFrame.Position.Y + 100
-    local safeTarget = Vector3.new(targetCFrame.Position.X, safeY, targetCFrame.Position.Z)
+    -- Travel at the player's CURRENT altitude. The tween never intentionally
+    -- drops the character toward the destination, so long travel stays level.
+    -- Near the destination we only allow an upward correction; never a downward one.
+    local requested = targetCFrame.Position
+    local travelY = math.max(hrp.Position.Y, requested.Y)
+    local safeTarget = Vector3.new(requested.X, travelY, requested.Z)
     local look = safeTarget + Vector3.new(targetCFrame.LookVector.X, 0, targetCFrame.LookVector.Z)
     if (look - safeTarget).Magnitude < 0.01 then look = safeTarget + Vector3.new(0, 0, -1) end
     local uprightCFrame = CFrame.lookAt(safeTarget, look)
@@ -1582,6 +1584,103 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
         ShopTab:CreateButton("Travel to First Sea", function() if CommF_ then CommF_:InvokeServer("TravelMain") end end)
         ShopTab:CreateButton("Travel to Second Sea", function() if CommF_ then CommF_:InvokeServer("TravelDressrosa") end end)
         ShopTab:CreateButton("Travel to Third Sea", function() if CommF_ then CommF_:InvokeServer("TravelZou") end end)
+
+        ----------------------------------------------------------------------
+        -- LIVE Blox Fruits Stock (server-backed)
+        -- Reads the dealer data exposed by the running game instead of using
+        -- hard-coded fruit lists. Normal and Mirage are shown separately.
+        ----------------------------------------------------------------------
+        local NormalStockPara = ShopTab:CreateParagraph({
+            Title="🍎 Normal Stock",
+            Desc="Loading live dealer stock...",
+            Image="rbxassetid://6034834832",
+            ImageSize=20
+        })
+        local MirageStockPara = ShopTab:CreateParagraph({
+            Title="🌙 Mirage Stock",
+            Desc="Loading live advanced-dealer stock...",
+            Image="rbxassetid://6034834832",
+            ImageSize=20
+        })
+
+        local function stockValueName(v)
+            if type(v) == "table" then
+                return tostring(v.Name or v.FruitName or v.name or v[1] or "Unknown")
+            end
+            return tostring(v)
+        end
+
+        local function stockIsOnSale(v)
+            if type(v) ~= "table" then return true end
+            if v.OnSale ~= nil then return v.OnSale == true end
+            if v.onSale ~= nil then return v.onSale == true end
+            if v.Stock ~= nil then return v.Stock == true or tonumber(v.Stock) == 1 end
+            if v.InStock ~= nil then return v.InStock == true end
+            return true
+        end
+
+        local function formatStockResult(result)
+            if type(result) ~= "table" then return "No live stock data returned." end
+            local rows = {}
+            local list = result
+            for _,containerName in ipairs({"Stock","Fruits","Data","Normal","Mirage","Items"}) do
+                if type(result[containerName]) == "table" then
+                    list = result[containerName]
+                    break
+                end
+            end
+            for k,v in pairs(list) do
+                if type(v) == "table" and stockIsOnSale(v) then
+                    local name = stockValueName(v)
+                    local price = v.Price or v.Beli or v.Cost or v.price
+                    if price then
+                        name = name .. " ($" .. tostring(price) .. ")"
+                    end
+                    table.insert(rows, name)
+                elseif type(v) == "string" then
+                    table.insert(rows, v)
+                elseif type(k) == "string" and stockIsOnSale(v) then
+                    table.insert(rows, k)
+                end
+            end
+            table.sort(rows)
+            if #rows == 0 then return "No fruit currently reported in stock." end
+            return table.concat(rows, "  •  ")
+        end
+
+        local function readLiveStock()
+            if not CommF_ then return end
+            local normal, mirage
+            pcall(function() normal = CommF_:InvokeServer("GetFruits") end)
+            pcall(function() mirage = CommF_:InvokeServer("GetFruits","Mirage") end)
+            if normal == nil then
+                pcall(function() normal = CommF_:InvokeServer("GetFruits","Normal") end)
+            end
+            if mirage == nil then
+                pcall(function() mirage = CommF_:InvokeServer("GetFruits","MirageStock") end)
+            end
+            local function setStockParagraph(paragraph, value)
+                for _,m in ipairs({"SetContent","SetDesc","SetDescription","SetStatus","Update","Set","SetText"}) do
+                    if type(paragraph[m]) == "function" then
+                        local ok = pcall(function() paragraph[m](paragraph, tostring(value or "")) end)
+                        if ok then return end
+                    end
+                end
+            end
+            setStockParagraph(NormalStockPara, formatStockResult(normal))
+            setStockParagraph(MirageStockPara, World3 and formatStockResult(mirage) or "Mirage Stock is available in Third Sea.")
+        end
+
+        ShopTab:CreateButton("🔄 Refresh Stock", function()
+            readLiveStock()
+            AetherUI:Notify({Title="Stock", Content="Requested live Normal + Mirage stock from the game.", Duration=3})
+        end)
+        task.spawn(function()
+            task.wait(1)
+            while task.wait(15) do
+                pcall(readLiveStock)
+            end
+        end)
 
         ShopTab:CreateSection("General Shop Items")
         ShopTab:CreateButton("Buy Dual Flintlock", function() if CommF_ then CommF_:InvokeServer("BuyItem", "Dual Flintlock") end end)
@@ -3108,8 +3207,59 @@ ItemsTab:CreateToggle("Auto True Triple Katana (TTK)", "AutoFarmTTKFlag", false,
         end)
         SettingsTab:CreateSection("Hub Controls")
 
-        SettingsTab:CreateButton("Rejoin Current Server", function()
-            TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+        local function getCurrentWorldName()
+            return World1 and "First Sea" or (World2 and "Second Sea" or (World3 and "Third Sea" or "Unknown World"))
+        end
+
+        local function getRandomServerSameWorld()
+            local placeId = game.PlaceId
+            local ok, result = pcall(function()
+                return HttpService:JSONDecode(game:HttpGet(
+                    "https://games.roblox.com/v1/games/"..tostring(placeId).."/servers/Public?sortOrder=Asc&limit=100"
+                ))
+            end)
+            if not ok or type(result) ~= "table" or type(result.data) ~= "table" then return nil end
+            local candidates = {}
+            for _, server in ipairs(result.data) do
+                if tostring(server.id) ~= tostring(game.JobId)
+                    and tonumber(server.playing or 0) < tonumber(server.maxPlayers or 0) then
+                    table.insert(candidates, tostring(server.id))
+                end
+            end
+            return #candidates > 0 and candidates[math.random(1,#candidates)] or nil
+        end
+
+        SettingsTab:CreateButton("🔄 Rejoin Current World • Same Server", function()
+            AetherUI:Notify({
+                Title="Rejoin",
+                Content="Rejoining "..getCurrentWorldName().." in the current server...",
+                Duration=3
+            })
+            pcall(function()
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+            end)
+            -- If Roblox rejects the same-instance teleport, this fallback is
+            -- queued locally and still targets the SAME current Sea/PlaceId.
+            task.delay(6, function()
+                if LocalPlayer.Parent then
+                    local target = getRandomServerSameWorld()
+                    if target then
+                        pcall(function()
+                            TeleportService:TeleportToPlaceInstance(game.PlaceId, target, LocalPlayer)
+                        end)
+                    end
+                end
+            end)
+        end)
+
+        SettingsTab:CreateButton("🌐 Rejoin Current World • New Server", function()
+            local target = getRandomServerSameWorld()
+            if target then
+                AetherUI:Notify({Title="Rejoin", Content="Joining another "..getCurrentWorldName().." server...", Duration=3})
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, target, LocalPlayer)
+            else
+                AetherUI:Notify({Title="Rejoin", Content="No other public server was returned for "..getCurrentWorldName()..".", Duration=3})
+            end
         end)
 
         SettingsTab:CreateButton("Destroy Hub Interface", function()
@@ -4400,9 +4550,17 @@ end)
 --------------------------------------------------------------------------------
 local ESPCache = {}
 
+local function ESPKey(prefix, obj)
+    if not obj then return prefix .. ":nil" end
+    local ok, id = pcall(function() return obj:GetDebugId() end)
+    if ok and id then return prefix .. ":" .. tostring(id) end
+    return prefix .. ":" .. tostring(obj)
+end
+
 local function RemoveESP(key)
     local obj = ESPCache[key]
     if obj and obj.Gui then pcall(function() obj.Gui:Destroy() end) end
+    if obj and obj.Highlight then pcall(function() obj.Highlight:Destroy() end) end
     ESPCache[key] = nil
 end
 
@@ -4476,7 +4634,18 @@ local function EnsureESP(key, part, title, color, showHP, maxHP, hp)
             hpFill.Parent = hpBg
         end
         bill.Parent = part
-        entry = {Gui=bill, Part=part, Title=titleLabel, Distance=distLabel, HPFill=hpFill}
+        local highlight
+        local model = part:FindFirstAncestorOfClass("Model")
+        if model then
+            highlight = Instance.new("Highlight")
+            highlight.Name = "HaroonESPHighlight"
+            highlight.Adornee = model
+            highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            highlight.FillTransparency = 0.82
+            highlight.OutlineTransparency = 0.08
+            highlight.Parent = model
+        end
+        entry = {Gui=bill, Highlight=highlight, Part=part, Title=titleLabel, Distance=distLabel, HPFill=hpFill}
         ESPCache[key] = entry
     end
     local _, hrp = GetCharacter()
@@ -4526,7 +4695,7 @@ local function espTick()
                 local part = getEspPart(p.Character)
                 local h = p.Character:FindFirstChildOfClass("Humanoid")
                 if part then
-                    local key = "P:" .. p.UserId
+                    local key = ESPKey("P", p.Character)
                     seen[key] = true
                     EnsureESP(key, part, "👤 " .. tostring(p.DisplayName or p.Name) .. "  [" .. getPlayerLevelText(p) .. "]", Color3.fromRGB(255,90,90), true, h and h.MaxHealth or 100, h and h.Health or 0)
                 end
@@ -4544,7 +4713,7 @@ local function espTick()
                         local part = getEspPart(mob)
                         local h = mob:FindFirstChildOfClass("Humanoid")
                         if part and h then
-                            local key = "E:" .. mob:GetDebugId()
+                            local key = ESPKey("E", mob)
                             seen[key] = true
                             EnsureESP(key, part, (boss and "👑 " or "⚔️ ") .. mob.Name, boss and Color3.fromRGB(255,170,40) or Color3.fromRGB(255,210,90), true, h.MaxHealth, h.Health)
                         end
@@ -4580,7 +4749,7 @@ local function espTick()
             if not looks then return end
             local part=getEspPart(obj)
             if not part then return end
-            local key="F:"..obj:GetDebugId()
+            local key=ESPKey("F",obj)
             seen[key]=true
             EnsureESP(key,part,"🍎 "..tostring(obj.Name),Color3.fromRGB(255,180,40),false)
         end
@@ -4597,12 +4766,14 @@ local function espTick()
     if S["ESP Chests"] then
         local chests = workspace:FindFirstChild("ChestModels")
         if chests then
-            for _, chest in ipairs(chests:GetChildren()) do
-                local part = getEspPart(chest)
+            for _, chest in ipairs(chests:GetDescendants()) do
+                if chest:IsA("Model") then
+                    local part = getEspPart(chest)
                 if part then
-                    local key = "C:" .. chest:GetDebugId()
+                    local key = ESPKey("C", chest)
                     seen[key] = true
                     EnsureESP(key, part, "📦 " .. chest.Name, Color3.fromRGB(255,255,80), false)
+                end
                 end
             end
         end
@@ -4864,13 +5035,36 @@ local function chestFarmStepV4()
     if not active then ChestFarmState.Target=nil; return end
     local _,hrp=GetCharacter(); if not hrp then return end
     local target=ChestFarmState.Target
-    local function valid(c) return c and c.Parent and anyPart(c) and not ChestFarmState.visited[c:GetDebugId()] end
+    local function chestKey(c)
+        if not c then return nil end
+        local attr = c:GetAttribute("HaroonChestKey")
+        if attr then return tostring(attr) end
+        local ok, id = pcall(function() return c:GetDebugId() end)
+        return ok and tostring(id) or tostring(c)
+    end
+    local function valid(c)
+        local k = chestKey(c)
+        return c and c.Parent and anyPart(c) and k and not ChestFarmState.visited[k]
+    end
     if not valid(target) then
         target=nil
         local best,dist=nil,math.huge
         for _,c in ipairs(chestModelsV4()) do
-            local k=c:GetDebugId(); local part=anyPart(c)
-            if not ChestFarmState.visited[k] and part then
+            local k=chestKey(c); local part=anyPart(c)
+            -- Blox Fruits uses a separate PlaceId for each Sea. Only consider
+            -- chests that belong to the currently loaded Sea / PlaceId.
+            local inCurrentWorld = true
+            if part then
+                local p = part.Position
+                if World1 then
+                    inCurrentWorld = p.Y > -5000 and p.Y < 2500 and math.abs(p.X) < 12000 and math.abs(p.Z) < 12000
+                elseif World2 then
+                    inCurrentWorld = p.Y > -1000 and p.Y < 2500 and math.abs(p.X) < 9000 and math.abs(p.Z) < 12000
+                elseif World3 then
+                    inCurrentWorld = p.Y > -1500 and p.Y < 3500 and math.abs(p.X) < 22000 and math.abs(p.Z) < 16000
+                end
+            end
+            if inCurrentWorld and k and not ChestFarmState.visited[k] and part then
                 local d=(hrp.Position-part.Position).Magnitude
                 if d<dist then best,dist=c,d end
             end
@@ -4884,12 +5078,19 @@ local function chestFarmStepV4()
         return
     end
     local part=anyPart(target); if not part then ChestFarmState.Target=nil; return end
-    local pos=part.Position+Vector3.new(0,3.5,0)
+    -- Keep chest farming airborne. Never tween downward to the chest.
+    local pos=part.Position+Vector3.new(0,6,0)
     if (hrp.Position-pos).Magnitude>12 then
-        if _G.Settings.SubFarm["Auto Chest Instant"] then pcall(function() hrp.CFrame=CFrame.new(pos) end) else TweenPlayer(CFrame.new(pos),nil,"ChestFarm") end
+        if _G.Settings.SubFarm["Auto Chest Instant"] then
+            local levelPos = Vector3.new(pos.X, math.max(hrp.Position.Y, pos.Y), pos.Z)
+            pcall(function() hrp.CFrame=CFrame.new(levelPos) end)
+        else
+            TweenPlayer(CFrame.new(pos),nil,"ChestFarm")
+        end
     else
-        pcall(function() hrp.CFrame=CFrame.new(pos); hrp.AssemblyLinearVelocity=Vector3.zero; hrp.AssemblyAngularVelocity=Vector3.zero end)
-        ChestFarmState.visited[target:GetDebugId()]=true
+        local levelPos = Vector3.new(pos.X, math.max(hrp.Position.Y, pos.Y), pos.Z)
+        pcall(function() hrp.CFrame=CFrame.new(levelPos); hrp.AssemblyLinearVelocity=Vector3.zero; hrp.AssemblyAngularVelocity=Vector3.zero end)
+        ChestFarmState.visited[chestKey(target)]=true
         ChestFarmState.Target=nil
     end
 end
