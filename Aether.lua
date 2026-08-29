@@ -568,6 +568,89 @@ local function TweenPlayer(pos: CFrame | Vector3 | BasePart, offset: Vector3?, o
     return currentTween
 end
 
+-- Persistent hover controller: moves smoothly above a moving target and keeps
+-- the player locked at the configured Farm Distance until the target dies.
+local DirectLevelTweenState = {owner=nil, target=nil, destination=nil, tween=nil}
+
+-- Direct tween used by Auto Farm Level.
+-- One continuous Tween from the current position to a point above the target.
+-- No waypoint staging, no per-frame CFrame correction, and no repeated hover
+-- rewrites while the same target is alive.
+local function DirectLevelTweenTo(targetCFrame: CFrame, owner: string?): Tween?
+    if typeof(targetCFrame) ~= "CFrame" then return nil end
+    local _, hrp, hum = GetCharacter()
+    if not hrp or not hum or hum.Health <= 0 then return nil end
+    if hum.Sit then pcall(function() hum.Sit = false end) end
+
+    local routeOwner = owner or "AutoFarmLevel"
+    local distance = (hrp.Position - targetCFrame.Position).Magnitude
+    if distance <= 3 then
+        DirectLevelTweenState.owner = routeOwner
+        DirectLevelTweenState.destination = targetCFrame
+        return nil
+    end
+
+    -- Do not restart the same journey every loop tick.
+    if DirectLevelTweenState.owner == routeOwner
+        and DirectLevelTweenState.destination
+        and (DirectLevelTweenState.destination.Position - targetCFrame.Position).Magnitude < 4
+        and currentTween
+        and currentTweenOwner == routeOwner then
+        return currentTween
+    end
+
+    if currentTween then
+        pcall(function() currentTween:Cancel() end)
+        currentTween = nil
+    end
+    activeTeleportGuardId += 1
+
+    local speed = math.clamp(tonumber(_G.Settings.Main["Player Tween Speed"]) or 180, 1, 1000)
+    local duration = math.max(0.12, distance / speed)
+    local tween = TweenService:Create(
+        hrp,
+        TweenInfo.new(duration, Enum.EasingStyle.Linear, Enum.EasingDirection.Out),
+        {CFrame = targetCFrame}
+    )
+
+    currentTween = tween
+    currentTweenOwner = routeOwner
+    DirectLevelTweenState.owner = routeOwner
+    DirectLevelTweenState.destination = targetCFrame
+    DirectLevelTweenState.tween = tween
+
+    tween.Completed:Connect(function()
+        if currentTween == tween then
+            currentTween = nil
+            currentTweenOwner = nil
+        end
+        if DirectLevelTweenState.tween == tween then
+            DirectLevelTweenState.tween = nil
+        end
+    end)
+
+    tween:Play()
+    return tween
+end
+
+local SmoothHoldState = {owner=nil, target=nil, lastDestination=nil, lastAt=0}
+local function SmoothHoldAt(cf: CFrame, owner: string?, refreshRate: number?)
+    if typeof(cf) ~= "CFrame" then return nil end
+    local routeOwner = owner or "SmoothHold"
+    local now = os.clock()
+    local changed = not SmoothHoldState.lastDestination
+        or (SmoothHoldState.lastDestination.Position - cf.Position).Magnitude > 5
+        or SmoothHoldState.owner ~= routeOwner
+        or now - (SmoothHoldState.lastAt or 0) >= (refreshRate or 0.25)
+    if changed then
+        SmoothHoldState.owner = routeOwner
+        SmoothHoldState.lastDestination = cf
+        SmoothHoldState.lastAt = now
+        return TweenPlayer(cf, nil, routeOwner)
+    end
+    return currentTween
+end
+
 local function TweenIslandAtSafeHeight(cf: CFrame, owner: string?)
     return TweenPlayer(cf, nil, owner or "IslandTeleport")
 end
@@ -3499,10 +3582,14 @@ local LevelFarmState = {
     LastQuestName = nil,
     LastQuestLevel = nil,
     QuestRequestAt = 0,
-    LastTarget = nil,
-    LastTargetAt = 0,
-    LastMoveAt = 0,
+    Target = nil,
+    TargetLastSeen = 0,
+    HoverPosition = nil,
+    HoverCFrame = nil,
+    LastTargetPosition = nil,
+    LastRepositionAt = 0,
 }
+
 
 local function GetQuestGuiState()
     local main = LocalPlayer.PlayerGui:FindFirstChild("Main")
@@ -3522,9 +3609,8 @@ end
 local function StartCurrentLevelQuest(hrp)
     if not CommF_ then return false end
     local qPos = CurrentQuest.CFrameQuest.Position + Vector3.new(0, 5, 0)
-    local distance = (hrp.Position - qPos).Magnitude
-    if distance > 22 then
-        TweenPlayer(CurrentQuest.CFrameQuest, Vector3.new(0, 5, 0), "AutoFarmLevel")
+    if (hrp.Position - qPos).Magnitude > 22 then
+        DirectLevelTweenTo(CurrentQuest.CFrameQuest * CFrame.new(0, 5, 0), "AutoFarmLevelQuest")
         return false
     end
 
@@ -3542,18 +3628,25 @@ local function StartCurrentLevelQuest(hrp)
     return true
 end
 
-local function FindBestLevelMob(hrp)
+local function IsLiveFarmTarget(target)
+    if not target or not target.Parent then return false end
+    local root = target:FindFirstChild("HumanoidRootPart")
+    local hum = target:FindFirstChildOfClass("Humanoid")
+    return root ~= nil and hum ~= nil and hum.Health > 0
+end
+
+local function FindNextLevelMob(hrp)
     local enemies = workspace:FindFirstChild("Enemies")
     if not enemies then return nil end
     local best, bestDistance = nil, math.huge
-    for _, v in ipairs(enemies:GetChildren()) do
-        if v:IsA("Model") and v.Name == CurrentQuest.Mon then
-            local root = v:FindFirstChild("HumanoidRootPart")
-            local mobHum = v:FindFirstChildOfClass("Humanoid")
-            if root and mobHum and mobHum.Health > 0 then
-                local dist = (hrp.Position - root.Position).Magnitude
-                if dist < bestDistance then
-                    best, bestDistance = v, dist
+    for _, mob in ipairs(enemies:GetChildren()) do
+        if mob:IsA("Model") and mob.Name == CurrentQuest.Mon then
+            local root = mob:FindFirstChild("HumanoidRootPart")
+            local hum = mob:FindFirstChildOfClass("Humanoid")
+            if root and hum and hum.Health > 0 then
+                local distance = (hrp.Position - root.Position).Magnitude
+                if distance < bestDistance then
+                    best, bestDistance = mob, distance
                 end
             end
         end
@@ -3561,10 +3654,78 @@ local function FindBestLevelMob(hrp)
     return best
 end
 
+local LEVEL_REPOSITION_THRESHOLD = 30
+local LEVEL_REPOSITION_COOLDOWN = 1.25
+
+local function FarmLevelTarget(target, hrp)
+    if not IsLiveFarmTarget(target) then return false end
+    local root = target:FindFirstChild("HumanoidRootPart")
+    if not root then return false end
+
+    local height = math.max(10, tonumber(_G.Settings.Main["Farm Distance"]) or 28)
+    AutoHaki()
+
+    -- Build the hover point once for this exact target. This is the important
+    -- part: we do NOT keep recalculating the player's X/Y/Z every 0.1s.
+    if LevelFarmState.Target ~= target or not LevelFarmState.HoverPosition then
+        local hover = root.Position + Vector3.new(0, height, 0)
+        LevelFarmState.Target = target
+        LevelFarmState.HoverPosition = hover
+        LevelFarmState.HoverCFrame = CFrame.lookAt(hover, root.Position)
+        LevelFarmState.LastTargetPosition = root.Position
+        LevelFarmState.LastRepositionAt = os.clock()
+
+        DirectLevelTweenState.owner = nil
+        DirectLevelTweenState.destination = nil
+        DirectLevelTweenState.tween = nil
+        DirectLevelTweenTo(LevelFarmState.HoverCFrame, "AutoFarmLevel")
+        return true
+    end
+
+    -- While the same mob is alive, stay at the already reached hover point.
+    -- Only create another Tween if the mob genuinely moved away from that point.
+    -- This removes the old constant up/down/left/right jitter.
+    local mobMoved = LevelFarmState.LastTargetPosition
+        and (root.Position - LevelFarmState.LastTargetPosition).Magnitude
+        or math.huge
+    local now = os.clock()
+    local tweenRunning = currentTweenOwner == "AutoFarmLevel" and currentTween ~= nil
+    local playerNearHover = (hrp.Position - LevelFarmState.HoverPosition).Magnitude <= math.max(7, height * 0.25)
+
+    if not tweenRunning and not playerNearHover and mobMoved >= LEVEL_REPOSITION_THRESHOLD
+        and now - LevelFarmState.LastRepositionAt >= LEVEL_REPOSITION_COOLDOWN then
+        LevelFarmState.HoverPosition = root.Position + Vector3.new(0, height, 0)
+        LevelFarmState.HoverCFrame = CFrame.lookAt(LevelFarmState.HoverPosition, root.Position)
+        LevelFarmState.LastTargetPosition = root.Position
+        LevelFarmState.LastRepositionAt = now
+        DirectLevelTweenTo(LevelFarmState.HoverCFrame, "AutoFarmLevel")
+        return true
+    end
+
+    if tweenRunning then
+        return true
+    end
+
+    -- No movement correction here. Just attack from the fixed hover position.
+    SmartAttackMob(target)
+    return true
+end
+
+
 task.spawn(function()
-    while task.wait(0.12) do
+    while task.wait(0.10) do
         if not _G.Settings.Main["Auto Farm Level"] then
-            LevelFarmState.LastTarget = nil
+            LevelFarmState.Target = nil
+            LevelFarmState.HoverPosition = nil
+            LevelFarmState.HoverCFrame = nil
+            LevelFarmState.LastTargetPosition = nil
+            if currentTweenOwner == "AutoFarmLevel" or currentTweenOwner == "AutoFarmLevelQuest" then
+                CancelPlayerTween()
+                DirectLevelTweenState.owner = nil
+                DirectLevelTweenState.target = nil
+                DirectLevelTweenState.destination = nil
+                DirectLevelTweenState.tween = nil
+            end
             continue
         end
 
@@ -3580,47 +3741,31 @@ task.spawn(function()
             CheckQuest()
             AutoHaki()
 
-            -- Never teleport through CFrame directly. Quest acquisition itself uses
-            -- the same persistent Tween owner as the enemy route.
+            -- Quest first. Only after the quest is actually active do we lock onto mobs.
             if not HasCurrentLevelQuest() then
-                if CommF_ then
-                    local visible = GetQuestGuiState()
-                    if visible then
-                        pcall(function() CommF_:InvokeServer("AbandonQuest") end)
-                    end
-                end
+                LevelFarmState.Target = nil
+                LevelFarmState.HoverPosition = nil
+                LevelFarmState.HoverCFrame = nil
+                LevelFarmState.LastTargetPosition = nil
                 StartCurrentLevelQuest(hrp)
-                LevelFarmState.LastTarget = nil
                 return
             end
 
-            local targetMob = FindBestLevelMob(hrp)
-            if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
-                local root = targetMob.HumanoidRootPart
-                local farmDistance = math.max(8, tonumber(_G.Settings.Main["Farm Distance"]) or 28)
-                local desired = root.Position + Vector3.new(0, farmDistance, 0)
-
-                -- Retarget only when the mob has moved enough or the previous route
-                -- has completed. This prevents the old restart-every-frame bug.
-                local targetMoved = true
-                if LevelFarmState.LastTarget == targetMob and LevelFarmState.LastTargetPosition then
-                    targetMoved = (desired - LevelFarmState.LastTargetPosition).Magnitude > 10
-                end
-                local distanceToDesired = (hrp.Position - desired).Magnitude
-                local routeMissing = (currentTween == nil and distanceToDesired > 6)
-                local wrongOwner = (currentTween ~= nil and currentTweenOwner ~= "AutoFarmLevel")
-                if LevelFarmState.LastTarget ~= targetMob or targetMoved or routeMissing or wrongOwner then
-                    TweenPlayer(CFrame.lookAt(desired, root.Position), nil, "AutoFarmLevel")
-                    LevelFarmState.LastTarget = targetMob
-                    LevelFarmState.LastTargetPosition = desired
-                    LevelFarmState.LastTargetAt = os.clock()
-                end
-
-                SmartAttackMob(targetMob)
-            else
-                LevelFarmState.LastTarget = nil
+            -- Keep the exact same mob until it dies. This prevents hopping between
+            -- nearby enemies and guarantees a clean kill -> next target flow.
+            if not IsLiveFarmTarget(LevelFarmState.Target) then
+                LevelFarmState.Target = FindNextLevelMob(hrp)
+                LevelFarmState.TargetLastSeen = os.clock()
+                LevelFarmState.HoverPosition = nil
+                LevelFarmState.HoverCFrame = nil
                 LevelFarmState.LastTargetPosition = nil
-                TweenPlayer(CurrentQuest.CFrameMon, Vector3.new(0, math.max(8, tonumber(_G.Settings.Main["Farm Distance"]) or 28), 0), "AutoFarmLevel")
+            end
+
+            if IsLiveFarmTarget(LevelFarmState.Target) then
+                FarmLevelTarget(LevelFarmState.Target, hrp)
+            else
+                -- No target spawned yet: move smoothly to the quest mob area and wait.
+                DirectLevelTweenTo(CurrentQuest.CFrameMon * CFrame.new(0, math.max(10, tonumber(_G.Settings.Main["Farm Distance"]) or 28), 0), "AutoFarmLevel")
             end
         end)
     end
@@ -5392,9 +5537,43 @@ local function getDoughRequirementState()
     return gods, sweet, cocoa, remaining, spawned
 end
 
+local DoughFallbackChestKey = nil
+local function collectChestForDoughFallback()
+    -- Reuse the world chest scanner when no Elite is available. Every move is
+    -- performed through TweenPlayer; there is no instant chest teleport.
+    local _, hrp = GetCharacter()
+    if not hrp then return false end
+
+    local best, bestDistance = nil, math.huge
+    for _, chest in ipairs(chestModelsV5()) do
+        local part = anyPart(chest)
+        if part then
+            local key = tostring(chest:GetDebugId())
+            local d = (hrp.Position - part.Position).Magnitude
+            -- Avoid repeatedly selecting a chest that has already been reached.
+            if key ~= DoughFallbackChestKey and d < bestDistance then
+                best, bestDistance = chest, d
+            end
+        end
+    end
+    if not best then
+        DoughFallbackChestKey = nil
+        return false
+    end
+
+    local part = anyPart(best)
+    if not part then return false end
+    local hover = part.Position + Vector3.new(0, 8, 0)
+    local distance = (hrp.Position - hover).Magnitude
+    SmoothHoldAt(CFrame.lookAt(hover, part.Position), "DoughChestFallback", 0.35)
+
+    if distance <= 12 then
+        DoughFallbackChestKey = tostring(best:GetDebugId())
+    end
+    return true
+end
+
 local function farmEliteForGodsChalice()
-    -- This reuses the same reliable elite-targeting logic as the normal Elite Hunter module,
-    -- but does not permanently switch the user's Elite toggle.
     local questGui = LocalPlayer.PlayerGui:FindFirstChild("Main") and LocalPlayer.PlayerGui.Main:FindFirstChild("Quest")
     local hasQuest = false
     if questGui and questGui.Visible then
@@ -5412,13 +5591,14 @@ local function farmEliteForGodsChalice()
             local eh = enemy:FindFirstChildOfClass("Humanoid")
             if root and eh and eh.Health > 0 then
                 AutoHaki()
-                TweenPlayer(root.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0), "DoughKingGods")
+                local height = math.max(10, tonumber(_G.Settings.Main["Farm Distance"]) or 28)
+                SmoothHoldAt(CFrame.lookAt(root.Position + Vector3.new(0,height,0), root.Position), "DoughKingGods", 0.25)
                 SmartAttackMob(enemy, "Melee")
                 return true
             end
         end
     end
-    return false
+    return collectChestForDoughFallback()
 end
 
 local function doughKingOrderedStep()
@@ -5433,7 +5613,7 @@ local function doughKingOrderedStep()
         AutoHaki()
         local root = boss.HumanoidRootPart
         local desired = root.Position + Vector3.new(0, 30, 0)
-        SmoothHoldAt(CFrame.lookAt(desired,root.Position), "DoughKing", 10)
+        SmoothHoldAt(CFrame.lookAt(desired,root.Position), "DoughKing", 0.20)
         SmartAttackMob(boss, "Melee")
         return
     end
@@ -5460,7 +5640,8 @@ local function doughKingOrderedStep()
         local mob = integratedFindEnemy({"Cocoa Warrior","Chocolate Bar Battler"}, hrp.Position, 1800)
         if mob then
             AutoHaki()
-            TweenPlayer(mob.HumanoidRootPart.CFrame, Vector3.new(0,_G.Settings.Main["Farm Distance"],0), "DoughCocoa")
+            local height = math.max(10, tonumber(_G.Settings.Main["Farm Distance"]) or 28)
+            SmoothHoldAt(CFrame.lookAt(mob.HumanoidRootPart.Position + Vector3.new(0,height,0), mob.HumanoidRootPart.Position), "DoughCocoa", 0.20)
             SmartAttackMob(mob, "Melee")
         else
             TweenPlayer(DoughChocolatePosition, Vector3.new(0,25,0), "DoughCocoa")
@@ -5486,7 +5667,8 @@ local function doughKingOrderedStep()
         local mob = integratedFindEnemy({"Cookie Crafter","Cake Guard"}, hrp.Position, 2200)
         if mob then
             AutoHaki()
-            TweenPlayer(mob.HumanoidRootPart.CFrame, Vector3.new(0,_G.Settings.Main["Farm Distance"],0), "Dough500")
+            local height = math.max(10, tonumber(_G.Settings.Main["Farm Distance"]) or 28)
+            SmoothHoldAt(CFrame.lookAt(mob.HumanoidRootPart.Position + Vector3.new(0,height,0), mob.HumanoidRootPart.Position), "Dough500", 0.20)
             SmartAttackMob(mob, "Melee")
         else
             TweenPlayer(DoughCakeLandPosition, nil, "Dough500")
