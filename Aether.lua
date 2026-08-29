@@ -144,6 +144,10 @@ _G.Settings = {
         ["Auto Drop Fruit"] = false,
         ["Auto Roll Fruit"] = false,
     },
+    Shop = {
+        ["Stock Auto Refresh"] = false,
+        ["Stock Refresh Interval"] = 30,
+    },
     SubFarm = {
         ["Auto Elite Hunter"] = false,
         ["Auto Elite Hunter Hop"] = false,
@@ -408,13 +412,15 @@ local function TweenPlayer(pos: CFrame | Vector3 | BasePart, offset: Vector3?, o
     else return nil end
     if offset then targetCFrame = targetCFrame * CFrame.new(offset) end
 
-    -- Travel at the player's CURRENT altitude. The tween never intentionally
-    -- drops the character toward the destination, so long travel stays level.
-    -- Near the destination we only allow an upward correction; never a downward one.
-    local requested = targetCFrame.Position
-    local travelY = math.max(hrp.Position.Y, requested.Y)
-    local safeTarget = Vector3.new(requested.X, travelY, requested.Z)
-    local look = safeTarget + Vector3.new(targetCFrame.LookVector.X, 0, targetCFrame.LookVector.Z)
+    -- Keep every teleport above the destination while travelling. No helper
+    -- Parts/BodyVelocity/Instance objects are created by this system.
+    -- Travel above the destination, then settle only when the caller explicitly
+    -- asks for a close-range position. This prevents the old "drop to ground"
+    -- behaviour during long Tweens.
+    local destination = targetCFrame
+    local travelY = math.max(destination.Position.Y + 80, hrp.Position.Y)
+    local safeTarget = Vector3.new(destination.Position.X, travelY, destination.Position.Z)
+    local look = safeTarget + Vector3.new(destination.LookVector.X, 0, destination.LookVector.Z)
     if (look - safeTarget).Magnitude < 0.01 then look = safeTarget + Vector3.new(0, 0, -1) end
     local uprightCFrame = CFrame.lookAt(safeTarget, look)
 
@@ -424,9 +430,7 @@ local function TweenPlayer(pos: CFrame | Vector3 | BasePart, offset: Vector3?, o
         currentTween = nil
         currentTweenOwner = nil
         pcall(function()
-            local p = hrp.Position
-            local y = math.max(p.Y, safeY)
-            hrp.CFrame = CFrame.lookAt(Vector3.new(uprightCFrame.Position.X, y, uprightCFrame.Position.Z), look)
+            hrp.CFrame = uprightCFrame
             hrp.AssemblyLinearVelocity = Vector3.zero
             hrp.AssemblyAngularVelocity = Vector3.zero
         end)
@@ -452,8 +456,8 @@ local function TweenPlayer(pos: CFrame | Vector3 | BasePart, offset: Vector3?, o
             return
         end
         local p = hrp.Position
-        if p.Y < safeY - 2 then
-            local corrected = Vector3.new(p.X, safeY, p.Z)
+        if p.Y < travelY - 2 then
+            local corrected = Vector3.new(p.X, travelY, p.Z)
             pcall(function() hrp.CFrame = CFrame.lookAt(corrected, corrected + Vector3.new(uprightCFrame.LookVector.X, 0, uprightCFrame.LookVector.Z)) end)
         end
     end)
@@ -1578,153 +1582,266 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
         QuestsTab:CreateToggle("Auto Soul Guitar Puzzle", "SoulGuitarPuzzleFlag", false, function(s) _G.Settings.Quests["Auto Soul Guitar Puzzle"] = s; if not s then StopTween("Puzzle") end end)
 
         ---------------------------------------------------------
-        -- 📌 3. TAB: SHOP & UPGRADES (Full Extracted Shop)
+        -- 📌 3. TAB: SHOP & UPGRADES (LIVE STOCK + FIXED PURCHASES)
         ---------------------------------------------------------
-        ShopTab:CreateSection("Sea Travel & Teleports")
-        ShopTab:CreateButton("Travel to First Sea", function() if CommF_ then CommF_:InvokeServer("TravelMain") end end)
-        ShopTab:CreateButton("Travel to Second Sea", function() if CommF_ then CommF_:InvokeServer("TravelDressrosa") end end)
-        ShopTab:CreateButton("Travel to Third Sea", function() if CommF_ then CommF_:InvokeServer("TravelZou") end end)
-
-        ----------------------------------------------------------------------
-        -- LIVE Blox Fruits Stock (server-backed)
-        -- Reads the dealer data exposed by the running game instead of using
-        -- hard-coded fruit lists. Normal and Mirage are shown separately.
-        ----------------------------------------------------------------------
-        local NormalStockPara = ShopTab:CreateParagraph({
-            Title="🍎 Normal Stock",
-            Desc="Loading live dealer stock...",
-            Image="rbxassetid://6034834832",
-            ImageSize=20
-        })
-        local MirageStockPara = ShopTab:CreateParagraph({
-            Title="🌙 Mirage Stock",
-            Desc="Loading live advanced-dealer stock...",
-            Image="rbxassetid://6034834832",
-            ImageSize=20
-        })
+        local ShopStockState = {
+            Normal = {},
+            Mirage = {},
+            LastRefresh = 0,
+            NormalRaw = nil,
+            MirageRaw = nil,
+        }
 
         local function stockValueName(v)
             if type(v) == "table" then
-                return tostring(v.Name or v.FruitName or v.name or v[1] or "Unknown")
+                return tostring(v.Name or v.name or v.DisplayName or v.displayName or v.Fruit or v.FruitName or "?")
             end
             return tostring(v)
         end
 
-        local function stockIsOnSale(v)
-            if type(v) ~= "table" then return true end
-            if v.OnSale ~= nil then return v.OnSale == true end
-            if v.onSale ~= nil then return v.onSale == true end
-            if v.Stock ~= nil then return v.Stock == true or tonumber(v.Stock) == 1 end
-            if v.InStock ~= nil then return v.InStock == true end
+        local function normalizeStock(raw)
+            local out = {}
+            if type(raw) ~= "table" then return out end
+            for _, item in pairs(raw) do
+                if type(item) == "table" then
+                    local name = item.Name or item.name or item.DisplayName or item.displayName or item.Fruit or item.FruitName
+                    if name then
+                        local price = item.Price or item.price or item.Beli or item.BeliPrice or item.Cost
+                        local robux = item.Robux or item.RobuxPrice or item.PremiumPrice
+                        local available = item.InStock
+                        if available == nil then available = item.Stock end
+                        if available == nil then available = item.Available end
+                        table.insert(out, {
+                            Name = tostring(name),
+                            Price = price,
+                            Robux = robux,
+                            Available = available
+                        })
+                    elseif #item > 0 then
+                        for _, nested in ipairs(item) do
+                            local n = stockValueName(nested)
+                            if n ~= "?" then table.insert(out, {Name=n}) end
+                        end
+                    end
+                elseif type(item) == "string" then
+                    table.insert(out, {Name=item})
+                end
+            end
+            table.sort(out, function(a,b) return a.Name:lower() < b.Name:lower() end)
+            return out
+        end
+
+        local function findStockBucket(raw, wanted)
+            if type(raw) ~= "table" then return raw end
+            local aliases = wanted == "Mirage"
+                and {"Mirage","mirage","Advanced","AdvancedDealer","MirageStock","AdvancedStock"}
+                or {"Normal","normal","Regular","RegularStock","NormalStock","DealerStock"}
+            for _, key in ipairs(aliases) do
+                if raw[key] ~= nil then return raw[key] end
+            end
+            return raw
+        end
+
+        local function fetchLiveStock()
+            if not CommF_ then return false, "CommF_ is unavailable." end
+
+            local ok, raw = pcall(function()
+                return CommF_:InvokeServer("GetFruits")
+            end)
+            if not ok or type(raw) ~= "table" then
+                -- Keep a second call for game builds that expose the dealer
+                -- inventories separately.
+                local ok2, raw2 = pcall(function()
+                    return CommF_:InvokeServer("GetFruits", "Normal")
+                end)
+                if ok2 and type(raw2) == "table" then raw = raw2 else
+                    return false, "The game did not return live stock data."
+                end
+            end
+
+            ShopStockState.NormalRaw = findStockBucket(raw, "Normal")
+            ShopStockState.MirageRaw = findStockBucket(raw, "Mirage")
+            ShopStockState.Normal = normalizeStock(ShopStockState.NormalRaw)
+            ShopStockState.Mirage = normalizeStock(ShopStockState.MirageRaw)
+
+            -- If the server returned one flat list, try the explicit Mirage
+            -- query to obtain the second dealer's real inventory.
+            if #ShopStockState.Mirage == 0 and World3 then
+                local mok, mraw = pcall(function()
+                    return CommF_:InvokeServer("GetFruits", "Mirage")
+                end)
+                if mok and type(mraw) == "table" then
+                    ShopStockState.MirageRaw = mraw
+                    ShopStockState.Mirage = normalizeStock(findStockBucket(mraw, "Mirage"))
+                end
+            end
+
+            ShopStockState.LastRefresh = os.clock()
             return true
         end
 
-        local function formatStockResult(result)
-            if type(result) ~= "table" then return "No live stock data returned." end
-            local rows = {}
-            local list = result
-            for _,containerName in ipairs({"Stock","Fruits","Data","Normal","Mirage","Items"}) do
-                if type(result[containerName]) == "table" then
-                    list = result[containerName]
-                    break
-                end
+        local function stockText(list)
+            if #list == 0 then return "No live stock data returned by the game." end
+            local lines = {}
+            for _, item in ipairs(list) do
+                local line = "🍎 " .. item.Name
+                if item.Price ~= nil then line = line .. " | Beli: " .. tostring(item.Price) end
+                if item.Robux ~= nil then line = line .. " | Robux: " .. tostring(item.Robux) end
+                if item.Available ~= nil then line = line .. " | " .. tostring(item.Available) end
+                table.insert(lines, line)
             end
-            for k,v in pairs(list) do
-                if type(v) == "table" and stockIsOnSale(v) then
-                    local name = stockValueName(v)
-                    local price = v.Price or v.Beli or v.Cost or v.price
-                    if price then
-                        name = name .. " ($" .. tostring(price) .. ")"
-                    end
-                    table.insert(rows, name)
-                elseif type(v) == "string" then
-                    table.insert(rows, v)
-                elseif type(k) == "string" and stockIsOnSale(v) then
-                    table.insert(rows, k)
-                end
-            end
-            table.sort(rows)
-            if #rows == 0 then return "No fruit currently reported in stock." end
-            return table.concat(rows, "  •  ")
+            return table.concat(lines, "\n")
         end
 
-        local function readLiveStock()
-            if not CommF_ then return end
-            local normal, mirage
-            pcall(function() normal = CommF_:InvokeServer("GetFruits") end)
-            pcall(function() mirage = CommF_:InvokeServer("GetFruits","Mirage") end)
-            if normal == nil then
-                pcall(function() normal = CommF_:InvokeServer("GetFruits","Normal") end)
-            end
-            if mirage == nil then
-                pcall(function() mirage = CommF_:InvokeServer("GetFruits","MirageStock") end)
-            end
-            local function setStockParagraph(paragraph, value)
-                for _,m in ipairs({"SetContent","SetDesc","SetDescription","SetStatus","Update","Set","SetText"}) do
-                    if type(paragraph[m]) == "function" then
-                        local ok = pcall(function() paragraph[m](paragraph, tostring(value or "")) end)
-                        if ok then return end
-                    end
+        ShopTab:CreateSection("🍎 Live Dealer Stock")
+        local NormalStockPara = ShopTab:CreateParagraph({
+            Title = "Normal Stock",
+            Desc = "Press Refresh Stock to read the current dealer inventory from the game.",
+            Image = "rbxassetid://6034834832",
+            ImageSize = 20
+        })
+        local MirageStockPara = ShopTab:CreateParagraph({
+            Title = "Mirage Stock",
+            Desc = "Third Sea / Advanced Dealer stock. Press Refresh Stock.",
+            Image = "rbxassetid://6034453535",
+            ImageSize = 20
+        })
+        local StockStatusPara = ShopTab:CreateParagraph({
+            Title = "Stock Status",
+            Desc = "Not refreshed yet.",
+            Image = "rbxassetid://6034287594",
+            ImageSize = 20
+        })
+
+        local function setShopParagraph(paragraph, text)
+            if not paragraph then return end
+            text = tostring(text or "")
+            pcall(function()
+                if type(paragraph.SetContent) == "function" then
+                    paragraph:SetContent(text)
+                elseif type(paragraph.SetDesc) == "function" then
+                    paragraph:SetDesc(text)
+                elseif type(paragraph.SetText) == "function" then
+                    paragraph:SetText(text)
                 end
+            end)
+        end
+
+        local function updateLiveStock()
+            local ok, msg = fetchLiveStock()
+            if ok then
+                setShopParagraph(NormalStockPara, stockText(ShopStockState.Normal))
+                setShopParagraph(MirageStockPara, World3 and stockText(ShopStockState.Mirage) or "Mirage Stock is only available in Third Sea.")
+                setShopParagraph(StockStatusPara, "🟢 Live game data | Refreshed: " .. os.date("%H:%M:%S"))
+            else
+                setShopParagraph(StockStatusPara, "🔴 " .. tostring(msg))
             end
-            setStockParagraph(NormalStockPara, formatStockResult(normal))
-            setStockParagraph(MirageStockPara, World3 and formatStockResult(mirage) or "Mirage Stock is available in Third Sea.")
         end
 
         ShopTab:CreateButton("🔄 Refresh Stock", function()
-            readLiveStock()
-            AetherUI:Notify({Title="Stock", Content="Requested live Normal + Mirage stock from the game.", Duration=3})
-        end)
-        task.spawn(function()
-            task.wait(1)
-            while task.wait(15) do
-                pcall(readLiveStock)
-            end
+            updateLiveStock()
         end)
 
-        ShopTab:CreateSection("General Shop Items")
-        ShopTab:CreateButton("Buy Dual Flintlock", function() if CommF_ then CommF_:InvokeServer("BuyItem", "Dual Flintlock") end end)
-        ShopTab:CreateButton("Reroll Race (Beli/Fragments)", function()
-            if CommF_ then
-                CommF_:InvokeServer("BlackbeardReward", "Reroll", "1")
-                CommF_:InvokeServer("BlackbeardReward", "Reroll", "2")
-            end
+        ShopTab:CreateToggle("Auto Refresh Stock", "AutoRefreshStockFlag", false, function(state)
+            _G.Settings.Shop["Stock Auto Refresh"] = state
         end)
-        ShopTab:CreateButton("Reset Stats Refund", function()
-            if CommF_ then
-                CommF_:InvokeServer("BlackbeardReward", "Refund", "1")
-                CommF_:InvokeServer("BlackbeardReward", "Refund", "2")
+        ShopTab:CreateSlider("Stock Refresh Interval", "StockRefreshIntervalFlag", 10, 120, 30, function(value)
+            _G.Settings.Shop["Stock Refresh Interval"] = value
+        end)
+
+        ShopTab:CreateSection("🌊 Sea Travel")
+        local function shopCall(label, ...)
+            if not CommF_ then
+                if AetherUI then AetherUI:Notify({Title="Shop", Content="CommF_ is unavailable.", Duration=3}) end
+                return nil
             end
+            local args = {...}
+            local ok, result = pcall(function() return CommF_:InvokeServer(unpack(args)) end)
+            if not ok then
+                if AetherUI then AetherUI:Notify({Title="Shop", Content=label .. " failed.", Duration=3}) end
+                return nil
+            end
+            if AetherUI then
+                local text = result == nil and "Request sent." or tostring(result)
+                if #text > 100 then text = text:sub(1,100) .. "..." end
+                AetherUI:Notify({Title="Shop", Content=label .. ": " .. text, Duration=3})
+            end
+            return result
+        end
+
+        ShopTab:CreateButton("Travel to First Sea", function()
+            if not World1 then shopCall("Travel First Sea", "TravelMain") end
+        end)
+        ShopTab:CreateButton("Travel to Second Sea", function()
+            if not World2 then shopCall("Travel Second Sea", "TravelDressrosa") end
+        end)
+        ShopTab:CreateButton("Travel to Third Sea", function()
+            if not World3 then shopCall("Travel Third Sea", "TravelZou") end
+        end)
+
+        ShopTab:CreateSection("🛒 General Items")
+        ShopTab:CreateButton("Buy Dual Flintlock", function() shopCall("Dual Flintlock", "BuyItem", "Dual Flintlock") end)
+        ShopTab:CreateButton("Reroll Race", function()
+            shopCall("Race Reroll", "BlackbeardReward", "Reroll", "1")
+            task.wait(0.15)
+            shopCall("Race Reroll", "BlackbeardReward", "Reroll", "2")
+        end)
+        ShopTab:CreateButton("Refund Stats", function()
+            shopCall("Stats Refund", "BlackbeardReward", "Refund", "1")
+            task.wait(0.15)
+            shopCall("Stats Refund", "BlackbeardReward", "Refund", "2")
         end)
         ShopTab:CreateButton("Buy Ghoul Race", function()
-            if CommF_ then
-                CommF_:InvokeServer("Ectoplasm", "BuyCheck", 4)
-                CommF_:InvokeServer("Ectoplasm", "Change", 4)
+            shopCall("Ghoul Race", "Ectoplasm", "BuyCheck", 4)
+            task.wait(0.15)
+            shopCall("Ghoul Race", "Ectoplasm", "Change", 4)
+        end)
+        ShopTab:CreateButton("Buy Cyborg Race", function() shopCall("Cyborg Race", "CyborgTrainer", "Buy") end)
+
+        ShopTab:CreateSection("🥋 Fighting Styles")
+        ShopTab:CreateButton("Buy Black Leg", function() shopCall("Black Leg", "BuyBlackLeg") end)
+        ShopTab:CreateButton("Buy Fishman Karate", function() shopCall("Fishman Karate", "BuyFishmanKarate") end)
+        ShopTab:CreateButton("Buy Electro", function() shopCall("Electro", "BuyElectro") end)
+        ShopTab:CreateButton("Buy Dragon Claw", function()
+            shopCall("Dragon Claw", "BlackbeardReward", "DragonClaw", "1")
+            task.wait(0.15)
+            shopCall("Dragon Claw", "BlackbeardReward", "DragonClaw", "2")
+        end)
+        ShopTab:CreateButton("Buy Superhuman", function() shopCall("Superhuman", "BuySuperhuman") end)
+        ShopTab:CreateButton("Buy Death Step", function() shopCall("Death Step", "BuyDeathStep") end)
+        ShopTab:CreateButton("Buy Sharkman Karate", function()
+            shopCall("Sharkman Karate", "BuySharkmanKarate", true)
+            task.wait(0.15)
+            shopCall("Sharkman Karate", "BuySharkmanKarate")
+        end)
+        ShopTab:CreateButton("Buy Electric Claw", function() shopCall("Electric Claw", "BuyElectricClaw") end)
+        ShopTab:CreateButton("Buy Dragon Talon", function() shopCall("Dragon Talon", "BuyDragonTalon") end)
+        ShopTab:CreateButton("Buy Godhuman", function() shopCall("Godhuman", "BuyGodhuman", true); task.wait(0.15); shopCall("Godhuman", "BuyGodhuman") end)
+        ShopTab:CreateButton("Buy Sanguine Art", function() shopCall("Sanguine Art", "BuySanguineArt", true); task.wait(0.15); shopCall("Sanguine Art", "BuySanguineArt") end)
+
+        ShopTab:CreateSection("🛡️ Haki & Abilities")
+        ShopTab:CreateButton("Buy Geppo", function() shopCall("Geppo", "BuyHaki", "Geppo") end)
+        ShopTab:CreateButton("Buy Buso Haki", function() shopCall("Buso Haki", "BuyHaki", "Buso") end)
+        ShopTab:CreateButton("Buy Soru", function() shopCall("Soru", "BuyHaki", "Soru") end)
+        ShopTab:CreateButton("Buy Observation Haki", function() shopCall("Observation Haki", "KenTalk", "Buy") end)
+
+        ShopTab:CreateSection("⚙️ Shop Helpers")
+        ShopTab:CreateToggle("Auto Buy Legendary Swords", "AutoBuyLegSwordsFlag", false, function(state)
+            _G.Settings.ItemsQuests["Auto Buy Legendary Swords"] = state
+        end)
+
+        task.spawn(function()
+            task.wait(1)
+            pcall(updateLiveStock)
+            while task.wait(1) do
+                if _G.Settings.Shop["Stock Auto Refresh"] then
+                    local interval = math.max(10, tonumber(_G.Settings.Shop["Stock Refresh Interval"]) or 30)
+                    if os.clock() - (ShopStockState.LastRefresh or 0) >= interval then
+                        pcall(updateLiveStock)
+                    end
+                end
             end
         end)
-        ShopTab:CreateButton("Buy Cyborg Race", function() if CommF_ then CommF_:InvokeServer("CyborgTrainer", "Buy") end end)
-
-        ShopTab:CreateSection("Fighting Styles Shop")
-        ShopTab:CreateButton("Buy Black Leg ($150,000)", function() if CommF_ then CommF_:InvokeServer("BuyBlackLeg") end end)
-        ShopTab:CreateButton("Buy Fishman Karate ($750,000)", function() if CommF_ then CommF_:InvokeServer("BuyFishmanKarate") end end)
-        ShopTab:CreateButton("Buy Electro ($500,000)", function() if CommF_ then CommF_:InvokeServer("BuyElectro") end end)
-        ShopTab:CreateButton("Buy Dragon Breath (1,500 Frags)", function() if CommF_ then CommF_:InvokeServer("BlackbeardReward", "DragonClaw", "2") end end)
-        ShopTab:CreateButton("Buy Superhuman ($3,000,000)", function() if CommF_ then CommF_:InvokeServer("BuySuperhuman") end end)
-        ShopTab:CreateButton("Buy Death Step ($2,500,000 + 5k Frags)", function() if CommF_ then CommF_:InvokeServer("BuyDeathStep") end end)
-        ShopTab:CreateButton("Buy Sharkman Karate ($2,500,000 + 5k Frags)", function() if CommF_ then CommF_:InvokeServer("BuySharkmanKarate") end end)
-        ShopTab:CreateButton("Buy Electric Claw ($3,000,000 + 3k Frags)", function() if CommF_ then CommF_:InvokeServer("BuyElectricClaw") end end)
-        ShopTab:CreateButton("Buy Dragon Talon ($3,000,000 + 5k Frags)", function() if CommF_ then CommF_:InvokeServer("BuyDragonTalon") end end)
-        ShopTab:CreateButton("Buy Godhuman ($5,000,000 + 5k Frags)", function() if CommF_ then CommF_:InvokeServer("BuyGodhuman") end end)
-        ShopTab:CreateButton("Buy Sanguine Art ($5,000,000 + 5k Frags)", function() if CommF_ then CommF_:InvokeServer("BuySanguineArt") end end)
-
-        ShopTab:CreateSection("Ability & Haki Shop")
-        ShopTab:CreateButton("Buy Skyjump / Geppo ($10,000)", function() if CommF_ then CommF_:InvokeServer("BuyHaki", "Geppo") end end)
-        ShopTab:CreateButton("Buy Buso Haki ($25,000)", function() if CommF_ then CommF_:InvokeServer("BuyHaki", "Buso") end end)
-        ShopTab:CreateButton("Buy Observation Haki ($750,000)", function() if CommF_ then CommF_:InvokeServer("KenTalk", "Buy") end end)
-        ShopTab:CreateButton("Buy Soru ($100,000)", function() if CommF_ then CommF_:InvokeServer("BuyHaki", "Soru") end end)
-
-        ShopTab:CreateSection("Auto Buy Upgrades")
-        ShopTab:CreateToggle("Auto Buy Legendary Swords", "AutoBuyLegSwordsFlag", false, function(s) _G.Settings.ItemsQuests["Auto Buy Legendary Swords"] = s end)
 
         ---------------------------------------------------------
         -- 📌 4. TAB: SUBS FARM
@@ -3207,59 +3324,33 @@ ItemsTab:CreateToggle("Auto True Triple Katana (TTK)", "AutoFarmTTKFlag", false,
         end)
         SettingsTab:CreateSection("Hub Controls")
 
-        local function getCurrentWorldName()
-            return World1 and "First Sea" or (World2 and "Second Sea" or (World3 and "Third Sea" or "Unknown World"))
-        end
-
-        local function getRandomServerSameWorld()
-            local placeId = game.PlaceId
-            local ok, result = pcall(function()
-                return HttpService:JSONDecode(game:HttpGet(
-                    "https://games.roblox.com/v1/games/"..tostring(placeId).."/servers/Public?sortOrder=Asc&limit=100"
-                ))
-            end)
-            if not ok or type(result) ~= "table" or type(result.data) ~= "table" then return nil end
-            local candidates = {}
-            for _, server in ipairs(result.data) do
-                if tostring(server.id) ~= tostring(game.JobId)
-                    and tonumber(server.playing or 0) < tonumber(server.maxPlayers or 0) then
-                    table.insert(candidates, tostring(server.id))
-                end
-            end
-            return #candidates > 0 and candidates[math.random(1,#candidates)] or nil
-        end
-
-        SettingsTab:CreateButton("🔄 Rejoin Current World • Same Server", function()
-            AetherUI:Notify({
-                Title="Rejoin",
-                Content="Rejoining "..getCurrentWorldName().." in the current server...",
-                Duration=3
-            })
+        SettingsTab:CreateSection("Server Rejoin / Hop")
+        local function rejoinCurrentWorldSameServer()
+            -- PlaceId identifies the current Sea/world. JobId identifies the
+            -- exact public server, so this never crosses to another Sea.
             pcall(function()
                 TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
             end)
-            -- If Roblox rejects the same-instance teleport, this fallback is
-            -- queued locally and still targets the SAME current Sea/PlaceId.
-            task.delay(6, function()
-                if LocalPlayer.Parent then
-                    local target = getRandomServerSameWorld()
-                    if target then
-                        pcall(function()
-                            TeleportService:TeleportToPlaceInstance(game.PlaceId, target, LocalPlayer)
-                        end)
-                    end
-                end
+        end
+
+        local function rejoinCurrentWorldOtherServer()
+            local ok, servers = pcall(fetchPublicServers)
+            if not ok or type(servers) ~= "table" or #servers == 0 then
+                if AetherUI then AetherUI:Notify({Title="Rejoin", Content="No other public server was found in this world.", Duration=3}) end
+                return
+            end
+            local target = servers[math.random(1, #servers)]
+            pcall(function()
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, target, LocalPlayer)
             end)
+        end
+
+        SettingsTab:CreateButton("🔁 Rejoin Same Server (Current Sea)", function()
+            rejoinCurrentWorldSameServer()
         end)
 
-        SettingsTab:CreateButton("🌐 Rejoin Current World • New Server", function()
-            local target = getRandomServerSameWorld()
-            if target then
-                AetherUI:Notify({Title="Rejoin", Content="Joining another "..getCurrentWorldName().." server...", Duration=3})
-                TeleportService:TeleportToPlaceInstance(game.PlaceId, target, LocalPlayer)
-            else
-                AetherUI:Notify({Title="Rejoin", Content="No other public server was returned for "..getCurrentWorldName()..".", Duration=3})
-            end
+        SettingsTab:CreateButton("🌐 Rejoin Another Server (Current Sea)", function()
+            rejoinCurrentWorldOtherServer()
         end)
 
         SettingsTab:CreateButton("Destroy Hub Interface", function()
@@ -4550,17 +4641,9 @@ end)
 --------------------------------------------------------------------------------
 local ESPCache = {}
 
-local function ESPKey(prefix, obj)
-    if not obj then return prefix .. ":nil" end
-    local ok, id = pcall(function() return obj:GetDebugId() end)
-    if ok and id then return prefix .. ":" .. tostring(id) end
-    return prefix .. ":" .. tostring(obj)
-end
-
 local function RemoveESP(key)
     local obj = ESPCache[key]
     if obj and obj.Gui then pcall(function() obj.Gui:Destroy() end) end
-    if obj and obj.Highlight then pcall(function() obj.Highlight:Destroy() end) end
     ESPCache[key] = nil
 end
 
@@ -4634,18 +4717,7 @@ local function EnsureESP(key, part, title, color, showHP, maxHP, hp)
             hpFill.Parent = hpBg
         end
         bill.Parent = part
-        local highlight
-        local model = part:FindFirstAncestorOfClass("Model")
-        if model then
-            highlight = Instance.new("Highlight")
-            highlight.Name = "HaroonESPHighlight"
-            highlight.Adornee = model
-            highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-            highlight.FillTransparency = 0.82
-            highlight.OutlineTransparency = 0.08
-            highlight.Parent = model
-        end
-        entry = {Gui=bill, Highlight=highlight, Part=part, Title=titleLabel, Distance=distLabel, HPFill=hpFill}
+        entry = {Gui=bill, Part=part, Title=titleLabel, Distance=distLabel, HPFill=hpFill}
         ESPCache[key] = entry
     end
     local _, hrp = GetCharacter()
@@ -4686,16 +4758,18 @@ local function espTick()
     if not hrp then return end
     local seen = {}
     local S = _G.Settings.Visuals
-    if _G.Settings.Fruits["Player ESP"] then S["ESP Players"] = true end
-    if _G.Settings.Fruits["Chest ESP"] then S["ESP Chests"] = true end
+    -- Do not mutate Visuals settings from the legacy Fruits toggles. Read them
+    -- as aliases only, so disabling one ESP actually removes its drawings.
+    local playersESP = S["ESP Players"] or _G.Settings.Fruits["Player ESP"]
+    local chestsESP = S["ESP Chests"] or _G.Settings.Fruits["Chest ESP"]
 
-    if S["ESP Players"] then
+    if playersESP then
         for _, p in ipairs(Players:GetPlayers()) do
             if p ~= LocalPlayer and p.Character then
                 local part = getEspPart(p.Character)
                 local h = p.Character:FindFirstChildOfClass("Humanoid")
                 if part then
-                    local key = ESPKey("P", p.Character)
+                    local key = "P:" .. p.UserId
                     seen[key] = true
                     EnsureESP(key, part, "👤 " .. tostring(p.DisplayName or p.Name) .. "  [" .. getPlayerLevelText(p) .. "]", Color3.fromRGB(255,90,90), true, h and h.MaxHealth or 100, h and h.Health or 0)
                 end
@@ -4713,7 +4787,7 @@ local function espTick()
                         local part = getEspPart(mob)
                         local h = mob:FindFirstChildOfClass("Humanoid")
                         if part and h then
-                            local key = ESPKey("E", mob)
+                            local key = "E:" .. mob:GetDebugId()
                             seen[key] = true
                             EnsureESP(key, part, (boss and "👑 " or "⚔️ ") .. mob.Name, boss and Color3.fromRGB(255,170,40) or Color3.fromRGB(255,210,90), true, h.MaxHealth, h.Health)
                         end
@@ -4749,7 +4823,7 @@ local function espTick()
             if not looks then return end
             local part=getEspPart(obj)
             if not part then return end
-            local key=ESPKey("F",obj)
+            local key="F:"..obj:GetDebugId()
             seen[key]=true
             EnsureESP(key,part,"🍎 "..tostring(obj.Name),Color3.fromRGB(255,180,40),false)
         end
@@ -4763,17 +4837,27 @@ local function espTick()
         for _,obj in ipairs(workspace:GetChildren()) do inspectFruit(obj) end
     end
 
-    if S["ESP Chests"] then
-        local chests = workspace:FindFirstChild("ChestModels")
-        if chests then
-            for _, chest in ipairs(chests:GetDescendants()) do
-                if chest:IsA("Model") then
-                    local part = getEspPart(chest)
-                if part then
-                    local key = ESPKey("C", chest)
-                    seen[key] = true
-                    EnsureESP(key, part, "📦 " .. chest.Name, Color3.fromRGB(255,255,80), false)
-                end
+    if chestsESP then
+        local seenChest = {}
+        local roots = {
+            workspace:FindFirstChild("ChestModels"),
+            workspace:FindFirstChild("Map"),
+            workspace:FindFirstChild("_WorldOrigin"),
+            workspace
+        }
+        for _, root in ipairs(roots) do
+            if root then
+                for _, chest in ipairs(root:GetDescendants()) do
+                    local isChest = chest:IsA("Model") and chest.Name:lower():find("chest",1,true)
+                    if isChest and not seenChest[chest] then
+                        seenChest[chest] = true
+                        local part = getEspPart(chest)
+                        if part then
+                            local key = "C:" .. chest:GetDebugId()
+                            seen[key] = true
+                            EnsureESP(key, part, "📦 " .. chest.Name, Color3.fromRGB(255,255,80), false)
+                        end
+                    end
                 end
             end
         end
@@ -4803,7 +4887,7 @@ local function espTick()
         if not seen[key] then RemoveESP(key) end
     end
 
-    if not (S["ESP Players"] or S["ESP Enemies"] or S["ESP Bosses"] or _G.Settings.Fruits["Fruit ESP"] or S["ESP Chests"] or S["ESP Mirage Island"] or S["ESP Kitsune Island"]) then
+    if not (playersESP or S["ESP Enemies"] or S["ESP Bosses"] or _G.Settings.Fruits["Fruit ESP"] or chestsESP or S["ESP Mirage Island"] or S["ESP Kitsune Island"]) then
         RemoveAllESP()
     end
 end
@@ -5017,85 +5101,135 @@ task.spawn(function()
     while task.wait(0.12) do pcall(bossFarmStepV5) end
 end)
 
-local function chestModelsV4()
-    local out,seen={},{}
-    for _,obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("Model") and not seen[obj] then
-            local n=obj.Name:lower()
-            if n:find("chest",1,true) and anyPart(obj) then
-                seen[obj]=true
-                table.insert(out,obj)
-            end
-        end
-    end
-    return out
+local ChestFarmState = ChestFarmState or {Target=nil, visited={}, lastScan=0}
+
+local function currentWorldId()
+    if World1 then return 1 end
+    if World2 then return 2 end
+    if World3 then return 3 end
+    return 0
 end
-local function chestFarmStepV4()
-    local active=_G.Settings.SubFarm["Auto Chest Tween"] or _G.Settings.SubFarm["Auto Chest Instant"]
-    if not active then ChestFarmState.Target=nil; return end
-    local _,hrp=GetCharacter(); if not hrp then return end
-    local target=ChestFarmState.Target
-    local function chestKey(c)
-        if not c then return nil end
-        local attr = c:GetAttribute("HaroonChestKey")
-        if attr then return tostring(attr) end
-        local ok, id = pcall(function() return c:GetDebugId() end)
-        return ok and tostring(id) or tostring(c)
+
+local ChestScanCache = {Items = {}, At = 0}
+
+local function chestModelsV5()
+    -- Blox Fruits streams only the active world's map into Workspace. We still
+    -- scan descendants so Gold/Diamond/Silver/Blue variants are not missed.
+    if os.clock() - (ChestScanCache.At or 0) < 0.8 then
+        return ChestScanCache.Items
     end
-    local function valid(c)
-        local k = chestKey(c)
-        return c and c.Parent and anyPart(c) and k and not ChestFarmState.visited[k]
-    end
-    if not valid(target) then
-        target=nil
-        local best,dist=nil,math.huge
-        for _,c in ipairs(chestModelsV4()) do
-            local k=chestKey(c); local part=anyPart(c)
-            -- Blox Fruits uses a separate PlaceId for each Sea. Only consider
-            -- chests that belong to the currently loaded Sea / PlaceId.
-            local inCurrentWorld = true
-            if part then
-                local p = part.Position
-                if World1 then
-                    inCurrentWorld = p.Y > -5000 and p.Y < 2500 and math.abs(p.X) < 12000 and math.abs(p.Z) < 12000
-                elseif World2 then
-                    inCurrentWorld = p.Y > -1000 and p.Y < 2500 and math.abs(p.X) < 9000 and math.abs(p.Z) < 12000
-                elseif World3 then
-                    inCurrentWorld = p.Y > -1500 and p.Y < 3500 and math.abs(p.X) < 22000 and math.abs(p.Z) < 16000
+    local out, seen = {}, {}
+    local roots = {
+        workspace:FindFirstChild("ChestModels"),
+        workspace:FindFirstChild("Map"),
+        workspace:FindFirstChild("_WorldOrigin"),
+        workspace
+    }
+    for _, root in ipairs(roots) do
+        if root then
+            for _, obj in ipairs(root:GetDescendants()) do
+                if obj:IsA("Model") and not seen[obj] then
+                    local n = obj.Name:lower()
+                    if (n:find("chest",1,true) or n == "chest") and anyPart(obj) then
+                        seen[obj] = true
+                        table.insert(out, obj)
+                    end
+                elseif obj:IsA("BasePart") then
+                    local n = obj.Name:lower()
+                    if n:find("chest",1,true) and not seen[obj] then
+                        seen[obj] = true
+                        table.insert(out, obj)
+                    end
                 end
             end
-            if inCurrentWorld and k and not ChestFarmState.visited[k] and part then
-                local d=(hrp.Position-part.Position).Magnitude
-                if d<dist then best,dist=c,d end
+        end
+    end
+    ChestScanCache.Items = out
+    ChestScanCache.At = os.clock()
+    return out
+end
+
+local function chestFarmStepV5()
+    local active = _G.Settings.SubFarm["Auto Chest Tween"] or _G.Settings.SubFarm["Auto Chest Instant"]
+    if not active then
+        ChestFarmState.Target = nil
+        return
+    end
+
+    local _, hrp = GetCharacter()
+    if not hrp then return end
+
+    local target = ChestFarmState.Target
+    local function valid(c)
+        return c and c.Parent and anyPart(c) and not ChestFarmState.visited[c:GetDebugId()]
+    end
+
+    if not valid(target) then
+        target = nil
+        local best, dist = nil, math.huge
+        for _, c in ipairs(chestModelsV5()) do
+            local k = c:GetDebugId()
+            local part = anyPart(c)
+            if part and not ChestFarmState.visited[k] then
+                local d = (hrp.Position - part.Position).Magnitude
+                if d < dist then
+                    best, dist = c, d
+                end
             end
         end
-        target=best; ChestFarmState.Target=target
+        target = best
+        ChestFarmState.Target = target
     end
+
     if not target then
         if next(ChestFarmState.visited) then
-            task.delay(0.35,function() if _G.Settings.SubFarm["Auto Chest Tween"] or _G.Settings.SubFarm["Auto Chest Instant"] then ChestFarmState.visited={} end end)
+            ChestFarmState.visited = {}
         end
         return
     end
-    local part=anyPart(target); if not part then ChestFarmState.Target=nil; return end
-    -- Keep chest farming airborne. Never tween downward to the chest.
-    local pos=part.Position+Vector3.new(0,6,0)
-    if (hrp.Position-pos).Magnitude>12 then
-        if _G.Settings.SubFarm["Auto Chest Instant"] then
-            local levelPos = Vector3.new(pos.X, math.max(hrp.Position.Y, pos.Y), pos.Z)
-            pcall(function() hrp.CFrame=CFrame.new(levelPos) end)
-        else
-            TweenPlayer(CFrame.new(pos),nil,"ChestFarm")
-        end
-    else
-        local levelPos = Vector3.new(pos.X, math.max(hrp.Position.Y, pos.Y), pos.Z)
-        pcall(function() hrp.CFrame=CFrame.new(levelPos); hrp.AssemblyLinearVelocity=Vector3.zero; hrp.AssemblyAngularVelocity=Vector3.zero end)
-        ChestFarmState.visited[chestKey(target)]=true
-        ChestFarmState.Target=nil
+
+    local part = anyPart(target)
+    if not part then
+        ChestFarmState.Target = nil
+        return
+    end
+
+    -- Always farm from above the chest. Never Tween into the floor and never
+    -- instantly snap downward after reaching it.
+    local hover = part.Position + Vector3.new(0, 8, 0)
+    local dist = (hrp.Position - hover).Magnitude
+
+    if _G.Settings.SubFarm["Auto Chest Instant"] then
+        pcall(function()
+            hrp.CFrame = CFrame.lookAt(hover, part.Position)
+            hrp.AssemblyLinearVelocity = Vector3.zero
+            hrp.AssemblyAngularVelocity = Vector3.zero
+        end)
+    elseif dist > 10 then
+        TweenPlayer(CFrame.lookAt(hover, part.Position), nil, "ChestFarm")
+        return
+    end
+
+    if dist <= 12 then
+        ChestFarmState.visited[target:GetDebugId()] = true
+        ChestFarmState.Target = nil
+        -- Give the chest a small amount of time to disappear/respawn before
+        -- selecting another target.
+        task.delay(0.08, function()
+            if not (_G.Settings.SubFarm["Auto Chest Tween"] or _G.Settings.SubFarm["Auto Chest Instant"]) then
+                return
+            end
+        end)
     end
 end
 
-task.spawn(function() while task.wait(0.15) do pcall(chestFarmStepV4) end end)
+task.spawn(function()
+    while task.wait(0.15) do
+        pcall(chestFarmStepV5)
+    end
+end)
+
+
 -- Highest priority for spawned Cake Prince / Dough King; ordered Dough King controller.
 local DoughController = {Stage="NeedGodsChalice", LastAction=0, LastNotice=0}
 local DoughCakeLandPosition = CFrame.new(-2077, 252, -12373)
