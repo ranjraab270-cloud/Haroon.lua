@@ -108,6 +108,7 @@ _G.Settings = {
         ["Select Weapon"] = "Melee",
         ["Farm Distance"] = 28,
         ["Player Tween Speed"] = 180,
+        ["Teleport Height"] = 100,
         ["Fast Attack"] = false,
         ["Selected Material"] = "Leather + Scrap Metal",
         ["Auto Farm Material"] = false,
@@ -379,116 +380,204 @@ RunService.Stepped:Connect(function()
     end
 end)
 
-local DEFAULT_SAFE_TELEPORT_HEIGHT = 100
+local DEFAULT_TELEPORT_HEIGHT = 100
+local MIN_TELEPORT_HEIGHT = 10
+local MAX_TELEPORT_HEIGHT = 300
+local TELEPORT_CLOSE_DISTANCE = 4
+local activeTeleportGuardId = 0
+local activeRoute = {
+    owner = nil,
+    destination = nil,
+    targetKey = nil,
+    startedAt = 0,
+    stages = nil,
+    stageIndex = 0,
+}
 
-local function SafeTeleport100(cf: CFrame, owner: string?)
-    if typeof(cf) ~= "CFrame" then return false end
-    local char, hrp, hum = GetCharacter()
-    if not hrp then return false end
-    if hum then pcall(function() hum.Sit = false end) end
-    local pos = cf.Position
-    local target = Vector3.new(pos.X, pos.Y + DEFAULT_SAFE_TELEPORT_HEIGHT, pos.Z)
-    local look = target + Vector3.new(cf.LookVector.X, 0, cf.LookVector.Z)
-    if (look-target).Magnitude < 0.01 then look = target + Vector3.new(0,0,-1) end
-    pcall(function()
-        hrp.CFrame = CFrame.lookAt(target, look)
-        hrp.AssemblyLinearVelocity = Vector3.zero
-        hrp.AssemblyAngularVelocity = Vector3.zero
-    end)
+local function GetTeleportHeight()
+    return math.clamp(tonumber(_G.Settings.Main["Teleport Height"]) or DEFAULT_TELEPORT_HEIGHT, MIN_TELEPORT_HEIGHT, MAX_TELEPORT_HEIGHT)
+end
+
+local function CancelPlayerTween(owner: string?)
+    if owner and activeRoute.owner and activeRoute.owner ~= owner then
+        return false
+    end
+    activeTeleportGuardId += 1
+    if currentTween then
+        pcall(function() currentTween:Cancel() end)
+    end
+    currentTween = nil
+    currentTweenOwner = nil
+    activeRoute.owner = nil
+    activeRoute.destination = nil
+    activeRoute.targetKey = nil
+    activeRoute.startedAt = 0
+    activeRoute.stages = nil
+    activeRoute.stageIndex = 0
     return true
 end
 
-local activeTeleportGuardId = 0
-
+-- Smooth, persistent multi-stage movement.
+-- IMPORTANT: repeated calls with the same owner/nearby destination do NOT restart
+-- the active Tween. This is what lets high-frequency farming loops actually finish
+-- their movement instead of cancelling/restarting every frame.
 local function TweenPlayer(pos: CFrame | Vector3 | BasePart, offset: Vector3?, owner: string?): Tween?
     local char, hrp, hum = GetCharacter()
-    if not char or not hrp or not hum then return nil end
+    if not char or not hrp or not hum or hum.Health <= 0 then return nil end
     if hum.Sit then pcall(function() hum.Sit = false end) end
 
     local targetCFrame: CFrame
-    if typeof(pos) == "CFrame" then targetCFrame = pos
-    elseif typeof(pos) == "Vector3" then targetCFrame = CFrame.new(pos)
-    elseif pos and pos:IsA("BasePart") then targetCFrame = pos.CFrame
-    else return nil end
-    if offset then targetCFrame = targetCFrame * CFrame.new(offset) end
-
-    -- Keep every teleport above the destination while travelling. No helper
-    -- Parts/BodyVelocity/Instance objects are created by this system.
-    -- Travel above the destination, then settle only when the caller explicitly
-    -- asks for a close-range position. This prevents the old "drop to ground"
-    -- behaviour during long Tweens.
-    local destination = targetCFrame
-    local travelY = math.max(destination.Position.Y + 80, hrp.Position.Y)
-    local safeTarget = Vector3.new(destination.Position.X, travelY, destination.Position.Z)
-    local look = safeTarget + Vector3.new(destination.LookVector.X, 0, destination.LookVector.Z)
-    if (look - safeTarget).Magnitude < 0.01 then look = safeTarget + Vector3.new(0, 0, -1) end
-    local uprightCFrame = CFrame.lookAt(safeTarget, look)
-
-    local distance = (hrp.Position - uprightCFrame.Position).Magnitude
-    if distance <= 25 then
-        if currentTween then pcall(function() currentTween:Cancel() end) end
-        currentTween = nil
-        currentTweenOwner = nil
-        pcall(function()
-            hrp.CFrame = uprightCFrame
-            hrp.AssemblyLinearVelocity = Vector3.zero
-            hrp.AssemblyAngularVelocity = Vector3.zero
-        end)
+    if typeof(pos) == "CFrame" then
+        targetCFrame = pos
+    elseif typeof(pos) == "Vector3" then
+        targetCFrame = CFrame.new(pos)
+    elseif typeof(pos) == "Instance" and pos:IsA("BasePart") then
+        targetCFrame = pos.CFrame
+    else
         return nil
     end
+    if offset then targetCFrame = targetCFrame * CFrame.new(offset) end
 
-    if currentTween then pcall(function() currentTween:Cancel() end) end
+    local flatLook = Vector3.new(targetCFrame.LookVector.X, 0, targetCFrame.LookVector.Z)
+    if flatLook.Magnitude < 0.01 then flatLook = Vector3.new(0, 0, -1) end
+    local destination = CFrame.lookAt(targetCFrame.Position, targetCFrame.Position + flatLook)
+
+    local routeOwner = owner or "Generic"
+    local destinationChanged = true
+    if activeRoute.owner == routeOwner and activeRoute.destination then
+        destinationChanged = (activeRoute.destination.Position - destination.Position).Magnitude > 8
+    end
+
+    -- Keep an already-running route alive. For moving farm targets, only retarget
+    -- after a meaningful displacement or once the current route has ended.
+    if currentTween and currentTweenOwner == routeOwner and not destinationChanged then
+        return currentTween
+    end
+
+    if currentTween and currentTweenOwner == routeOwner then
+        pcall(function() currentTween:Cancel() end)
+        currentTween = nil
+    elseif currentTween then
+        pcall(function() currentTween:Cancel() end)
+        currentTween = nil
+    end
+
     activeTeleportGuardId += 1
-    local guardId = activeTeleportGuardId
-    currentTweenOwner = owner or "Generic"
+    local routeId = activeTeleportGuardId
+    currentTweenOwner = routeOwner
+    activeRoute.owner = routeOwner
+    activeRoute.destination = destination
+    activeRoute.targetKey = tostring(math.floor(destination.Position.X)) .. ":" .. tostring(math.floor(destination.Position.Y)) .. ":" .. tostring(math.floor(destination.Position.Z))
+    activeRoute.startedAt = os.clock()
+    activeRoute.stageIndex = 0
 
-    local speed = math.clamp(tonumber(_G.Settings.Main["Player Tween Speed"]) or 180, 1, 180)
-    local tweenInfo = TweenInfo.new(math.max(0.08, distance / speed), Enum.EasingStyle.Linear)
-    currentTween = TweenService:Create(hrp, tweenInfo, {CFrame = uprightCFrame})
-    local tweenRef = currentTween
+    local speed = math.clamp(tonumber(_G.Settings.Main["Player Tween Speed"]) or 180, 1, 300)
+    local travelHeight = GetTeleportHeight()
+    local startPos = hrp.Position
+    local targetPos = destination.Position
 
-    -- Heartbeat guard only corrects accidental downward physics while the Tween
-    -- is active; it never creates an Instance and never replaces the Tween.
-    local guardConn
-    guardConn = RunService.Heartbeat:Connect(function()
-        if guardId ~= activeTeleportGuardId or currentTween ~= tweenRef or not hrp.Parent then
-            if guardConn then guardConn:Disconnect() end
+    -- The chosen height is the clearance ABOVE the destination, not an absolute
+    -- world Y. This works consistently in all three seas and for underground maps.
+    local travelY = math.max(startPos.Y, targetPos.Y + travelHeight)
+    local verticalStart = Vector3.new(startPos.X, travelY, startPos.Z)
+    local horizontalTarget = Vector3.new(targetPos.X, travelY, targetPos.Z)
+
+    local function makeCF(position: Vector3)
+        return CFrame.lookAt(position, position + flatLook)
+    end
+
+    local stages = {}
+    local riseDistance = (startPos - verticalStart).Magnitude
+    local horizontalDistance = (verticalStart - horizontalTarget).Magnitude
+    local descendDistance = (horizontalTarget - targetPos).Magnitude
+
+    -- Always Tween. There is deliberately no direct CFrame movement branch here.
+    if riseDistance > 0.5 then
+        table.insert(stages, {cf = makeCF(verticalStart), distance = riseDistance})
+    end
+    if horizontalDistance > 0.5 then
+        table.insert(stages, {cf = makeCF(horizontalTarget), distance = horizontalDistance})
+    end
+    if descendDistance > 0.5 then
+        table.insert(stages, {cf = destination, distance = descendDistance})
+    end
+    if #stages == 0 then
+        local nudge = targetPos + Vector3.new(0, 0.15, 0)
+        table.insert(stages, {cf = makeCF(nudge), distance = 0.15})
+        table.insert(stages, {cf = destination, distance = 0.15})
+    end
+    activeRoute.stages = stages
+
+    local function routeAlive()
+        return routeId == activeTeleportGuardId
+            and currentTweenOwner == routeOwner
+            and hrp.Parent and hum.Parent and hum.Health > 0
+    end
+
+    local function playNext()
+        if not routeAlive() then return end
+        activeRoute.stageIndex += 1
+        local stage = stages[activeRoute.stageIndex]
+        if not stage then
+            if routeId == activeTeleportGuardId then
+                currentTween = nil
+                currentTweenOwner = nil
+                activeRoute.owner = nil
+                activeRoute.destination = nil
+                activeRoute.targetKey = nil
+                activeRoute.stages = nil
+                activeRoute.stageIndex = 0
+                pcall(function()
+                    hrp.AssemblyLinearVelocity = Vector3.zero
+                    hrp.AssemblyAngularVelocity = Vector3.zero
+                end)
+            end
             return
         end
-        local p = hrp.Position
-        if p.Y < travelY - 2 then
-            local corrected = Vector3.new(p.X, travelY, p.Z)
-            pcall(function() hrp.CFrame = CFrame.lookAt(corrected, corrected + Vector3.new(uprightCFrame.LookVector.X, 0, uprightCFrame.LookVector.Z)) end)
-        end
-    end)
 
-    tweenRef.Completed:Connect(function()
-        if guardConn then guardConn:Disconnect() end
-        if guardId == activeTeleportGuardId and currentTween == tweenRef then
+        local duration = math.max(0.10, stage.distance / speed)
+        if stage.distance <= TELEPORT_CLOSE_DISTANCE then
+            duration = math.max(duration, 0.16)
+        end
+
+        local tween = TweenService:Create(
+            hrp,
+            TweenInfo.new(duration, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut),
+            {CFrame = stage.cf}
+        )
+        currentTween = tween
+        tween.Completed:Connect(function(playbackState)
+            if routeId ~= activeTeleportGuardId or currentTween ~= tween then return end
             currentTween = nil
-            currentTweenOwner = nil
-            pcall(function()
-                local finalPos = uprightCFrame.Position
-                hrp.CFrame = uprightCFrame
-                hrp.AssemblyLinearVelocity = Vector3.zero
-                hrp.AssemblyAngularVelocity = Vector3.zero
-            end)
-        end
-    end)
+            if playbackState == Enum.PlaybackState.Completed then
+                playNext()
+            else
+                if currentTweenOwner == routeOwner then
+                    currentTweenOwner = nil
+                    activeRoute.owner = nil
+                    activeRoute.destination = nil
+                    activeRoute.stages = nil
+                    activeRoute.stageIndex = 0
+                end
+            end
+        end)
+        tween:Play()
+    end
 
-    currentTween:Play()
+    playNext()
     return currentTween
 end
 
 local function TweenIslandAtSafeHeight(cf: CFrame, owner: string?)
-    return TweenPlayer(cf, Vector3.new(0, 0, 0), owner or "IslandTeleport")
+    return TweenPlayer(cf, nil, owner or "IslandTeleport")
 end
 
 local function StopTween(owner: string?)
     if owner and currentTweenOwner and currentTweenOwner ~= owner and AnyMovementFeatureActive() then
         return
     end
-    if currentTween then currentTween:Cancel() end
+    activeTeleportGuardId += 1
+    if currentTween then pcall(function() currentTween:Cancel() end) end
     currentTween = nil
     currentTweenOwner = nil
     local _, hrp = GetCharacter()
@@ -670,7 +759,7 @@ local function BFSubmergedStep()
             if (hrp.Position-gp.Position).Magnitude <= 25 and CommF_ then pcall(function() CommF_:InvokeServer("StartQuest", q.Quest, q.Level) end) end
         end
     elseif hrp.Position.Y > 0 then
-        hrp.CFrame = CFrame.new(hrp.Position.X, -18, hrp.Position.Z)
+        TweenPlayer(CFrame.new(hrp.Position.X, -18, hrp.Position.Z), nil, "Submerged")
     end
     return true
 end
@@ -951,18 +1040,9 @@ local PreferredTeleportStages={
 local function SmartTeleportIsland(name, cf, owner)
     if typeof(cf) ~= "CFrame" then return false end
     local _,hrp=GetCharacter(); if not hrp then return false end
-    local sea=getCurrentSeaTable()
-    local stageName=PreferredTeleportStages[name]
-    local stageCF=stageName and sea[stageName] or nil
-    if not stageCF then stageName,stageCF=nearestIslandCF(hrp.Position,name) end
-    local oldSpeed=_G.Settings.Main["Player Tween Speed"]
-    _G.Settings.Main["Player Tween Speed"]=180
-    if stageCF and stageName and stageName ~= name and (hrp.Position-cf.Position).Magnitude > 1200 then
-        SafeTeleport100(stageCF, owner or "IslandTeleportStage")
-        task.wait(0.12)
-    end
-    TweenPlayer(cf, Vector3.new(0,100,0), owner or "IslandTeleport")
-    _G.Settings.Main["Player Tween Speed"]=oldSpeed
+    -- Do not stage by placing the character at another island. The global
+    -- movement engine now handles the whole cross-island route as one smooth path.
+    TweenPlayer(cf, nil, owner or "IslandTeleport")
     return true
 end
 
@@ -1217,15 +1297,15 @@ local function integratedMaterialStep()
         local tr=target:FindFirstChild("HumanoidRootPart"); local th=target:FindFirstChildOfClass("Humanoid")
         if tr and th and th.Health>0 then
             local desired=tr.Position+Vector3.new(0,math.max(22,tonumber(_G.Settings.Main["Farm Distance"]) or 28),0)
-            if (hrp.Position-desired).Magnitude>12 then TweenPlayer(CFrame.new(desired),nil,"Material") else
-                if currentTween and currentTweenOwner=="Material" then pcall(function() currentTween:Cancel() end); currentTween=nil end
-                currentTweenOwner="Material"; pcall(function() hrp.CFrame=CFrame.new(desired); hrp.AssemblyLinearVelocity=Vector3.zero; hrp.AssemblyAngularVelocity=Vector3.zero end)
-            end
+            SmoothHoldAt(CFrame.new(desired), "Material", 10)
             AutoHaki(); SmartAttackMob(target); return
         end
     end
     MaterialState.Target=nil
-    if cfg.Entrance and (hrp.Position-cfg.Entrance).Magnitude>1000 then pcall(function() CommF_:InvokeServer("requestEntrance",cfg.Entrance) end); task.wait(0.25) end
+    if cfg.Entrance and (hrp.Position-cfg.Entrance).Magnitude>1000 then
+        TweenPlayer(CFrame.new(cfg.Entrance), nil, "MaterialEntrance")
+        return
+    end
     local desired=cfg.Position.Position+Vector3.new(0,28,0)
     if (hrp.Position-desired).Magnitude>30 then TweenPlayer(cfg.Position,Vector3.new(0,28,0),"Material") end
 end
@@ -1309,10 +1389,7 @@ local function raidStableAttack(target)
     if not hrp or not hum or hum.Health<=0 or not tr or not th or th.Health<=0 then RaidController.Target=nil; return false end
     local hover=math.max(22,tonumber(_G.Settings.Main["Farm Distance"]) or 28); local desired=tr.Position+Vector3.new(0,hover,0)
     RaidController.Target=target; RaidController.EmptySince=0; RaidController.SeenEnemy[RaidController.Index]=true
-    if (hrp.Position-desired).Magnitude>12 then TweenPlayer(CFrame.new(desired),nil,"Raid") else
-        if currentTween and currentTweenOwner=="Raid" then pcall(function() currentTween:Cancel() end); currentTween=nil end
-        currentTweenOwner="Raid"; pcall(function() hrp.CFrame=CFrame.new(desired); hrp.AssemblyLinearVelocity=Vector3.zero; hrp.AssemblyAngularVelocity=Vector3.zero end)
-    end
+    SmoothHoldAt(CFrame.new(desired), "Raid", 10)
     AutoHaki(); SmartAttackMob(target); return true
 end
 local function raidStep(allowAdvance)
@@ -1336,7 +1413,7 @@ RunService.Heartbeat:Connect(function()
     local t=RaidController.Target; local _,hrp,hum=GetCharacter(); local tr=t and t:FindFirstChild("HumanoidRootPart"); local th=t and t:FindFirstChildOfClass("Humanoid")
     if not hrp or not hum or not tr or not th or th.Health<=0 then return end
     local desired=tr.Position+Vector3.new(0,math.max(22,tonumber(_G.Settings.Main["Farm Distance"]) or 28),0)
-    if (hrp.Position-desired).Magnitude<35 then pcall(function() hrp.CFrame=CFrame.new(desired); hrp.AssemblyLinearVelocity=Vector3.zero; hrp.AssemblyAngularVelocity=Vector3.zero end) end
+    if (hrp.Position-desired).Magnitude<35 then SmoothHoldAt(CFrame.new(desired), "Raid", 12) end
 end)
 --------------------------------------------------------------------------------
 -- 7. AetherUI Framework Integration (100% Full English Interface)
@@ -1492,6 +1569,10 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
 
         MainTab:CreateSlider("Player Tween Speed", "TweenSpeedFlag", 100, 300, 180, function(val)
             _G.Settings.Main["Player Tween Speed"] = val
+        end)
+
+        MainTab:CreateSlider("Teleport Travel Height", "TeleportHeightFlag", 10, 300, tonumber(_G.Settings.Main["Teleport Height"]) or 100, function(val)
+            _G.Settings.Main["Teleport Height"] = val
         end)
 
         MainTab:CreateToggle("Fast Attack Speed", "FastAttackFlag", false, function(state)
@@ -2233,9 +2314,9 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
                 }
                 local char, hrp = GetCharacter()
                 if char and hrp then
-                    hrp.CFrame = CFrame.new(28286.35, 14895.30, 102.62)
-                    task.wait(0.3)
-                    if raceDoors[myRace] then TweenPlayer(raceDoors[myRace]) end
+                    if raceDoors[myRace] then
+                        TweenPlayer(raceDoors[myRace], nil, "RaceDoor")
+                    end
                 end
             end
         end)
@@ -2716,16 +2797,8 @@ ItemsTab:CreateToggle("Auto True Triple Katana (TTK)", "AutoFarmTTKFlag", false,
                 return true
             end
 
-            if currentTween and currentTweenOwner == "CombatPVP" then pcall(function() currentTween:Cancel() end) end
-            currentTween=nil
-            currentTweenOwner="CombatPVP"
-
-            pcall(function()
-                hrp.CFrame=CFrame.lookAt(above, root.Position)
-                hrp.AssemblyLinearVelocity=Vector3.zero
-                hrp.AssemblyAngularVelocity=Vector3.zero
-                myHum.AutoRotate=false
-            end)
+            SmoothHoldAt(CFrame.lookAt(above, root.Position), "CombatPVP", 5)
+            pcall(function() myHum.AutoRotate=false end)
 
             EquipWeapon(_G.Settings.Main["Select Weapon"] or "Melee")
             local tool=char:FindFirstChildOfClass("Tool")
@@ -2822,7 +2895,7 @@ ItemsTab:CreateToggle("Auto True Triple Katana (TTK)", "AutoFarmTTKFlag", false,
                             local hpPercent=(myHum.Health/math.max(myHum.MaxHealth,1))*100
                             if hpPercent <= (tonumber(C["Escape HP %"]) or 30) then
                                 CombatRuntime.SafeReturn=CombatRuntime.SafeReturn or myRoot.CFrame
-                                pcall(function() myRoot.CFrame=myRoot.CFrame*CFrame.new(0,100,0); myRoot.AssemblyLinearVelocity=Vector3.zero end)
+                                pcall(function() TweenPlayer(myRoot.CFrame * CFrame.new(0,100,0), nil, "CombatSafe") end)
                             elseif CombatRuntime.SafeReturn and hpPercent >= (tonumber(C["Return HP %"]) or 70) then
                                 pcall(function() myRoot.CFrame=CombatRuntime.SafeReturn end)
                                 CombatRuntime.SafeReturn=nil
@@ -3422,53 +3495,134 @@ end)
 --------------------------------------------------------------------------------
 -- 8. Main Farming Loop
 --------------------------------------------------------------------------------
+local LevelFarmState = {
+    LastQuestName = nil,
+    LastQuestLevel = nil,
+    QuestRequestAt = 0,
+    LastTarget = nil,
+    LastTargetAt = 0,
+    LastMoveAt = 0,
+}
+
+local function GetQuestGuiState()
+    local main = LocalPlayer.PlayerGui:FindFirstChild("Main")
+    local questGui = main and main:FindFirstChild("Quest")
+    if not questGui then return false, "" end
+    local container = questGui:FindFirstChild("Container")
+    local titleFrame = container and container:FindFirstChild("QuestTitle")
+    local title = titleFrame and titleFrame:FindFirstChild("Title")
+    return questGui.Visible == true, (title and title.Text) or ""
+end
+
+local function HasCurrentLevelQuest()
+    local visible, title = GetQuestGuiState()
+    return visible and title ~= "" and string.find(title, CurrentQuest.NameMon, 1, true) ~= nil
+end
+
+local function StartCurrentLevelQuest(hrp)
+    if not CommF_ then return false end
+    local qPos = CurrentQuest.CFrameQuest.Position + Vector3.new(0, 5, 0)
+    local distance = (hrp.Position - qPos).Magnitude
+    if distance > 22 then
+        TweenPlayer(CurrentQuest.CFrameQuest, Vector3.new(0, 5, 0), "AutoFarmLevel")
+        return false
+    end
+
+    local now = os.clock()
+    if LevelFarmState.LastQuestName ~= CurrentQuest.NameQuest
+        or LevelFarmState.LastQuestLevel ~= CurrentQuest.LevelQuest
+        or now - LevelFarmState.QuestRequestAt > 2.5 then
+        LevelFarmState.LastQuestName = CurrentQuest.NameQuest
+        LevelFarmState.LastQuestLevel = CurrentQuest.LevelQuest
+        LevelFarmState.QuestRequestAt = now
+        pcall(function()
+            CommF_:InvokeServer("StartQuest", CurrentQuest.NameQuest, CurrentQuest.LevelQuest)
+        end)
+    end
+    return true
+end
+
+local function FindBestLevelMob(hrp)
+    local enemies = workspace:FindFirstChild("Enemies")
+    if not enemies then return nil end
+    local best, bestDistance = nil, math.huge
+    for _, v in ipairs(enemies:GetChildren()) do
+        if v:IsA("Model") and v.Name == CurrentQuest.Mon then
+            local root = v:FindFirstChild("HumanoidRootPart")
+            local mobHum = v:FindFirstChildOfClass("Humanoid")
+            if root and mobHum and mobHum.Health > 0 then
+                local dist = (hrp.Position - root.Position).Magnitude
+                if dist < bestDistance then
+                    best, bestDistance = v, dist
+                end
+            end
+        end
+    end
+    return best
+end
+
 task.spawn(function()
-    while task.wait(0.08) do
-        if _G.Settings.Main["Auto Farm Level"] then
-            pcall(function()
-                local char, hrp, hum = GetCharacter()
-                if not char or not hrp or not hum or hum.Health <= 0 then return end
+    while task.wait(0.12) do
+        if not _G.Settings.Main["Auto Farm Level"] then
+            LevelFarmState.LastTarget = nil
+            continue
+        end
 
-                if BFSubmergedStep() then return end
-                CheckQuest()
+        pcall(function()
+            local char, hrp, hum = GetCharacter()
+            if not char or not hrp or not hum or hum.Health <= 0 then return end
+
+            if BFSubmergedStep() then
                 AutoHaki()
+                return
+            end
 
-                local questGui = LocalPlayer.PlayerGui:FindFirstChild("Main") and LocalPlayer.PlayerGui.Main:FindFirstChild("Quest")
+            CheckQuest()
+            AutoHaki()
 
-                if not questGui or not questGui.Visible or not string.find(questGui.Container.QuestTitle.Title.Text, CurrentQuest.NameMon) then
-                    if CommF_ then CommF_:InvokeServer("AbandonQuest") end
-                    TweenPlayer(CurrentQuest.CFrameQuest, Vector3.new(0, 5, 0))
-
-                    if (hrp.Position - CurrentQuest.CFrameQuest.Position).Magnitude <= 20 then
-                        if CommF_ then CommF_:InvokeServer("StartQuest", CurrentQuest.NameQuest, CurrentQuest.LevelQuest) end
-                    end
-                else
-                    local targetMob = nil
-                    local closestDistance = math.huge
-
-                    for _, v in pairs(workspace.Enemies:GetChildren()) do
-                        if v:IsA("Model") and v.Name == CurrentQuest.Mon then
-                            local root = v:FindFirstChild("HumanoidRootPart")
-                            local mobHum = v:FindFirstChildOfClass("Humanoid")
-                            if root and mobHum and mobHum.Health > 0 then
-                                local dist = (hrp.Position - root.Position).Magnitude
-                                if dist < closestDistance then
-                                    closestDistance = dist
-                                    targetMob = v
-                                end
-                            end
-                        end
-                    end
-
-                    if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
-                        TweenPlayer(targetMob.HumanoidRootPart.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
-                        SmartAttackMob(targetMob)
-                    else
-                        TweenPlayer(CurrentQuest.CFrameMon, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0))
+            -- Never teleport through CFrame directly. Quest acquisition itself uses
+            -- the same persistent Tween owner as the enemy route.
+            if not HasCurrentLevelQuest() then
+                if CommF_ then
+                    local visible = GetQuestGuiState()
+                    if visible then
+                        pcall(function() CommF_:InvokeServer("AbandonQuest") end)
                     end
                 end
-            end)
-        end
+                StartCurrentLevelQuest(hrp)
+                LevelFarmState.LastTarget = nil
+                return
+            end
+
+            local targetMob = FindBestLevelMob(hrp)
+            if targetMob and targetMob:FindFirstChild("HumanoidRootPart") then
+                local root = targetMob.HumanoidRootPart
+                local farmDistance = math.max(8, tonumber(_G.Settings.Main["Farm Distance"]) or 28)
+                local desired = root.Position + Vector3.new(0, farmDistance, 0)
+
+                -- Retarget only when the mob has moved enough or the previous route
+                -- has completed. This prevents the old restart-every-frame bug.
+                local targetMoved = true
+                if LevelFarmState.LastTarget == targetMob and LevelFarmState.LastTargetPosition then
+                    targetMoved = (desired - LevelFarmState.LastTargetPosition).Magnitude > 10
+                end
+                local distanceToDesired = (hrp.Position - desired).Magnitude
+                local routeMissing = (currentTween == nil and distanceToDesired > 6)
+                local wrongOwner = (currentTween ~= nil and currentTweenOwner ~= "AutoFarmLevel")
+                if LevelFarmState.LastTarget ~= targetMob or targetMoved or routeMissing or wrongOwner then
+                    TweenPlayer(CFrame.lookAt(desired, root.Position), nil, "AutoFarmLevel")
+                    LevelFarmState.LastTarget = targetMob
+                    LevelFarmState.LastTargetPosition = desired
+                    LevelFarmState.LastTargetAt = os.clock()
+                end
+
+                SmartAttackMob(targetMob)
+            else
+                LevelFarmState.LastTarget = nil
+                LevelFarmState.LastTargetPosition = nil
+                TweenPlayer(CurrentQuest.CFrameMon, Vector3.new(0, math.max(8, tonumber(_G.Settings.Main["Farm Distance"]) or 28), 0), "AutoFarmLevel")
+            end
+        end)
     end
 end)
 
@@ -4321,14 +4475,9 @@ end
 local function forceTeleportToIsland(island, owner)
     local cf = GetModelCFrame(island)
     if not cf then return false end
-    local _, hrp, hum = GetCharacter()
-    if not hrp then return false end
+    local _, _, hum = GetCharacter()
     if hum then pcall(function() hum.Sit = false end) end
-    pcall(function()
-        hrp.CFrame = cf * CFrame.new(0, 100, 0)
-        hrp.AssemblyLinearVelocity = Vector3.zero
-        hrp.AssemblyAngularVelocity = Vector3.zero
-    end)
+    TweenPlayer(cf, nil, owner or "IslandTP")
     return true
 end
 
@@ -4346,11 +4495,7 @@ local function collectNearestAzureEmber()
     end
     if not bestCF then return false end
     hum.Sit = false
-    if bestD > 220 then
-        pcall(function() hrp.CFrame = bestCF * CFrame.new(0,4,0) end)
-    else
-        pcall(function() hrp.CFrame = bestCF * CFrame.new(0,4,0) end)
-    end
+    TweenPlayer(bestCF * CFrame.new(0,4,0), nil, "AzureEmber")
     local part = best:IsA("BasePart") and best or best:FindFirstChildWhichIsA("BasePart", true)
     if part and type(firetouchinterest) == "function" then
         pcall(function() firetouchinterest(hrp, part, 0); firetouchinterest(hrp, part, 1) end)
@@ -4373,14 +4518,14 @@ local function mirageStep()
                 if gcf then
                     local _, hrp, hum = GetCharacter()
                     if hum then pcall(function() hum.Sit=false end) end
-                    if hrp then pcall(function() hrp.CFrame=gcf*CFrame.new(0,6,0) end) end
+                    if hrp then TweenPlayer(gcf*CFrame.new(0,6,0), nil, "MirageGear") end
                 end
             elseif isNightTime() and (_G.Settings.Race["Look Moon Ability"] or _G.Settings.Race["Auto Find Mirage"]) then
                 local top = GetModelCFrame(island)
                 if top then
                     local _, hrp, hum = GetCharacter()
                     if hum then pcall(function() hum.Sit=false end) end
-                    if hrp then pcall(function() hrp.CFrame=top*CFrame.new(0,110,0) end) end
+                    if hrp then TweenPlayer(top*CFrame.new(0,110,0), nil, "MirageTop") end
                 end
             end
         end
@@ -4499,7 +4644,7 @@ local function attackSeaTargetV22(target)
     local _,hrp,hum=GetCharacter(); if not hrp or not hum then return false end
     if hum.Sit then hum.Sit=false end
     local above=r.Position+Vector3.new(0,math.max(25,tonumber(_G.Settings.Main["Farm Distance"]) or 28),0)
-    if (hrp.Position-above).Magnitude>14 then TweenPlayer(CFrame.lookAt(above,r.Position),nil,"SeaCombat") else pcall(function() hrp.CFrame=CFrame.lookAt(above,r.Position); hrp.AssemblyLinearVelocity=Vector3.zero end) end
+    SmoothHoldAt(CFrame.lookAt(above,r.Position), "SeaCombat", 10)
     SmartAttackMob(target)
     return true
 end
@@ -4939,15 +5084,7 @@ local function factoryStep()
     if core and root then
         pcall(function() hum.Sit=false end)
         local desired = root.Position + Vector3.new(0, 28, 0)
-        if (hrp.Position-desired).Magnitude > 12 then
-            TweenPlayer(CFrame.lookAt(desired, root.Position), nil, "Factory")
-        else
-            pcall(function()
-                hrp.CFrame = CFrame.lookAt(desired, root.Position)
-                hrp.AssemblyLinearVelocity = Vector3.zero
-                hrp.AssemblyAngularVelocity = Vector3.zero
-            end)
-        end
+        SmoothHoldAt(CFrame.lookAt(desired, root.Position), "Factory", 10)
         AutoHaki()
         SmartAttackMob(core, "Melee")
         FactoryState.Target = core
@@ -5075,13 +5212,13 @@ local function bossFarmStepV5()
         local above=tr.Position+Vector3.new(0,height,0)
         local distance=(hrp.Position-above).Magnitude
         if distance > 450 then
-            pcall(function() hrp.CFrame=CFrame.lookAt(above,tr.Position); hrp.AssemblyLinearVelocity=Vector3.zero; hrp.AssemblyAngularVelocity=Vector3.zero end)
+            SmoothHoldAt(CFrame.lookAt(above,tr.Position), "DoughCocoa", 8)
         else
             if distance > 10 then
                 TweenPlayer(CFrame.lookAt(above,tr.Position),nil,"BossFarm")
             end
             if (hrp.Position-above).Magnitude <= 18 then
-                pcall(function() hrp.CFrame=CFrame.lookAt(above,tr.Position); hrp.AssemblyLinearVelocity=Vector3.zero; hrp.AssemblyAngularVelocity=Vector3.zero end)
+                SmoothHoldAt(CFrame.lookAt(above,tr.Position), "DoughCocoa", 8)
             end
         end
         SmartAttackMob(target)
@@ -5093,7 +5230,7 @@ local function bossFarmStepV5()
     local cf=(spawnPart and spawnPart.CFrame) or BossLocationsV22[wanted] or bossLocation(wanted)
     if cf and os.clock()-BossFarmState.retryAt>=0.5 then
         BossFarmState.retryAt=os.clock()
-        pcall(function() hrp.CFrame=cf*CFrame.new(0,25,0); hrp.AssemblyLinearVelocity=Vector3.zero; hrp.AssemblyAngularVelocity=Vector3.zero end)
+        SmoothHoldAt(cf*CFrame.new(0,25,0), "Dough500", 8)
     end
 end
 
@@ -5199,13 +5336,9 @@ local function chestFarmStepV5()
     local hover = part.Position + Vector3.new(0, 8, 0)
     local dist = (hrp.Position - hover).Magnitude
 
-    if _G.Settings.SubFarm["Auto Chest Instant"] then
-        pcall(function()
-            hrp.CFrame = CFrame.lookAt(hover, part.Position)
-            hrp.AssemblyLinearVelocity = Vector3.zero
-            hrp.AssemblyAngularVelocity = Vector3.zero
-        end)
-    elseif dist > 10 then
+    -- "Instant" is intentionally no longer used: every chest move uses the
+    -- same smooth Tween route and the selected Teleport Travel Height.
+    if dist > 5 then
         TweenPlayer(CFrame.lookAt(hover, part.Position), nil, "ChestFarm")
         return
     end
@@ -5300,7 +5433,7 @@ local function doughKingOrderedStep()
         AutoHaki()
         local root = boss.HumanoidRootPart
         local desired = root.Position + Vector3.new(0, 30, 0)
-        if (hrp.Position-desired).Magnitude > 12 then TweenPlayer(CFrame.lookAt(desired,root.Position),nil,"DoughKing") else pcall(function() hrp.CFrame=CFrame.lookAt(desired,root.Position); hrp.AssemblyLinearVelocity=Vector3.zero end) end
+        SmoothHoldAt(CFrame.lookAt(desired,root.Position), "DoughKing", 10)
         SmartAttackMob(boss, "Melee")
         return
     end
@@ -5456,7 +5589,7 @@ local function attackSeaFallback(target)
     if (hrp.Position-above).Magnitude>18 then
         TweenPlayer(CFrame.lookAt(above,part.Position),nil,"SeaCombatV26")
     else
-        pcall(function() hrp.CFrame=CFrame.lookAt(above,part.Position); hrp.AssemblyLinearVelocity=Vector3.zero end)
+        SmoothHoldAt(CFrame.lookAt(above,part.Position), "ChestFarm", 5)
         AutoHaki()
         local th=target:FindFirstChildOfClass("Humanoid")
         if th then
