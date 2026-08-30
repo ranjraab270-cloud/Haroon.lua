@@ -1501,36 +1501,124 @@ end)
 --------------------------------------------------------------------------------
 -- 7. AetherUI Framework Integration (100% Full English Interface)
 --------------------------------------------------------------------------------
-local AetherUI = rawget(getgenv and getgenv() or _G, "AetherUI")
+-- Robust AetherUI bootstrap: tolerate executors that expose different HTTP/load APIs
+-- and retry the known working library URL before aborting.
+local GENV = (type(getgenv) == "function" and getgenv()) or _G
+local AetherUI = rawget(GENV, "AetherUI")
 local success_ui, err_ui = true, nil
-local AETHERUI_SOURCE_URL = (type(getgenv)=="function" and getgenv().HAROON_AETHERUI_URL) or "https://pastebin.com/raw/y3wUhBTN"
-if not AetherUI then
-    success_ui, err_ui = pcall(function()
-        local source = safeHttpGet(AETHERUI_SOURCE_URL)
-        if type(source) ~= "string" or #source < 100 then
-            error("AetherUI download returned empty/invalid source")
-        end
-        -- Repair known malformed AetherUI endings before compilation.
-        if source:find("AetherUAetherUI.Executor", 1, true) then
-            source = source:gsub("return%s+AetherUAetherUI%.Executor%s*=%s*detectExecutorName%(%)", "AetherUI.Executor = detectExecutorName()")
-        end
-        source = source:gsub("\nI%s*$", "\n")
-        local compiled, compileErr = loadstring(source)
-        if not compiled then
-            error("AetherUI source compile failed: " .. tostring(compileErr))
-        end
-        AetherUI = compiled()
-        pcall(function() getgenv().AetherUI = AetherUI end)
-    end)
+
+local function getGlobalFunction(name)
+    local ok, fn = pcall(function() return GENV[name] end)
+    if ok and type(fn) == "function" then return fn end
+    local ok2, fn2 = pcall(function() return _G[name] end)
+    if ok2 and type(fn2) == "function" then return fn2 end
+    return nil
 end
 
-if not success_ui or not AetherUI then
-    warn("Haroon Hub: Failed to load AetherUI library. Error:", err_ui)
+local function compileLuaSource(source)
+    if type(source) ~= "string" or #source < 100 then
+        return nil, "empty/invalid source"
+    end
+
+    -- Repair a couple of malformed endings seen in older AetherUI revisions.
+    source = source:gsub("\nI%s*$", "\n")
+    source = source:gsub(
+        "return%s+AetherUAetherUI%.Executor%s*=%s*detectExecutorName%(%)",
+        "AetherUI.Executor = detectExecutorName()"
+    )
+
+    local compiler = getGlobalFunction("loadstring")
+    if compiler then
+        local ok, fnOrErr = pcall(compiler, source)
+        if ok and type(fnOrErr) == "function" then
+            return fnOrErr
+        end
+        return nil, tostring(fnOrErr)
+    end
+
+    -- Luau environments may expose load instead of loadstring.
+    local loader = getGlobalFunction("load")
+    if loader then
+        local ok, fnOrErr = pcall(loader, source, "AetherUI")
+        if ok and type(fnOrErr) == "function" then
+            return fnOrErr
+        end
+        return nil, tostring(fnOrErr)
+    end
+
+    return nil, "no supported Lua compiler (loadstring/load) was found"
+end
+
+local function isUsableAetherUI(lib)
+    return type(lib) == "table"
+       and type(lib.CreateWindow) == "function"
+       and type(lib.InitLoadingScreen) == "function"
+       and type(lib.InitKeySystem) == "function"
+end
+
+local function tryLoadAetherUI(url)
+    local source = safeHttpGet(url)
+    if type(source) ~= "string" or #source < 100 then
+        return nil, "HTTP returned empty/invalid source"
+    end
+
+    local compiled, compileErr = compileLuaSource(source)
+    if not compiled then
+        return nil, "compile failed: " .. tostring(compileErr)
+    end
+
+    local ok, libOrErr = pcall(compiled)
+    if not ok then
+        return nil, "library runtime failed: " .. tostring(libOrErr)
+    end
+    if not isUsableAetherUI(libOrErr) then
+        return nil, "library loaded but required API functions are missing"
+    end
+    return libOrErr
+end
+
+if not isUsableAetherUI(AetherUI) then
+    success_ui = false
+    local configuredUrl = type(GENV.HAROON_AETHERUI_URL) == "string" and GENV.HAROON_AETHERUI_URL or ""
+    local candidates = {}
+
+    if configuredUrl ~= "" then
+        table.insert(candidates, configuredUrl)
+    end
+
+    -- Primary URL used by the hub, followed by the previous AetherUI URL.
+    if configuredUrl ~= "https://pastebin.com/raw/y3wUhBTN" then
+        table.insert(candidates, "https://pastebin.com/raw/y3wUhBTN")
+    end
+    if configuredUrl ~= "https://pastebin.com/raw/yeULgMe0" then
+        table.insert(candidates, "https://pastebin.com/raw/yeULgMe0")
+    end
+
+    local errors = {}
+    for _, url in ipairs(candidates) do
+        local lib, loadErr = tryLoadAetherUI(url)
+        if lib then
+            AetherUI = lib
+            success_ui = true
+            err_ui = nil
+            break
+        end
+        table.insert(errors, url .. " -> " .. tostring(loadErr))
+    end
+
+    if not success_ui then
+        err_ui = table.concat(errors, " | ")
+    end
+end
+
+if not success_ui or not isUsableAetherUI(AetherUI) then
+    warn("Haroon Hub: AetherUI failed to initialize. " .. tostring(err_ui))
     return
 end
 
 pcall(function()
-    if getgenv then
+    GENV.AetherUI = AetherUI
+    if type(getgenv) == "function" then
         getgenv().AetherUI = AetherUI
     end
 end)
