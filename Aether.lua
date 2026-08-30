@@ -1,4 +1,4 @@
-local AETHERUI_LIBRARY_URL = "https://pastebin.com/raw/EvPTXUiY"
+-- [StarterPlayerScripts > LocalScript: HaroonHub_V30_TARGETED_FIXES]
 repeat task.wait() until game:IsLoaded()
 task.wait(1)
 
@@ -570,69 +570,6 @@ end
 
 -- Persistent hover controller: moves smoothly above a moving target and keeps
 -- the player locked at the configured Farm Distance until the target dies.
-local DirectLevelTweenState = {owner=nil, target=nil, destination=nil, tween=nil}
-
--- Direct tween used by Auto Farm Level.
--- One continuous Tween from the current position to a point above the target.
--- No waypoint staging, no per-frame CFrame correction, and no repeated hover
--- rewrites while the same target is alive.
-local function DirectLevelTweenTo(targetCFrame: CFrame, owner: string?): Tween?
-    if typeof(targetCFrame) ~= "CFrame" then return nil end
-    local _, hrp, hum = GetCharacter()
-    if not hrp or not hum or hum.Health <= 0 then return nil end
-    if hum.Sit then pcall(function() hum.Sit = false end) end
-
-    local routeOwner = owner or "AutoFarmLevel"
-    local distance = (hrp.Position - targetCFrame.Position).Magnitude
-    if distance <= 3 then
-        DirectLevelTweenState.owner = routeOwner
-        DirectLevelTweenState.destination = targetCFrame
-        return nil
-    end
-
-    -- Do not restart the same journey every loop tick.
-    if DirectLevelTweenState.owner == routeOwner
-        and DirectLevelTweenState.destination
-        and (DirectLevelTweenState.destination.Position - targetCFrame.Position).Magnitude < 4
-        and currentTween
-        and currentTweenOwner == routeOwner then
-        return currentTween
-    end
-
-    if currentTween then
-        pcall(function() currentTween:Cancel() end)
-        currentTween = nil
-    end
-    activeTeleportGuardId += 1
-
-    local speed = math.clamp(tonumber(_G.Settings.Main["Player Tween Speed"]) or 180, 1, 1000)
-    local duration = math.max(0.12, distance / speed)
-    local tween = TweenService:Create(
-        hrp,
-        TweenInfo.new(duration, Enum.EasingStyle.Linear, Enum.EasingDirection.Out),
-        {CFrame = targetCFrame}
-    )
-
-    currentTween = tween
-    currentTweenOwner = routeOwner
-    DirectLevelTweenState.owner = routeOwner
-    DirectLevelTweenState.destination = targetCFrame
-    DirectLevelTweenState.tween = tween
-
-    tween.Completed:Connect(function()
-        if currentTween == tween then
-            currentTween = nil
-            currentTweenOwner = nil
-        end
-        if DirectLevelTweenState.tween == tween then
-            DirectLevelTweenState.tween = nil
-        end
-    end)
-
-    tween:Play()
-    return tween
-end
-
 local SmoothHoldState = {owner=nil, target=nil, lastDestination=nil, lastAt=0}
 local function SmoothHoldAt(cf: CFrame, owner: string?, refreshRate: number?)
     if typeof(cf) ~= "CFrame" then return nil end
@@ -1499,173 +1436,42 @@ RunService.Heartbeat:Connect(function()
     if (hrp.Position-desired).Magnitude<35 then SmoothHoldAt(CFrame.new(desired), "Raid", 12) end
 end)
 --------------------------------------------------------------------------------
--- 7. AetherUI Framework Integration (ONE URL)
+-- 7. AetherUI Framework Integration (100% Full English Interface)
 --------------------------------------------------------------------------------
--- Only this URL is used. It is expected to return the Lua source of AetherUI.
-local GENV = (type(getgenv) == "function" and getgenv()) or _G
-local AetherUI = rawget(GENV, "AetherUI")
-local success_ui, err_ui = false, nil
-
-local function callGlobal(name, ...)
-    local fn
-    local ok, value = pcall(function() return GENV[name] end)
-    if ok and type(value) == "function" then
-        fn = value
-    else
-        local ok2, value2 = pcall(function() return _G[name] end)
-        if ok2 and type(value2) == "function" then fn = value2 end
-    end
-    if not fn then return false, nil end
-    return pcall(fn, ...)
-end
-
-local function fetchLibrary(url)
-    local last = "request failed"
-
-    -- One URL, one source. Different request APIs are only transport fallbacks.
-    local ok, body = callGlobal("httpget", url)
-    if ok and type(body) == "string" and #body > 0 then
-        return body
-    end
-    if not ok then last = tostring(body) end
-
-    ok, body = pcall(function()
-        return game:HttpGet(url)
+local AetherUI = rawget(getgenv and getgenv() or _G, "AetherUI")
+local success_ui, err_ui = true, nil
+local AETHERUI_SOURCE_URL = (type(getgenv)=="function" and getgenv().HAROON_AETHERUI_URL) or "https://pastebin.com/raw/EvPTXUiY"
+if not AetherUI then
+    success_ui, err_ui = pcall(function()
+        local source = safeHttpGet(AETHERUI_SOURCE_URL)
+        if type(source) ~= "string" or #source < 100 then
+            error("AetherUI download returned empty/invalid source")
+        end
+        -- Repair known malformed AetherUI endings before compilation.
+        if source:find("AetherUAetherUI.Executor", 1, true) then
+            source = source:gsub("return%s+AetherUAetherUI%.Executor%s*=%s*detectExecutorName%(%)", "AetherUI.Executor = detectExecutorName()")
+        end
+        source = source:gsub("\nI%s*$", "\n")
+        local compiled, compileErr = loadstring(source)
+        if not compiled then
+            error("AetherUI source compile failed: " .. tostring(compileErr))
+        end
+        AetherUI = compiled()
+        pcall(function() getgenv().AetherUI = AetherUI end)
     end)
-    if ok and type(body) == "string" and #body > 0 then
-        return body
-    end
-    if not ok then last = tostring(body) end
-
-    local requestFn
-    do
-        local ok1, v1 = pcall(function() return GENV.request end)
-        if ok1 and type(v1) == "function" then requestFn = v1 end
-        if not requestFn then
-            local ok2, v2 = pcall(function() return GENV.http_request end)
-            if ok2 and type(v2) == "function" then requestFn = v2 end
-        end
-        if not requestFn then
-            local ok3, v3 = pcall(function() return GENV.http end)
-            if ok3 and type(v3) == "function" then requestFn = v3 end
-        end
-    end
-    if requestFn then
-        ok, body = pcall(requestFn, {Url = url, Method = "GET"})
-        if ok and type(body) == "table" then
-            local responseBody = body.Body or body.body
-            if type(responseBody) == "string" and #responseBody > 0 then
-                return responseBody
-            end
-        end
-        if not ok then last = tostring(body) end
-    end
-
-    ok, body = pcall(function()
-        return game:GetService("HttpService"):GetAsync(url, false)
-    end)
-    if ok and type(body) == "string" and #body > 0 then
-        return body
-    end
-    if not ok then last = tostring(body) end
-
-    return nil, last
 end
 
-local function compileSource(source)
-    source = tostring(source or "")
-    if #source < 40 then return nil, "library source is empty or too short" end
-
-    -- Remove accidental markdown wrappers while keeping the source itself intact.
-    source = source:gsub("^%s*```lua%s*\n", ""):gsub("^%s*```%s*\n", "")
-    source = source:gsub("\n%s*```%s*$", "\n")
-
-    -- Repair the legacy malformed trailer that appeared in older AetherUI copies.
-    source = source:gsub(
-        "return%s+AetherUAetherUI%.Executor%s*=%s*detectExecutorName%(%)",
-        "AetherUI.Executor = detectExecutorName()"
-    )
-
-    local compiler = nil
-    local ok, fn = pcall(function() return GENV.loadstring end)
-    if ok and type(fn) == "function" then compiler = fn end
-    if not compiler then
-        ok, fn = pcall(function() return _G.loadstring end)
-        if ok and type(fn) == "function" then compiler = fn end
-    end
-    if not compiler then
-        ok, fn = pcall(function() return GENV.load end)
-        if ok and type(fn) == "function" then compiler = fn end
-    end
-    if not compiler then
-        ok, fn = pcall(function() return _G.load end)
-        if ok and type(fn) == "function" then compiler = fn end
-    end
-    if not compiler then return nil, "no loadstring/load compiler is available" end
-
-    local compiled, compileErr
-    local okCompile, result = pcall(compiler, source, "AetherUI")
-    if okCompile and type(result) == "function" then
-        compiled = result
-    else
-        compileErr = result
-        -- Some loadstring implementations only accept one argument.
-        local okCompile2, result2 = pcall(compiler, source)
-        if okCompile2 and type(result2) == "function" then
-            compiled = result2
-        else
-            compileErr = result2 or compileErr
-        end
-    end
-
-    if not compiled then return nil, tostring(compileErr or "compile failed") end
-    return compiled
-end
-
-local function validLibrary(lib)
-    return type(lib) == "table"
-        and type(lib.CreateWindow) == "function"
-        and type(lib.InitLoadingScreen) == "function"
-        and type(lib.InitKeySystem) == "function"
-end
-
-if not validLibrary(AetherUI) then
-    local source, fetchErr = fetchLibrary(AETHERUI_LIBRARY_URL)
-    if not source then
-        err_ui = "AetherUI download failed: " .. tostring(fetchErr)
-    else
-        local chunk, compileErr = compileSource(source)
-        if not chunk then
-            err_ui = "AetherUI compile failed: " .. tostring(compileErr)
-        else
-            local okExec, result = pcall(chunk)
-            if not okExec then
-                err_ui = "AetherUI runtime failed: " .. tostring(result)
-            elseif validLibrary(result) then
-                AetherUI = result
-                success_ui = true
-            else
-                local globalResult = rawget(GENV, "AetherUI") or rawget(_G, "AetherUI")
-                if validLibrary(globalResult) then
-                    AetherUI = globalResult
-                    success_ui = true
-                else
-                    err_ui = "AetherUI loaded but did not return a valid library table"
-                end
-            end
-        end
-    end
-else
-    success_ui = true
-end
-
-if not success_ui or not validLibrary(AetherUI) then
-    warn("Haroon Hub: AetherUI could not start from the configured single URL.")
-    warn("Haroon Hub: " .. tostring(err_ui))
+if not success_ui or not AetherUI then
+    warn("Haroon Hub: Failed to load AetherUI library. Error:", err_ui)
     return
 end
 
-pcall(function() GENV.AetherUI = AetherUI end)
+pcall(function()
+    if getgenv then
+        getgenv().AetherUI = AetherUI
+    end
+end)
+
 
 -- AetherUI Paragraph Compatibility Patch: V7 uses SetContent, older hubs may expect SetDesc.
 local function PatchParagraphObject(paragraph)
@@ -3715,12 +3521,7 @@ local LevelFarmState = {
     QuestRequestAt = 0,
     Target = nil,
     TargetLastSeen = 0,
-    HoverPosition = nil,
-    HoverCFrame = nil,
-    LastTargetPosition = nil,
-    LastRepositionAt = 0,
 }
-
 
 local function GetQuestGuiState()
     local main = LocalPlayer.PlayerGui:FindFirstChild("Main")
@@ -3741,7 +3542,7 @@ local function StartCurrentLevelQuest(hrp)
     if not CommF_ then return false end
     local qPos = CurrentQuest.CFrameQuest.Position + Vector3.new(0, 5, 0)
     if (hrp.Position - qPos).Magnitude > 22 then
-        DirectLevelTweenTo(CurrentQuest.CFrameQuest * CFrame.new(0, 5, 0), "AutoFarmLevelQuest")
+        TweenPlayer(CurrentQuest.CFrameQuest, Vector3.new(0, 5, 0), "AutoFarmLevelQuest")
         return false
     end
 
@@ -3785,77 +3586,31 @@ local function FindNextLevelMob(hrp)
     return best
 end
 
-local LEVEL_REPOSITION_THRESHOLD = 30
-local LEVEL_REPOSITION_COOLDOWN = 1.25
-
 local function FarmLevelTarget(target, hrp)
     if not IsLiveFarmTarget(target) then return false end
-    local root = target:FindFirstChild("HumanoidRootPart")
-    if not root then return false end
-
+    local root = target.HumanoidRootPart
     local height = math.max(10, tonumber(_G.Settings.Main["Farm Distance"]) or 28)
+    local desired = root.Position + Vector3.new(0, height, 0)
     AutoHaki()
 
-    -- Build the hover point once for this exact target. This is the important
-    -- part: we do NOT keep recalculating the player's X/Y/Z every 0.1s.
-    if LevelFarmState.Target ~= target or not LevelFarmState.HoverPosition then
-        local hover = root.Position + Vector3.new(0, height, 0)
-        LevelFarmState.Target = target
-        LevelFarmState.HoverPosition = hover
-        LevelFarmState.HoverCFrame = CFrame.lookAt(hover, root.Position)
-        LevelFarmState.LastTargetPosition = root.Position
-        LevelFarmState.LastRepositionAt = os.clock()
+    -- Travel to the enemy entirely through the shared multi-stage Tween route.
+    SmoothHoldAt(CFrame.lookAt(desired, root.Position), "AutoFarmLevel", 0.20)
 
-        DirectLevelTweenState.owner = nil
-        DirectLevelTweenState.destination = nil
-        DirectLevelTweenState.tween = nil
-        DirectLevelTweenTo(LevelFarmState.HoverCFrame, "AutoFarmLevel")
-        return true
+    -- Do not switch targets while this one is alive. Once the Tween reaches the
+    -- configured hover position, stay above the same mob and keep attacking it.
+    local distance = (hrp.Position - desired).Magnitude
+    if distance <= math.max(12, height + 8) then
+        SmartAttackMob(target)
     end
-
-    -- While the same mob is alive, stay at the already reached hover point.
-    -- Only create another Tween if the mob genuinely moved away from that point.
-    -- This removes the old constant up/down/left/right jitter.
-    local mobMoved = LevelFarmState.LastTargetPosition
-        and (root.Position - LevelFarmState.LastTargetPosition).Magnitude
-        or math.huge
-    local now = os.clock()
-    local tweenRunning = currentTweenOwner == "AutoFarmLevel" and currentTween ~= nil
-    local playerNearHover = (hrp.Position - LevelFarmState.HoverPosition).Magnitude <= math.max(7, height * 0.25)
-
-    if not tweenRunning and not playerNearHover and mobMoved >= LEVEL_REPOSITION_THRESHOLD
-        and now - LevelFarmState.LastRepositionAt >= LEVEL_REPOSITION_COOLDOWN then
-        LevelFarmState.HoverPosition = root.Position + Vector3.new(0, height, 0)
-        LevelFarmState.HoverCFrame = CFrame.lookAt(LevelFarmState.HoverPosition, root.Position)
-        LevelFarmState.LastTargetPosition = root.Position
-        LevelFarmState.LastRepositionAt = now
-        DirectLevelTweenTo(LevelFarmState.HoverCFrame, "AutoFarmLevel")
-        return true
-    end
-
-    if tweenRunning then
-        return true
-    end
-
-    -- No movement correction here. Just attack from the fixed hover position.
-    SmartAttackMob(target)
     return true
 end
-
 
 task.spawn(function()
     while task.wait(0.10) do
         if not _G.Settings.Main["Auto Farm Level"] then
             LevelFarmState.Target = nil
-            LevelFarmState.HoverPosition = nil
-            LevelFarmState.HoverCFrame = nil
-            LevelFarmState.LastTargetPosition = nil
             if currentTweenOwner == "AutoFarmLevel" or currentTweenOwner == "AutoFarmLevelQuest" then
                 CancelPlayerTween()
-                DirectLevelTweenState.owner = nil
-                DirectLevelTweenState.target = nil
-                DirectLevelTweenState.destination = nil
-                DirectLevelTweenState.tween = nil
             end
             continue
         end
@@ -3875,9 +3630,6 @@ task.spawn(function()
             -- Quest first. Only after the quest is actually active do we lock onto mobs.
             if not HasCurrentLevelQuest() then
                 LevelFarmState.Target = nil
-                LevelFarmState.HoverPosition = nil
-                LevelFarmState.HoverCFrame = nil
-                LevelFarmState.LastTargetPosition = nil
                 StartCurrentLevelQuest(hrp)
                 return
             end
@@ -3887,16 +3639,13 @@ task.spawn(function()
             if not IsLiveFarmTarget(LevelFarmState.Target) then
                 LevelFarmState.Target = FindNextLevelMob(hrp)
                 LevelFarmState.TargetLastSeen = os.clock()
-                LevelFarmState.HoverPosition = nil
-                LevelFarmState.HoverCFrame = nil
-                LevelFarmState.LastTargetPosition = nil
             end
 
             if IsLiveFarmTarget(LevelFarmState.Target) then
                 FarmLevelTarget(LevelFarmState.Target, hrp)
             else
                 -- No target spawned yet: move smoothly to the quest mob area and wait.
-                DirectLevelTweenTo(CurrentQuest.CFrameMon * CFrame.new(0, math.max(10, tonumber(_G.Settings.Main["Farm Distance"]) or 28), 0), "AutoFarmLevel")
+                TweenPlayer(CurrentQuest.CFrameMon, Vector3.new(0, math.max(10, tonumber(_G.Settings.Main["Farm Distance"]) or 28), 0), "AutoFarmLevel")
             end
         end)
     end
