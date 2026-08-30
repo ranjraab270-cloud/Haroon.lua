@@ -1587,8 +1587,8 @@ if not isUsableAetherUI(AetherUI) then
     end
 
     -- Primary URL used by the hub, followed by the previous AetherUI URL.
-    if configuredUrl ~= "https://pastebin.com/raw/y3wUhBTN" then
-        table.insert(candidates, "https://pastebin.com/raw/y3wUhBTN")
+    if configuredUrl ~= "https://pastebin.com/raw/EvPTXUiY" then
+        table.insert(candidates, "https://pastebin.com/raw/EvPTXUiY")
     end
     if configuredUrl ~= "https://pastebin.com/raw/yeULgMe0" then
         table.insert(candidates, "https://pastebin.com/raw/yeULgMe0")
