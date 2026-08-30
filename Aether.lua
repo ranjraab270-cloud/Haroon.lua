@@ -1,4 +1,4 @@
--- [StarterPlayerScripts > LocalScript: HaroonHub_V30_TARGETED_FIXES]
+local AETHERUI_LIBRARY_URL = "https://pastebin.com/raw/EvPTXUiY"
 repeat task.wait() until game:IsLoaded()
 task.wait(1)
 
@@ -1499,10 +1499,12 @@ RunService.Heartbeat:Connect(function()
     if (hrp.Position-desired).Magnitude<35 then SmoothHoldAt(CFrame.new(desired), "Raid", 12) end
 end)
 --------------------------------------------------------------------------------
--- 7. AetherUI Framework Integration (100% Full English Interface)
+-- 7. AetherUI Framework Integration (single-link, multi-host compatible)
 --------------------------------------------------------------------------------
--- Robust AetherUI bootstrap: tolerate executors that expose different HTTP/load APIs
--- and retry the known working library URL before aborting.
+-- IMPORTANT: AETHERUI_LIBRARY_URL above is the ONLY URL used to load AetherUI.
+-- Pastebin, Pastefy, GitHub blob/file, GitHub raw and Gist URLs are normalized
+-- automatically. The loader also tolerates libraries that return nothing but
+-- assign AetherUI into the global environment.
 local GENV = (type(getgenv) == "function" and getgenv()) or _G
 local AetherUI = rawget(GENV, "AetherUI")
 local success_ui, err_ui = true, nil
@@ -1515,51 +1517,146 @@ local function getGlobalFunction(name)
     return nil
 end
 
-local function compileLuaSource(source)
-    if type(source) ~= "string" or #source < 100 then
-        return nil, "empty/invalid source"
+local function normalizeLibraryURL(url)
+    url = tostring(url or ""):gsub("%s+$", "")
+    if url == "" then return "" end
+
+    -- Pastebin: https://pastebin.com/ABC123 -> /raw/ABC123
+    do
+        local id = url:match("^https?://pastebin%.com/([%w]+)$")
+        if id then return "https://pastebin.com/raw/" .. id end
     end
 
-    -- Repair a couple of malformed endings seen in older AetherUI revisions.
+    -- Pastefy: https://pastefy.app/ABC123 -> /ABC123/raw
+    do
+        local id = url:match("^https?://(?:www%.)?pastefy%.app/([%w]+)$")
+        if id then return "https://pastefy.app/" .. id .. "/raw" end
+    end
+
+    -- GitHub file page: /owner/repo/blob/branch/path/to/file.lua -> raw host
+    do
+        local owner, repo, branch, path = url:match("^https?://github%.com/([^/]+)/([^/]+)/blob/([^/]+)/(.+)$")
+        if owner and repo and branch and path then
+            return "https://raw.githubusercontent.com/" .. owner .. "/" .. repo .. "/" .. branch .. "/" .. path
+        end
+    end
+
+    -- GitHub gist page -> raw gist endpoint
+    do
+        local user, gist = url:match("^https?://gist%.github%.com/([^/]+)/([%w]+)$")
+        if user and gist then
+            return "https://gist.githubusercontent.com/" .. user .. "/" .. gist .. "/raw"
+        end
+    end
+
+    return url
+end
+
+local function httpGetOnce(url)
+    local direct = getGlobalFunction("httpget")
+    if direct then
+        local ok, result = pcall(direct, url)
+        if ok and type(result) == "string" and #result > 0 then
+            return result
+        end
+    end
+
+    local gameHttp = nil
+    pcall(function()
+        if type(game.HttpGet) == "function" then
+            gameHttp = function(u) return game:HttpGet(u) end
+        end
+    end)
+    if gameHttp then
+        local ok, result = pcall(gameHttp, url)
+        if ok and type(result) == "string" and #result > 0 then
+            return result
+        end
+    end
+
+    local req = getGlobalFunction("request") or getGlobalFunction("http_request") or getGlobalFunction("http")
+    if req then
+        local ok, response = pcall(req, {Url = url, Method = "GET"})
+        if ok and type(response) == "table" then
+            local body = response.Body or response.body
+            if type(body) == "string" and #body > 0 then
+                return body
+            end
+        end
+    end
+
+    local okHS, resultHS = pcall(function()
+        return HttpService:GetAsync(url, false)
+    end)
+    if okHS and type(resultHS) == "string" and #resultHS > 0 then
+        return resultHS
+    end
+
+    return nil
+end
+
+local function fetchLibrarySource(url)
+    local normalized = normalizeLibraryURL(url)
+    if normalized == "" then
+        return nil, "AETHERUI_LIBRARY_URL is empty"
+    end
+
+    local lastErr = "HTTP request failed"
+    for attempt = 1, 3 do
+        local body = httpGetOnce(normalized)
+        if type(body) == "string" and #body >= 40 then
+            -- Some hosting pages return a code block instead of raw text.
+            local code = body:match("<pre[^>]*>([%s%S]-)</pre>")
+            if code and #code > 40 then body = code end
+            body = body:gsub("^%s*```[%w_%-]*%s*\n", ""):gsub("\n%s*```%s*$", "")
+            return body, normalized
+        end
+        lastErr = "empty/invalid response (attempt " .. attempt .. ")"
+        task.wait(0.35 * attempt)
+    end
+    return nil, lastErr
+end
+
+local function compileLuaSource(source)
+    if type(source) ~= "string" or #source < 40 then
+        return nil, "empty/invalid Lua source"
+    end
+
+    -- Known malformed trailer from older AetherUI revisions.
     source = source:gsub("\nI%s*$", "\n")
     source = source:gsub(
         "return%s+AetherUAetherUI%.Executor%s*=%s*detectExecutorName%(%)",
         "AetherUI.Executor = detectExecutorName()"
     )
 
-    local compiler = getGlobalFunction("loadstring")
-    if compiler then
-        local ok, fnOrErr = pcall(compiler, source)
-        if ok and type(fnOrErr) == "function" then
-            return fnOrErr
-        end
-        return nil, tostring(fnOrErr)
+    local compiler = getGlobalFunction("loadstring") or getGlobalFunction("load")
+    if not compiler then
+        return nil, "this executor does not expose loadstring/load"
     end
 
-    -- Luau environments may expose load instead of loadstring.
-    local loader = getGlobalFunction("load")
-    if loader then
-        local ok, fnOrErr = pcall(loader, source, "AetherUI")
-        if ok and type(fnOrErr) == "function" then
-            return fnOrErr
-        end
+    local ok, fnOrErr
+    if compiler == getGlobalFunction("load") then
+        ok, fnOrErr = pcall(compiler, source, "AetherUI")
+    else
+        ok, fnOrErr = pcall(compiler, source)
+    end
+    if not ok or type(fnOrErr) ~= "function" then
         return nil, tostring(fnOrErr)
     end
-
-    return nil, "no supported Lua compiler (loadstring/load) was found"
+    return fnOrErr
 end
 
 local function isUsableAetherUI(lib)
     return type(lib) == "table"
-       and type(lib.CreateWindow) == "function"
-       and type(lib.InitLoadingScreen) == "function"
-       and type(lib.InitKeySystem) == "function"
+        and type(lib.CreateWindow) == "function"
+        and type(lib.InitLoadingScreen) == "function"
+        and type(lib.InitKeySystem) == "function"
 end
 
-local function tryLoadAetherUI(url)
-    local source = safeHttpGet(url)
-    if type(source) ~= "string" or #source < 100 then
-        return nil, "HTTP returned empty/invalid source"
+local function loadOneLibrary()
+    local source, sourceInfo = fetchLibrarySource(AETHERUI_LIBRARY_URL)
+    if not source then
+        return nil, "download failed: " .. tostring(sourceInfo)
     end
 
     local compiled, compileErr = compileLuaSource(source)
@@ -1567,60 +1664,42 @@ local function tryLoadAetherUI(url)
         return nil, "compile failed: " .. tostring(compileErr)
     end
 
-    local ok, libOrErr = pcall(compiled)
+    local ok, result = pcall(compiled)
     if not ok then
-        return nil, "library runtime failed: " .. tostring(libOrErr)
+        return nil, "library runtime failed: " .. tostring(result)
     end
-    if not isUsableAetherUI(libOrErr) then
-        return nil, "library loaded but required API functions are missing"
+
+    -- Libraries may return the module OR assign it globally.
+    if isUsableAetherUI(result) then
+        return result
     end
-    return libOrErr
+    local globalLib = rawget(GENV, "AetherUI") or rawget(_G, "AetherUI")
+    if isUsableAetherUI(globalLib) then
+        return globalLib
+    end
+
+    return nil, "library executed, but no compatible AetherUI API was returned"
 end
 
 if not isUsableAetherUI(AetherUI) then
     success_ui = false
-    local configuredUrl = type(GENV.HAROON_AETHERUI_URL) == "string" and GENV.HAROON_AETHERUI_URL or ""
-    local candidates = {}
-
-    if configuredUrl ~= "" then
-        table.insert(candidates, configuredUrl)
-    end
-
-    -- Primary URL used by the hub, followed by the previous AetherUI URL.
-    if configuredUrl ~= "https://pastebin.com/raw/EvPTXUiY" then
-        table.insert(candidates, "https://pastebin.com/raw/EvPTXUiY")
-    end
-    if configuredUrl ~= "https://pastebin.com/raw/yeULgMe0" then
-        table.insert(candidates, "https://pastebin.com/raw/yeULgMe0")
-    end
-
-    local errors = {}
-    for _, url in ipairs(candidates) do
-        local lib, loadErr = tryLoadAetherUI(url)
-        if lib then
-            AetherUI = lib
-            success_ui = true
-            err_ui = nil
-            break
-        end
-        table.insert(errors, url .. " -> " .. tostring(loadErr))
-    end
-
-    if not success_ui then
-        err_ui = table.concat(errors, " | ")
+    local lib, loadErr = loadOneLibrary()
+    if lib then
+        AetherUI = lib
+        success_ui = true
+        err_ui = nil
+    else
+        err_ui = loadErr
     end
 end
 
 if not success_ui or not isUsableAetherUI(AetherUI) then
-    warn("Haroon Hub: AetherUI failed to initialize. " .. tostring(err_ui))
+    warn("Haroon Hub: AetherUI failed to load from the single configured URL: " .. tostring(err_ui))
     return
 end
 
 pcall(function()
     GENV.AetherUI = AetherUI
-    if type(getgenv) == "function" then
-        getgenv().AetherUI = AetherUI
-    end
 end)
 
 
