@@ -588,6 +588,50 @@ local function SmoothHoldAt(cf: CFrame, owner: string?, refreshRate: number?)
     return currentTween
 end
 
+-- Direct one-segment tween used by Level Farm. Unlike the generic travel
+-- system, this never creates rise/right/left/down stages: it moves in one
+-- straight Tween to the locked hover point and then stays there.
+local function TweenPlayerDirect(pos: CFrame | Vector3 | BasePart, offset: Vector3?, owner: string?): Tween?
+    local char, hrp, hum = GetCharacter()
+    if not char or not hrp or not hum or hum.Health <= 0 then return nil end
+    local targetCFrame
+    if typeof(pos) == "CFrame" then targetCFrame = pos
+    elseif typeof(pos) == "Vector3" then targetCFrame = CFrame.new(pos)
+    elseif typeof(pos) == "Instance" and pos:IsA("BasePart") then targetCFrame = pos.CFrame
+    else return nil end
+    if offset then targetCFrame = targetCFrame * CFrame.new(offset) end
+    local flatLook = Vector3.new(targetCFrame.LookVector.X,0,targetCFrame.LookVector.Z)
+    if flatLook.Magnitude < 0.01 then flatLook = Vector3.new(0,0,-1) end
+    targetCFrame = CFrame.lookAt(targetCFrame.Position,targetCFrame.Position+flatLook)
+    local routeOwner = owner or "Direct"
+    if currentTween and currentTweenOwner == routeOwner and activeRoute.destination
+       and (activeRoute.destination.Position-targetCFrame.Position).Magnitude <= 2 then
+        return currentTween
+    end
+    CancelPlayerTween()
+    activeTeleportGuardId += 1
+    local routeId = activeTeleportGuardId
+    currentTweenOwner = routeOwner
+    activeRoute.owner = routeOwner
+    activeRoute.destination = targetCFrame
+    local speed = math.clamp(tonumber(_G.Settings.Main["Player Tween Speed"]) or 180,1,300)
+    local distance = (hrp.Position-targetCFrame.Position).Magnitude
+    if distance <= 1 then return nil end
+    local duration = math.max(0.08,distance/speed)
+    local info = TweenInfo.new(duration,Enum.EasingStyle.Linear,Enum.EasingDirection.Out)
+    local tw = TweenService:Create(hrp,info,{CFrame=targetCFrame})
+    currentTween = tw
+    tw.Completed:Connect(function()
+        if routeId ~= activeTeleportGuardId then return end
+        currentTween = nil
+        currentTweenOwner = nil
+        activeRoute.owner = nil
+        activeRoute.destination = nil
+    end)
+    tw:Play()
+    return tw
+end
+
 local function TweenIslandAtSafeHeight(cf: CFrame, owner: string?)
     return TweenPlayer(cf, nil, owner or "IslandTeleport")
 end
@@ -3513,45 +3557,60 @@ UserInputService.JumpRequest:Connect(function()
 end)
 
 --------------------------------------------------------------------------------
--- 8. Main Farming Loop
+-- 8. Main Farming Loop - Replaced with extracted Level Farm logic
+-- Source: Pastebin t3mCTMzy (Level Farm Quest behavior)
+-- Adapted to this hub's settings, remotes and Tween-only movement.
 --------------------------------------------------------------------------------
 local LevelFarmState = {
-    LastQuestName = nil,
-    LastQuestLevel = nil,
-    QuestRequestAt = 0,
     Target = nil,
-    TargetLastSeen = 0,
+    QuestRequestAt = 0,
+    QuestName = nil,
+    QuestLevel = nil,
+    MoveOwner = "AutoFarmLevel",
 }
 
-local function GetQuestGuiState()
+local function LevelQuestGui()
     local main = LocalPlayer.PlayerGui:FindFirstChild("Main")
-    local questGui = main and main:FindFirstChild("Quest")
-    if not questGui then return false, "" end
-    local container = questGui:FindFirstChild("Container")
-    local titleFrame = container and container:FindFirstChild("QuestTitle")
-    local title = titleFrame and titleFrame:FindFirstChild("Title")
-    return questGui.Visible == true, (title and title.Text) or ""
+    local quest = main and main:FindFirstChild("Quest")
+    local container = quest and quest:FindFirstChild("Container")
+    local qtitle = container and container:FindFirstChild("QuestTitle")
+    local title = qtitle and qtitle:FindFirstChild("Title")
+    return quest, (title and title.Text) or ""
 end
 
-local function HasCurrentLevelQuest()
-    local visible, title = GetQuestGuiState()
-    return visible and title ~= "" and string.find(title, CurrentQuest.NameMon, 1, true) ~= nil
+local function LevelHasQuest()
+    local quest, title = LevelQuestGui()
+    return quest and quest.Visible and CurrentQuest and CurrentQuest.NameMon
+        and title:find(CurrentQuest.NameMon, 1, true) ~= nil
 end
 
-local function StartCurrentLevelQuest(hrp)
-    if not CommF_ then return false end
-    local qPos = CurrentQuest.CFrameQuest.Position + Vector3.new(0, 5, 0)
-    if (hrp.Position - qPos).Magnitude > 22 then
-        TweenPlayer(CurrentQuest.CFrameQuest, Vector3.new(0, 5, 0), "AutoFarmLevelQuest")
-        return false
+local function LevelQuestActive()
+    local quest, title = LevelQuestGui()
+    return quest and quest.Visible and title ~= ""
+end
+
+local function LevelStartQuest(hrp)
+    if not CommF_ or not CurrentQuest then return false end
+
+    -- Quest pickup is intentionally instant/direct. This is only for the quest
+    -- interaction point; combat movement remains Tween/locked-hover based.
+    local qcf = CurrentQuest.CFrameQuest
+    if (hrp.Position - qcf.Position).Magnitude > 8 then
+        CancelPlayerTween()
+        pcall(function()
+            hrp.CFrame = qcf
+            hrp.AssemblyLinearVelocity = Vector3.zero
+            hrp.AssemblyAngularVelocity = Vector3.zero
+        end)
+        task.wait(0.05)
     end
 
     local now = os.clock()
-    if LevelFarmState.LastQuestName ~= CurrentQuest.NameQuest
-        or LevelFarmState.LastQuestLevel ~= CurrentQuest.LevelQuest
-        or now - LevelFarmState.QuestRequestAt > 2.5 then
-        LevelFarmState.LastQuestName = CurrentQuest.NameQuest
-        LevelFarmState.LastQuestLevel = CurrentQuest.LevelQuest
+    if LevelFarmState.QuestName ~= CurrentQuest.NameQuest
+        or LevelFarmState.QuestLevel ~= CurrentQuest.LevelQuest
+        or now - LevelFarmState.QuestRequestAt > 2 then
+        LevelFarmState.QuestName = CurrentQuest.NameQuest
+        LevelFarmState.QuestLevel = CurrentQuest.LevelQuest
         LevelFarmState.QuestRequestAt = now
         pcall(function()
             CommF_:InvokeServer("StartQuest", CurrentQuest.NameQuest, CurrentQuest.LevelQuest)
@@ -3560,56 +3619,86 @@ local function StartCurrentLevelQuest(hrp)
     return true
 end
 
-local function IsLiveFarmTarget(target)
-    if not target or not target.Parent then return false end
-    local root = target:FindFirstChild("HumanoidRootPart")
-    local hum = target:FindFirstChildOfClass("Humanoid")
-    return root ~= nil and hum ~= nil and hum.Health > 0
-end
-
-local function FindNextLevelMob(hrp)
+local function LevelFindMob(hrp)
     local enemies = workspace:FindFirstChild("Enemies")
-    if not enemies then return nil end
-    local best, bestDistance = nil, math.huge
-    for _, mob in ipairs(enemies:GetChildren()) do
-        if mob:IsA("Model") and mob.Name == CurrentQuest.Mon then
-            local root = mob:FindFirstChild("HumanoidRootPart")
-            local hum = mob:FindFirstChildOfClass("Humanoid")
+    if not enemies or not CurrentQuest then return nil end
+
+    local nearest, nearestDistance = nil, math.huge
+    for _, v in ipairs(enemies:GetChildren()) do
+        if v:IsA("Model") and v.Name == CurrentQuest.Mon then
+            local root = v:FindFirstChild("HumanoidRootPart")
+            local hum = v:FindFirstChildOfClass("Humanoid")
             if root and hum and hum.Health > 0 then
-                local distance = (hrp.Position - root.Position).Magnitude
-                if distance < bestDistance then
-                    best, bestDistance = mob, distance
+                local d = (hrp.Position - root.Position).Magnitude
+                if d < nearestDistance then
+                    nearest, nearestDistance = v, d
                 end
             end
         end
     end
-    return best
+    return nearest
 end
 
-local function FarmLevelTarget(target, hrp)
-    if not IsLiveFarmTarget(target) then return false end
-    local root = target.HumanoidRootPart
+local function LevelTweenAboveMob(mob)
+    local root = mob and mob:FindFirstChild("HumanoidRootPart")
+    if not root then return false end
+
     local height = math.max(10, tonumber(_G.Settings.Main["Farm Distance"]) or 28)
-    local desired = root.Position + Vector3.new(0, height, 0)
-    AutoHaki()
+    -- Lock one combat Y level. The player will never be raised/lowered again
+    -- while this target is alive.
+    LevelFarmState.HoverY = root.Position.Y + height
+    local destination = CFrame.lookAt(
+        Vector3.new(root.Position.X, LevelFarmState.HoverY, root.Position.Z),
+        root.Position
+    )
 
-    -- Travel to the enemy entirely through the shared multi-stage Tween route.
-    SmoothHoldAt(CFrame.lookAt(desired, root.Position), "AutoFarmLevel", 0.20)
+    -- Exactly one Tween into the combat position.
+    TweenPlayerDirect(destination, nil, LevelFarmState.MoveOwner)
+    return true
+end
 
-    -- Do not switch targets while this one is alive. Once the Tween reaches the
-    -- configured hover position, stay above the same mob and keep attacking it.
-    local distance = (hrp.Position - desired).Magnitude
-    if distance <= math.max(12, height + 8) then
-        SmartAttackMob(target)
+local function LevelKillLockedMob(mob, hrp)
+    if not mob or not mob.Parent then return false end
+    local root = mob:FindFirstChild("HumanoidRootPart")
+    local hum = mob:FindFirstChildOfClass("Humanoid")
+    if not root or not hum or hum.Health <= 0 then return false end
+
+    local height = math.max(10, tonumber(_G.Settings.Main["Farm Distance"]) or 28)
+    local hoverY = LevelFarmState.HoverY or (root.Position.Y + height)
+    local hover = Vector3.new(root.Position.X, hoverY, root.Position.Z)
+
+    -- Once the initial Tween arrives, keep a CONSTANT Y. Only X/Z follows the
+    -- enemy, so there is no repeated up/down correction or vertical bobbing.
+    if currentTweenOwner == LevelFarmState.MoveOwner and currentTween then
+        return false
     end
+
+    if (hrp.Position - hover).Magnitude > 3 then
+        pcall(function()
+            hrp.CFrame = CFrame.lookAt(hover, root.Position)
+            hrp.AssemblyLinearVelocity = Vector3.zero
+            hrp.AssemblyAngularVelocity = Vector3.zero
+        end)
+    else
+        pcall(function()
+            hrp.CFrame = CFrame.lookAt(hover, root.Position)
+            hrp.AssemblyLinearVelocity = Vector3.zero
+            hrp.AssemblyAngularVelocity = Vector3.zero
+        end)
+    end
+
+    AutoHaki()
+    EquipWeapon(_G.Settings.Main["Select Weapon"] or "Melee")
+    SmartAttackMob(mob)
     return true
 end
 
 task.spawn(function()
-    while task.wait(0.10) do
+    while task.wait(0.08) do
         if not _G.Settings.Main["Auto Farm Level"] then
             LevelFarmState.Target = nil
-            if currentTweenOwner == "AutoFarmLevel" or currentTweenOwner == "AutoFarmLevelQuest" then
+            LevelFarmState.HoverY = nil
+            if currentTweenOwner == LevelFarmState.MoveOwner then
                 CancelPlayerTween()
             end
             continue
@@ -3619,40 +3708,49 @@ task.spawn(function()
             local char, hrp, hum = GetCharacter()
             if not char or not hrp or not hum or hum.Health <= 0 then return end
 
-            if BFSubmergedStep() then
-                AutoHaki()
-                return
-            end
-
             CheckQuest()
-            AutoHaki()
+            if not CurrentQuest then return end
 
-            -- Quest first. Only after the quest is actually active do we lock onto mobs.
-            if not HasCurrentLevelQuest() then
+            -- 1) Quest: direct Tween only, then StartQuest.
+            if not LevelHasQuest() then
                 LevelFarmState.Target = nil
-                StartCurrentLevelQuest(hrp)
+                LevelFarmState.HoverY = nil
+                LevelStartQuest(hrp)
                 return
             end
 
-            -- Keep the exact same mob until it dies. This prevents hopping between
-            -- nearby enemies and guarantees a clean kill -> next target flow.
-            if not IsLiveFarmTarget(LevelFarmState.Target) then
-                LevelFarmState.Target = FindNextLevelMob(hrp)
-                LevelFarmState.TargetLastSeen = os.clock()
+            -- 2) Keep the current target locked until it dies.
+            if not LevelFarmState.Target
+                or not LevelFarmState.Target.Parent
+                or not LevelFarmState.Target:FindFirstChildOfClass("Humanoid")
+                or LevelFarmState.Target:FindFirstChildOfClass("Humanoid").Health <= 0 then
+                LevelFarmState.Target = LevelFindMob(hrp)
+                LevelFarmState.HoverY = nil
+                if LevelFarmState.Target then
+                    LevelTweenAboveMob(LevelFarmState.Target)
+                else
+                    -- No mob yet: direct Tween to the quest's mob area once.
+                    if currentTweenOwner ~= LevelFarmState.MoveOwner then
+                        TweenPlayerDirect(
+                            CurrentQuest.CFrameMon,
+                            Vector3.new(0, math.max(10, tonumber(_G.Settings.Main["Farm Distance"]) or 28), 0),
+                            LevelFarmState.MoveOwner
+                        )
+                    end
+                    return
+                end
             end
 
-            if IsLiveFarmTarget(LevelFarmState.Target) then
-                FarmLevelTarget(LevelFarmState.Target, hrp)
-            else
-                -- No target spawned yet: move smoothly to the quest mob area and wait.
-                TweenPlayer(CurrentQuest.CFrameMon, Vector3.new(0, math.max(10, tonumber(_G.Settings.Main["Farm Distance"]) or 28), 0), "AutoFarmLevel")
-            end
+            -- 3) Stay above this exact mob and kill it. The next mob is selected
+            -- only after this one is dead.
+            LevelKillLockedMob(LevelFarmState.Target, hrp)
         end)
     end
 end)
 
 --------------------------------------------------------------------------------
 -- 9. Sub-Farms Engine (Bones, Elite Hunter, Citizen Quests)
+
 --------------------------------------------------------------------------------
 task.spawn(function()
     while task.wait(0.2) do
