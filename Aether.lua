@@ -105,12 +105,8 @@ _G.Settings = {
     Main = {
         ["Auto Farm Level"] = false,
         ["Auto Farm Level (New)"] = false,
-        ["Selected Combat Style"] = "Melee",
-        ["Auto Farm Pirates"] = false,
-        ["Auto Farm Soul Reaper"] = false,
-        ["Auto Pray"] = false,
-        ["Auto Trade Bones"] = false,
-        ["Auto Try Luck"] = false,
+        ["Auto Pirates"] = false,
+        ["Selected Boss Sea"] = "Sea 1",
         ["Include Boss Quests"] = false,
         ["Select Weapon"] = "Melee",
         ["Farm Distance"] = 28,
@@ -140,21 +136,23 @@ _G.Settings = {
     },
     Fruits = {
         ["Fruit ESP"] = false,
+        ["Auto Teleport Fruits"] = false,
         ["Player ESP"] = false,
         ["Chest ESP"] = false,
         ["Island ESP"] = false,
         ["Fruit Sniper"] = false,
         ["Auto Store Fruit"] = false,
-        ["Auto Teleport Fruits"] = false,
-        ["Auto Random Fruits"] = false,
         ["Auto Drop Fruit"] = false,
         ["Auto Roll Fruit"] = false,
     },
     SubFarm = {
         ["Auto Elite Hunter"] = false,
+        ["Auto Trade Bones"] = false,
+        ["Auto Pray"] = false,
+        ["Auto Try Luck"] = false,
+        ["Auto Kill Soul Reaper"] = false,
         ["Auto Elite Hunter Hop"] = false,
         ["Auto Farm Bone"] = false,
-        ["Auto Farm Bones"] = false,
         ["Auto Accept Bone Quest"] = false,
         ["Auto Random Surprise"] = false,
         ["Auto Chest Tween"] = false,
@@ -200,14 +198,14 @@ _G.Settings = {
     },
     Sea = {
         ["Selected Boat"] = "Guardian",
+        ["Auto Farm Sea"] = false,
+        ["Auto Drive Boat"] = false,
+        ["Selected Sea Farm"] = "Sea Beast",
+        ["Selected Danger Level"] = "Normal",
         ["Selected Zone"] = "Zone 5",
         ["Boat Tween Speed"] = 200,
         ["Boat Height"] = 30,
         ["Sail Boat"] = false,
-        ["Auto Farm Sea"] = false,
-        ["Auto Drive Boat"] = false,
-        ["Sea Farm Target"] = "Terrorshark",
-        ["Sea Danger Level"] = "Level 1",
         ["Ship Noclip"] = false,
         ["Auto Attack Sea Events"] = false,
         ["Sea Event Attack Range"] = 50,
@@ -234,7 +232,6 @@ _G.Settings = {
     Raid = {
         ["Selected Chip"] = "Flame",
         ["Auto Dungeon / Raid"] = false,
-        ["Auto Farm Raid"] = false,
         ["Auto Buy Chip & Start"] = false,
         ["Auto Clear Dungeon Waves"] = false,
         ["Auto Next Island"] = false,
@@ -243,7 +240,6 @@ _G.Settings = {
     },
     Stats = {
         ["Auto Stats"] = false,
-        ["Points Amount"] = 1,
         ["Selected Stat"] = "Melee",
         ["Points Per Tick"] = 1,
         ["Auto Melee"] = false,
@@ -252,18 +248,31 @@ _G.Settings = {
         ["Auto Gun"] = false,
         ["Auto Blox Fruit"] = false,
     },
-    Teleports = {},
+    Teleports = {
+        ["Selected Island"] = "Windmill",
+    },
     Visuals = {
         ["ESP Players"] = false,
+        ["ESP Fruits"] = false,
         ["ESP Bosses"] = false,
         ["ESP Chests"] = false,
         ["ESP Enemies"] = false,
         ["ESP Mirage Island"] = false,
         ["ESP Kitsune Island"] = false,
-        ["ESP Fruits"] = false,
     },
     ItemsQuests = {
         ["Auto Sword Quest"] = false,
+        ["Auto Second Sea"] = false,
+        ["Auto Get Saber"] = false,
+        ["Auto Get Pole"] = false,
+        ["Auto Get Saw"] = false,
+        ["Auto Get Warden Sword"] = false,
+        ["Auto Get Trident"] = false,
+        ["Auto Yama"] = false,
+        ["Auto Tushita"] = false,
+        ["Auto Cursed Dual Katana"] = false,
+        ["Auto Rainbow Haki"] = false,
+        ["Auto Rip Indra"] = false,
         ["Selected Sword Quest"] = "Saber V2",
         ["Auto Farm CDK"] = false,
         ["Auto Farm TTK"] = false,
@@ -275,17 +284,7 @@ _G.Settings = {
     },
     Quests = {
         ["Auto Citizen Quest"] = false,
-        ["Auto Second Sea"] = false,
-        ["Auto Get Saber"] = false,
-        ["Auto Get Sword Pole"] = false,
-        ["Auto Get Sword Saw"] = false,
-        ["Auto Get Sword Wardens"] = false,
-        ["Auto Get Sword Trident"] = false,
-        ["Auto Farm Greybeard"] = false,
-        ["Auto Yama"] = false,
-        ["Auto Tushita"] = false,
-        ["Auto Rainbow Haki"] = false,
-        ["Auto Rip Indra"] = false,
+        ["Auto Greybeard"] = false,
         ["Auto Yama Puzzle"] = false,
         ["Auto Tushita Puzzle"] = false,
         ["Auto Colosseum Puzzle"] = false,
@@ -368,7 +367,7 @@ end
 
 local function AnyMovementFeatureActive()
     local S = _G.Settings
-    return S.Main["Auto Farm Level"] or S.Main["Auto Farm Level (New)"] or S.Main["Auto Farm Pirates"] or S.Main["Auto Farm Soul Reaper"] or S.Main["Auto Farm Material"] or S.Main["Auto Farm Boss"] or
+    return S.Main["Auto Farm Level"] or S.Main["Auto Farm Material"] or S.Main["Auto Farm Boss"] or
            S.Main["Auto Farm All Boss"] or S.SubFarm["Auto Farm Bone"] or S.Cake["Auto Katakuri"] or
            S.Sea["Sail Boat"] or S.Race["Auto Find Mirage"] or S.Sea["Auto Find Kitsune Island"] or
            S.Raid["Auto Dungeon / Raid"] or S.Cake["Auto Kill Cake Prince"] or S.Cake["Auto Kill Dough King"] or S.Main["Auto Farm Material"] or S.SubFarm["Auto Farm Leviathan"] or S.Sea["Auto Frozen Dimension"] or S.Sea["Auto Drive Hydra"] or S.SubFarm["Auto Chest Tween"] or S.Race["Auto Train"] or
@@ -1390,1806 +1389,162 @@ do
         end
     end
 end
-AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Modules & Auto Engines...", function()
+AetherUI:InitLoadingScreen("Aether Hub V1.0 • Blox Fruits", "Initializing Modules & Auto Engines...", function()
     AetherUI:InitKeySystem({"HAROON-2025-VIP", "HAROON-KEY-100"}, function()
-        AetherUI:Notify({Title = "Haroon Hub V12 Active", Content = "Successfully loaded all modules in 100% English!", Duration = 4})
+        AetherUI:Notify({Title = "Aether Hub Active", Content = "Successfully loaded all modules in 100% English!", Duration = 4})
 
         local Window = AetherUI:CreateWindow({
-            Title = "Haroon Hub | Blox Fruits Master",
+            Title = "Aether Hub | Blox Fruits Master",
             Subtitle = "by: 3amek4222",
             ToggleKey = Enum.KeyCode.RightControl
         })
 
-        local function RequestedFindAliveModel(name)
-            for _,root in ipairs({workspace:FindFirstChild("Enemies"), workspace, ReplicatedStorage}) do
-                if root then
-                    local obj = root:FindFirstChild(name, true)
-                    if obj and obj:IsA("Model") then
-                        local hum=obj:FindFirstChildOfClass("Humanoid")
-                        if not hum or hum.Health > 0 then return obj end
-                    end
-                end
-            end
-            return nil
-        end
-        local function RequestedProgressText()
-            local direct = _G.Settings.Cake["Auto Katakuri V1"] and "Cake Prince tracker active" or "Cake Prince tracker idle"
-            local progress = LocalPlayer.PlayerGui:FindFirstChild("Main") and LocalPlayer.PlayerGui.Main:FindFirstChild("Quest")
-            if progress and progress.Container and progress.Container.QuestTitle and progress.Container.QuestTitle.Title then
-                local t=tostring(progress.Container.QuestTitle.Title.Text or "")
-                local n=t:match("(%d+)%s*/%s*500")
-                if n then return n.."/500" end
-            end
-            return direct
-        end
-
         local MainTab = Window:CreateTab("Main", "rbxassetid://6034287594")
+        local ItemsQuestTab = Window:CreateTab("Quest | Items", "rbxassetid://6034453535")
+        local FruitsRaidTab = Window:CreateTab("Fruits / Raids", "rbxassetid://6034453535")
         local StatsTab = Window:CreateTab("Stats", "rbxassetid://6031280882")
-        local QuestsTab = Window:CreateTab("Quest | Items", "rbxassetid://6034453535")
-        local ShopTab = Window:CreateTab("Shop", "rbxassetid://6031280882")
-        local SubFarmTab = Window:CreateTab("Subs Farm", "rbxassetid://6034834832")
-        local RaidTab = Window:CreateTab("Fruits / Raids", "rbxassetid://6034834832")
-        local SeaTab = Window:CreateTab("Sea", "rbxassetid://6034453535")
-        local RaceTab = Window:CreateTab("Race V4 & Mirage", "rbxassetid://6034453535")
-        local ItemsTab = Window:CreateTab("Items & Swords", "rbxassetid://6034834832")
-        local FruitsTab = Window:CreateTab("Fruits & Sniper", "rbxassetid://6034453535")
-        local DragonDojoTab = Window:CreateTab("Dragon Dojo", "rbxassetid://6034453535")
-        local CombatTab = Window:CreateTab("Combat & PVP", "rbxassetid://6034834832")
-        local CraftingTab = Window:CreateTab("Crafting", "rbxassetid://6034834832")
-        local TeleportsTab = Window:CreateTab("Teleport", "rbxassetid://6034453535")
+        local TeleportTab = Window:CreateTab("Teleport", "rbxassetid://6034453535")
         local VisualTab = Window:CreateTab("Visuals", "rbxassetid://6034453535")
-        local MiscTab = Window:CreateTab("Misc & Server Status", "rbxassetid://6031280882")
-        local SettingsTab = Window:CreateTab("Settings", "rbxassetid://6031280882")
+        local ShopTab = Window:CreateTab("Shop", "rbxassetid://6031280882")
+        local SeaTab = Window:CreateTab("Sea", "rbxassetid://6034453535")
 
-        ---------------------------------------------------------
-        -- 📌 1. TAB: MAIN FARM
-        ---------------------------------------------------------
-        MainTab:CreateSection("Combat System")
-        MainTab:CreateDropdown("Select Hit System", "CombatSystemDropdown", {"Melee", "Sword", "Gun", "Blox Fruit"}, "Melee", function(selected)
-            _G.Settings.Main["Selected Combat Style"] = selected
-            _G.Settings.Main["Select Weapon"] = selected
-        end)
-
+        MainTab:CreateDropdown("Select Hit System", "HitSystem", {"Melee","Sword","Gun","Blox Fruit"}, "Melee", function(v) _G.Settings.Main["Select Weapon"] = v end)
+        MainTab:CreateToggle("Auto Farm Level", "AFL", _G.Settings.Main["Auto Farm Level"], function(v) _G.Settings.Main["Auto Farm Level"]=v; if not v then StopTween() end end)
+        MainTab:CreateToggle("Auto Farm Level (New)", "AFLNew", _G.Settings.Main["Auto Farm Level (New)"], function(v) _G.Settings.Main["Auto Farm Level (New)"]=v; if v then _G.Settings.Main["Auto Farm Level"]=false end; if not v then StopTween("SubmergedTP") end end)
         MainTab:CreateSection("Boss")
-        local BossStatusPara = MainTab:CreateParagraph({Title="Boss Spawn", Desc="🔴 Not Spawned", Image="rbxassetid://6034834832", ImageSize=20})
-        MainTab:CreateDropdown("Select Boss", "BossWorldDropdown", BossList, BossList[1], function(selected)
-            _G.Settings.Main["Selected Boss"] = selected
-        end)
-        MainTab:CreateToggle("Auto Farm Boss", "AutoFarmBossRequestedFlag", _G.Settings.Main["Auto Farm Boss"], function(state)
-            _G.Settings.Main["Auto Farm Boss"] = state
-            if not state then StopTween("BossFarm") end
-        end)
-
+        local BossStatusPara=MainTab:CreateParagraph({Title="Boss Spawn:",Desc="🔴"})
+        local AllBosses={
+            "Sea 1 | The Gorilla King","Sea 1 | Bobby","Sea 1 | The Saw","Sea 1 | Mob Leader","Sea 1 | Vice Admiral","Sea 1 | Saber Expert","Sea 1 | Warden","Sea 1 | Chief Warden","Sea 1 | Swan","Sea 1 | Magma Admiral","Sea 1 | Fishman Lord","Sea 1 | Wysper","Sea 1 | Thunder God","Sea 1 | Cyborg","Sea 1 | Ice Admiral","Sea 1 | Greybeard","Sea 1 | Darkbeard",
+            "Sea 2 | Diamond","Sea 2 | Jeremy","Sea 2 | Fajita","Sea 2 | Don Swan","Sea 2 | Smoke Admiral","Sea 2 | Awakened Ice Admiral","Sea 2 | Tide Keeper","Sea 2 | Darkbeard","Sea 2 | Cursed Captain","Sea 2 | Order",
+            "Sea 3 | Stone","Sea 3 | Hydra Leader","Sea 3 | Kilo Admiral","Sea 3 | Captain Elephant","Sea 3 | Beautiful Pirate","Sea 3 | Cake Queen","Sea 3 | Longma","Sea 3 | Soul Reaper","Sea 3 | Dough King","Sea 3 | Katakuri","Sea 3 | Island Boy","Sea 3 | Grand Devotee"
+        }
+        local BossMap={}; for _,v in ipairs(AllBosses) do BossMap[v]=v:gsub("^Sea %d+ %| ","") end
+        MainTab:CreateDropdown("Select Boss", "BossSelector", AllBosses, AllBosses[1], function(v) _G.Settings.Main["Selected Boss"]=BossMap[v] or v; _G.Settings.Main["Selected Boss Sea"]=v:match("^(Sea %d+)") or "Sea 1" end)
+        MainTab:CreateToggle("Auto Farm Boss", "AFBoss", _G.Settings.Main["Auto Farm Boss"], function(v) _G.Settings.Main["Auto Farm Boss"]=v; if not v then StopTween("BossFarm") end end)
         MainTab:CreateSection("Pirate Raid")
-        MainTab:CreateToggle("Auto Farm Pirates", "AutoFarmPiratesFlag", _G.Settings.Main["Auto Farm Pirates"], function(state)
-            _G.Settings.Main["Auto Farm Pirates"] = state
-            if not state then StopTween("PirateRaid") end
-        end)
-
+        MainTab:CreateToggle("Auto Farm Pirates", "AFPirates", _G.Settings.Main["Auto Pirates"], function(v) _G.Settings.Main["Auto Pirates"]=v; if not v then StopTween("PirateRaid") end end)
         MainTab:CreateSection("Haunted Castle")
-        local SoulReaperPara = MainTab:CreateParagraph({Title="Soul Reaper Spawned", Desc="🔴", Image="rbxassetid://6034834832", ImageSize=20})
-        MainTab:CreateToggle("Auto Farm Bones", "AutoFarmBonesMainFlag", _G.Settings.SubFarm["Auto Farm Bones"], function(state)
-            _G.Settings.SubFarm["Auto Farm Bones"] = state
-            _G.Settings.SubFarm["Auto Farm Bone"] = state
-            if not state then StopTween("BoneFarm") end
-        end)
-        MainTab:CreateToggle("Auto Pray", "AutoPrayFlag", _G.Settings.Main["Auto Pray"], function(state)
-            _G.Settings.Main["Auto Pray"] = state
-        end)
-        MainTab:CreateToggle("Auto Trade Bones", "AutoTradeBonesFlag", _G.Settings.Main["Auto Trade Bones"], function(state)
-            _G.Settings.Main["Auto Trade Bones"] = state
-        end)
-        MainTab:CreateToggle("Auto Try Luck", "AutoTryLuckFlag", _G.Settings.Main["Auto Try Luck"], function(state)
-            _G.Settings.Main["Auto Try Luck"] = state
-            _G.Settings.SubFarm["Auto Random Surprise"] = state
-        end)
-        MainTab:CreateToggle("Auto Kill Soul Reaper", "AutoSoulReaperFlag", _G.Settings.Main["Auto Farm Soul Reaper"], function(state)
-            _G.Settings.Main["Auto Farm Soul Reaper"] = state
-            if not state then StopTween("SoulReaper") end
-        end)
-
+        local SoulStatusPara=MainTab:CreateParagraph({Title="Soul Reaper Spawned:",Desc="🔴"})
+        MainTab:CreateToggle("Auto Farm Bones", "BonesFarm", _G.Settings.SubFarm["Auto Farm Bone"], function(v) _G.Settings.SubFarm["Auto Farm Bone"]=v; if not v then StopTween("BoneFarm") end end)
+        MainTab:CreateToggle("Auto Pray", "AutoPray", _G.Settings.SubFarm["Auto Pray"], function(v) _G.Settings.SubFarm["Auto Pray"]=v end)
+        MainTab:CreateToggle("Auto Trade Bones", "AutoTradeBones", _G.Settings.SubFarm["Auto Trade Bones"], function(v) _G.Settings.SubFarm["Auto Trade Bones"]=v end)
+        MainTab:CreateToggle("Auto Try Luck", "AutoTryLuck", _G.Settings.SubFarm["Auto Try Luck"], function(v) _G.Settings.SubFarm["Auto Try Luck"]=v end)
+        MainTab:CreateToggle("Auto Kill Soul Reaper", "AutoSoul", _G.Settings.SubFarm["Auto Kill Soul Reaper"], function(v) _G.Settings.SubFarm["Auto Kill Soul Reaper"]=v end)
         MainTab:CreateSection("Katakuri")
-        local CakePrinceProgressPara = MainTab:CreateParagraph({Title="Check Cake Prince", Desc="100/500", Image="rbxassetid://6034834832", ImageSize=20})
-        MainTab:CreateToggle("Auto Farm Katakuri V1", "AutoKatakuriV1Flag", _G.Settings.Cake["Auto Katakuri V1"], function(state)
-            _G.Settings.Cake["Auto Katakuri V1"] = state
-            _G.Settings.Cake["Auto Kill Cake Prince"] = state
-            _G.Settings.Cake["Auto Spawn Cake Prince"] = state
-        end)
-        MainTab:CreateToggle("Auto Farm Katakuri V2", "AutoKatakuriV2Flag", _G.Settings.Cake["Auto Katakuri V2"], function(state)
-            _G.Settings.Cake["Auto Katakuri V2"] = state
-            _G.Settings.Cake["Auto Kill Dough King"] = state
-        end)
-
+        local CakeStatusPara=MainTab:CreateParagraph({Title="Check Cake Prince:",Desc="100/500"})
+        MainTab:CreateToggle("Auto Farm Katakuri V1", "KatV1", _G.Settings.Cake["Auto Katakuri V1"], function(v) _G.Settings.Cake["Auto Katakuri V1"]=v; _G.Settings.Cake["Auto Kill Cake Prince"]=v; _G.Settings.Cake["Auto Spawn Cake Prince"]=v end)
+        MainTab:CreateToggle("Auto Farm Katakuri V2", "KatV2", _G.Settings.Cake["Auto Katakuri V2"], function(v) _G.Settings.Cake["Auto Katakuri V2"]=v; _G.Settings.Cake["Auto Kill Dough King"]=v end)
         MainTab:CreateSection("Factory")
-        MainTab:CreateToggle("Auto Farm Factory (2nd)", "AutoFarmFactory2Flag", _G.Settings.Main["Auto Farm Factory"], function(state)
-            _G.Settings.Main["Auto Farm Factory"] = state
-            if not state then StopTween("Factory") end
-        end)
-
+        MainTab:CreateToggle("Auto Farm Factory (2nd)", "Factory2", _G.Settings.Main["Auto Farm Factory"], function(v) _G.Settings.Main["Auto Farm Factory"]=v; if not v then StopTween("Factory") end end)
         MainTab:CreateSection("Materials")
-        MainTab:CreateDropdown("Select World / Material", "MaterialWorldDropdown", MaterialList, _G.Settings.Main["Selected Material"] or MaterialList[1], function(selected)
-            _G.Settings.Main["Selected Material"] = selected
-        end)
-        MainTab:CreateToggle("Auto Farm Material", "FarmMatMainFlag", _G.Settings.Main["Auto Farm Material"], function(state)
-            _G.Settings.Main["Auto Farm Material"] = state
-            if not state then MaterialState.Target=nil; StopTween("Material") end
-        end)
+        local MaterialChoices={"Sea 1 | Leather + Scrap Metal","Sea 1 | Angel Wings","Sea 1 | Magma Ore","Sea 1 | Fish Tail","Sea 2 | Radioactive Material","Sea 2 | Ectoplasm","Sea 2 | Mystic Droplet","Sea 2 | Vampire Fang","Sea 3 | Scrap Metal","Sea 3 | Demonic Wisp","Sea 3 | Conjured Cocoa","Sea 3 | Dragon Scale","Sea 3 | Gunpowder","Sea 3 | Fish Tail","Sea 3 | Mini Tusk"}
+        MainTab:CreateDropdown("Select Material", "MaterialSelector", MaterialChoices, MaterialChoices[1], function(v) _G.Settings.Main["Selected Material"]=v:gsub("^Sea %d+ %| ","") end)
+        MainTab:CreateToggle("Auto Farm Material", "AutoMaterial", _G.Settings.Main["Auto Farm Material"], function(v) _G.Settings.Main["Auto Farm Material"]=v; if not v then StopTween("Material") end end)
 
+        ItemsQuestTab:CreateSection("Sea 1 Quest")
+        ItemsQuestTab:CreateToggle("Auto Second Sea", "AutoSecondSea", _G.Settings.ItemsQuests["Auto Second Sea"], function(v) _G.Settings.ItemsQuests["Auto Second Sea"]=v end)
+        ItemsQuestTab:CreateSection("Greybeard Boss")
+        local GreyStatusPara=ItemsQuestTab:CreateParagraph({Title="Greybeard Boss:",Desc="🔴"})
+        ItemsQuestTab:CreateToggle("Auto Farm Greybeard", "GreybeardFarm", _G.Settings.Quests["Auto Greybeard"], function(v) _G.Settings.Quests["Auto Greybeard"]=v; if not v then StopTween("BossFarm") end end)
+        ItemsQuestTab:CreateSection("Swords Quest")
+        ItemsQuestTab:CreateToggle("Auto Get Saber", "AutoSaber", false, function(v) _G.Settings.ItemsQuests["Auto Get Saber"]=v end)
+        ItemsQuestTab:CreateToggle("Auto Get Sword Pole", "AutoPole", false, function(v) _G.Settings.ItemsQuests["Auto Get Pole"]=v end)
+        ItemsQuestTab:CreateToggle("Auto Get Sword Saw", "AutoSaw", false, function(v) _G.Settings.ItemsQuests["Auto Get Saw"]=v end)
+        ItemsQuestTab:CreateToggle("Auto Get Sword Wardens", "AutoWarden", false, function(v) _G.Settings.ItemsQuests["Auto Get Warden Sword"]=v end)
+        ItemsQuestTab:CreateToggle("Auto Get Sword Trident", "AutoTrident", false, function(v) _G.Settings.ItemsQuests["Auto Get Trident"]=v end)
+        ItemsQuestTab:CreateSection("3rd Sea • Farm")
+        ItemsQuestTab:CreateToggle("Auto Elite Hunter", "Elite3", _G.Settings.SubFarm["Auto Elite Hunter"], function(v) _G.Settings.SubFarm["Auto Elite Hunter"]=v end)
+        ItemsQuestTab:CreateToggle("Auto Rip Indra", "RipIndra", false, function(v) _G.Settings.ItemsQuests["Auto Rip Indra"]=v end)
+        ItemsQuestTab:CreateSection("Sword")
+        ItemsQuestTab:CreateToggle("Auto Yama", "AutoYama", false, function(v) _G.Settings.ItemsQuests["Auto Yama"]=v end)
+        ItemsQuestTab:CreateToggle("Auto Tushita", "AutoTushita", false, function(v) _G.Settings.ItemsQuests["Auto Tushita"]=v; _G.Settings.Quests["Auto Tushita Puzzle"]=v end)
+        ItemsQuestTab:CreateToggle("Auto Cursed Dual Katana", "AutoCDK2", false, function(v) _G.Settings.ItemsQuests["Auto Cursed Dual Katana"]=v; _G.Settings.ItemsQuests["Auto Farm CDK"]=v end)
+        ItemsQuestTab:CreateSection("Quest")
+        ItemsQuestTab:CreateToggle("Auto Citizen Quest", "Citizen", _G.Settings.Quests["Auto Citizen Quest"], function(v) _G.Settings.Quests["Auto Citizen Quest"]=v end)
+        ItemsQuestTab:CreateToggle("Auto Rainbow Haki", "Rainbow", false, function(v) _G.Settings.ItemsQuests["Auto Rainbow Haki"]=v end)
 
-        MainTab:CreateToggle("Auto Farm Level", "AutoFarmFlag", _G.Settings.Main["Auto Farm Level"], function(state)
-            _G.Settings.Main["Auto Farm Level"] = state
-            if not state then StopTween() end
-        end)
+        FruitsRaidTab:CreateSection("Fruits")
+        FruitsRaidTab:CreateToggle("Auto Store Fruits", "StoreFruit", _G.Settings.Fruits["Auto Store Fruit"], function(v) _G.Settings.Fruits["Auto Store Fruit"]=v end)
+        FruitsRaidTab:CreateToggle("Auto Teleport Fruits", "TPFruit", _G.Settings.Fruits["Auto Teleport Fruits"], function(v) _G.Settings.Fruits["Auto Teleport Fruits"]=v end)
+        FruitsRaidTab:CreateToggle("Auto Random Fruits", "RandomFruit", _G.Settings.Fruits["Auto Roll Fruit"], function(v) _G.Settings.Fruits["Auto Roll Fruit"]=v end)
+        FruitsRaidTab:CreateSection("Raid")
+        FruitsRaidTab:CreateDropdown("Select Raid", "RaidSelector", DungeonChips, DungeonChips[1], function(v) _G.Settings.Raid["Selected Chip"]=v end)
+        FruitsRaidTab:CreateToggle("Auto Farm Raid", "AutoRaid2", _G.Settings.Raid["Auto Dungeon / Raid"], function(v) _G.Settings.Raid["Auto Dungeon / Raid"]=v; if not v then StopTween() end end)
+        FruitsRaidTab:CreateToggle("Auto Buy Chip", "AutoChip2", _G.Settings.Raid["Auto Buy Chip & Start"], function(v) _G.Settings.Raid["Auto Buy Chip & Start"]=v end)
 
-        MainTab:CreateToggle("Auto Farm Level (New)", "AutoFarmLevelNewFlag", _G.Settings.Main["Auto Farm Level (New)"], function(state)
-            _G.Settings.Main["Auto Farm Level (New)"] = state
-            if not state then StopTween("SubmergedNew") end
-        end)
+        StatsTab:CreateSlider("Points Amount", "PointsAmount", 1, 100, _G.Settings.Stats["Points Per Tick"], function(v) _G.Settings.Stats["Points Per Tick"]=v end)
+        StatsTab:CreateToggle("Auto Stats", "AutoStats2", _G.Settings.Stats["Auto Stats"], function(v) _G.Settings.Stats["Auto Stats"]=v end)
+        StatsTab:CreateSection("Select Stats")
+        StatsTab:CreateToggle("Melee", "StatMelee", false, function(v) if v then _G.Settings.Stats["Selected Stat"]="Melee" end end)
+        StatsTab:CreateToggle("Defense", "StatDefense", false, function(v) if v then _G.Settings.Stats["Selected Stat"]="Defense" end end)
+        StatsTab:CreateToggle("Gun", "StatGun", false, function(v) if v then _G.Settings.Stats["Selected Stat"]="Gun" end end)
+        StatsTab:CreateToggle("Sword", "StatSword", false, function(v) if v then _G.Settings.Stats["Selected Stat"]="Sword" end end)
+        StatsTab:CreateToggle("Demon Fruit", "StatFruit", false, function(v) if v then _G.Settings.Stats["Selected Stat"]="Demon Fruit" end end)
 
-        MainTab:CreateSection("Update 28 • Submerged Island")
-        MainTab:CreateParagraph({Title="Max Level", Desc="2800 (MAX) | Lv. 1 → 2800 complete route | 2525+ Tiki → Submerged | Coral Pirate Lv. 2625 → Grand Devotee Lv. 2725", Image="rbxassetid://6034453535", ImageSize=20})
-        MainTab:CreateButton("Smart Teleport: Submerged Island", function()
-            local level = BFGetLevel()
-            if not World3 or level < 2600 then
-                AetherUI:Notify({Title="Submerged Island", Content="Requires Third Sea and Level 2600+.", Duration=3})
-                return
-            end
-            local picked = SubmergedQuests[#SubmergedQuests]
-            for _, route in ipairs(SubmergedQuests) do
-                if level >= route.Min and level <= route.Max then picked = route break end
-            end
-            local giver = BFFindSubmergedQuest(picked.Giver)
-            local cf = giver and GetModelCFrame(giver)
-            if not cf then cf = picked.Giver == "Submerged Quest Giver 1" and CFrame.new(-11034,-201,-9330) or picked.Giver == "Submerged Quest Giver 2" and CFrame.new(-10439,-316,-9484) or CFrame.new(-10420,-405,-10470) end
-            SmartTeleportIsland("Submerged Island", cf * CFrame.new(0,-100,0), "SubmergedTP")
-            AetherUI:Notify({Title="Submerged Island", Content="Smart route selected for Level "..tostring(level).." → "..picked.Mob..".", Duration=3})
-        end)
+        TeleportTab:CreateSection("Travel")
+        TeleportTab:CreateButton("Teleport To Sea 1", function() if CommF_ then CommF_:InvokeServer("TravelMain") end end)
+        TeleportTab:CreateButton("Teleport To Sea 2", function() if CommF_ then CommF_:InvokeServer("TravelDressrosa") end end)
+        TeleportTab:CreateButton("Teleport To Sea 3", function() if CommF_ then CommF_:InvokeServer("TravelZou") end end)
+        TeleportTab:CreateSection("Islands")
+        local IslandChoices={"Windmill","Jungle","Pirate Village","Desert","Snow Island","Marineford","Colosseum","Sky Island","Prison","Magma Village","Fountain City","Cafe","Green Zone","Cursed Ship","Ice Castle","Hot & Cold","Snow Mountain","Graveyard","Factory","Colosseum Sea 2","Dark Arena","Mansion","Port Town","Hydra Island","Floating Turtle","Haunted Castle","Tiki Outpost","Great Tree","Castle on the Sea","Cake Land","Peanut Island"}
+        TeleportTab:CreateDropdown("Select Island", "IslandSelector", IslandChoices, "Windmill", function(v) _G.Settings.Teleports["Selected Island"]=v end)
+        TeleportTab:CreateButton("Teleport To Island", function() local sea=World1 and FullIslandLocations.Sea1 or World2 and FullIslandLocations.Sea2 or FullIslandLocations.Sea3; local cf=sea and sea[_G.Settings.Teleports["Selected Island"]]; if cf then SmartTeleportIsland(_G.Settings.Teleports["Selected Island"],cf,"IslandTeleport") else AetherUI:Notify({Title="Teleport",Content="Island not available in current sea.",Duration=2}) end end)
+        TeleportTab:CreateSection("Race V4")
+        TeleportTab:CreateButton("Teleport To Temple Of Time", function() local found; for _,obj in ipairs(workspace:GetDescendants()) do local n=obj.Name:lower(); if n=="temple of time" or n=="templeoftime" then found=obj break end end; local cf=found and (found:IsA("BasePart") and found.CFrame or found.PrimaryPart and found.PrimaryPart.CFrame); if cf then TweenPlayer(cf,nil,"TempleOfTime") else AetherUI:Notify({Title="Temple Of Time",Content="Temple location not detected in this server.",Duration=3}) end end)
 
-        task.spawn(function()
-            while task.wait(0.5) do
-                pcall(function()
-                    local selected=tostring(_G.Settings.Main["Selected Boss"] or "None")
-                    local boss=RequestedFindAliveModel(selected)
-                    if BossStatusPara then BossStatusPara:SetContent(boss and "🟢 Spawned" or "🔴 Not Spawned") end
-                    local sr=RequestedFindAliveModel("Soul Reaper")
-                    if SoulReaperPara then SoulReaperPara:SetContent(sr and "🟢" or "🔴") end
-                    if CakePrinceProgressPara then CakePrinceProgressPara:SetContent(RequestedProgressText()) end
-                end)
-            end
-        end)
+        VisualTab:CreateSection("ESP")
+        VisualTab:CreateToggle("ESP Players", "ESPPlayers2", _G.Settings.Visuals["ESP Players"], function(v) _G.Settings.Visuals["ESP Players"]=v end)
+        VisualTab:CreateToggle("ESP Fruits", "ESPFruits2", _G.Settings.Visuals["ESP Fruits"], function(v) _G.Settings.Visuals["ESP Fruits"]=v; _G.Settings.Fruits["Fruit ESP"]=v end)
+        VisualTab:CreateToggle("ESP Enemies", "ESPEnemies2", _G.Settings.Visuals["ESP Enemies"], function(v) _G.Settings.Visuals["ESP Enemies"]=v end)
+        VisualTab:CreateToggle("ESP Chests", "ESPChests2", _G.Settings.Visuals["ESP Chests"], function(v) _G.Settings.Visuals["ESP Chests"]=v end)
+        VisualTab:CreateSection("Sea 3")
+        VisualTab:CreateToggle("ESP Mirage", "ESPMirage2", _G.Settings.Visuals["ESP Mirage Island"], function(v) _G.Settings.Visuals["ESP Mirage Island"]=v end)
+        VisualTab:CreateToggle("ESP Kitsune", "ESPKitsune2", _G.Settings.Visuals["ESP Kitsune Island"], function(v) _G.Settings.Visuals["ESP Kitsune Island"]=v end)
 
-        MainTab:CreateToggle("Include Boss Quests", "IncludeBossQuestFlag", false, function(state)
-            _G.Settings.Main["Include Boss Quests"] = state
-        end)
-
-        MainTab:CreateDropdown("Select Farm Weapon", "WeaponFlag", {"Melee", "Sword", "Blox Fruit", "Gun"}, "Melee", function(selected)
-            _G.Settings.Main["Select Weapon"] = selected
-        end)
-
-        MainTab:CreateSlider("Farm Distance Above Target", "FarmDistFlag", 10, 50, 28, function(val)
-            _G.Settings.Main["Farm Distance"] = val
-        end)
-
-        MainTab:CreateSlider("Player Tween Speed", "TweenSpeedFlag", 100, 300, 180, function(val)
-            _G.Settings.Main["Player Tween Speed"] = val
-        end)
-
-        MainTab:CreateToggle("Fast Attack Speed", "FastAttackFlag", false, function(state)
-            _G.Settings.Main["Fast Attack"] = state
-        end)
-
-        MainTab:CreateSection("Cake Prince & Dough King")
-        MainTab:CreateToggle("Auto Kill Cake Prince", "AutoKillCakePrinceFlag", false, function(state)
-            _G.Settings.Cake["Auto Kill Cake Prince"] = state
-            if not state then StopTween("CakePrince") end
-        end)
-        MainTab:CreateToggle("Auto Spawn Cake Prince", "AutoSpawnCakePrinceFlag", false, function(state)
-            _G.Settings.Cake["Auto Spawn Cake Prince"] = state
-        end)
-        MainTab:CreateToggle("Auto Kill Dough King", "AutoKillDoughKingFlag", false, function(state)
-            _G.Settings.Cake["Auto Kill Dough King"] = state
-            if not state then StopTween("DoughKing") end
-        end)
-
-        MainTab:CreateSection("Materials Farming")
-
-        MainTab:CreateDropdown("Select Material", "MatDropdownFlag", MaterialList, MaterialList[1], function(selected)
-            _G.Settings.Main["Selected Material"] = selected
-        end)
-
-        MainTab:CreateToggle("Auto Farm Material", "FarmMatFlag", false, function(state)
-            _G.Settings.Main["Auto Farm Material"] = state
-            if not state then MaterialState.Target=nil; StopTween("Material") end
-        end)
-
-        MainTab:CreateSection("Boss Farming")
-
-        MainTab:CreateDropdown("Select Target Boss", "BossDropdownFlag", BossList, BossList[1], function(selected)
-            _G.Settings.Main["Selected Boss"] = selected
-        end)
-
-        MainTab:CreateToggle("Auto Farm Selected Boss", "FarmBossFlag", _G.Settings.Main["Auto Farm Boss"], function(state)
-            _G.Settings.Main["Auto Farm Boss"] = state
-            if not state then StopTween("BossFarm") end
-        end)
-
-        MainTab:CreateToggle("Auto Farm All Available Bosses", "FarmAllBossFlag", _G.Settings.Main["Auto Farm All Boss"], function(state)
-            _G.Settings.Main["Auto Farm All Boss"] = state
-            if not state then StopTween("BossFarm") end
-        end)
-
-        MainTab:CreateToggle("Auto Farm Factory Core", "AutoFarmFactoryFlag", _G.Settings.Main["Auto Farm Factory"], function(state)
-            _G.Settings.Main["Auto Farm Factory"] = state
-            if not state then StopTween("Factory") end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 2. TAB: ALL QUESTS (Including Citizen Quests)
-        ---------------------------------------------------------
-        QuestsTab:CreateSection("Sea 1 Quest")
-        QuestsTab:CreateToggle("Auto Second Sea", "AutoSecondSeaFlag", _G.Settings.Quests["Auto Second Sea"], function(state)
-            _G.Settings.Quests["Auto Second Sea"] = state
-        end)
-        QuestsTab:CreateSection("Greybeard Boss")
-        local GreybeardPara = QuestsTab:CreateParagraph({Title="Greybeard Boss", Desc="🔴", Image="rbxassetid://6034834832", ImageSize=20})
-        task.spawn(function()
-            while task.wait(0.6) do
-                pcall(function()
-                    if GreybeardPara then
-                        GreybeardPara:SetContent(RequestedFindAliveModel("Greybeard") and "🟢 Spawned" or "🔴 Not Spawned")
-                    end
-                end)
-            end
-        end)
-        QuestsTab:CreateToggle("Auto Farm Greybeard", "AutoGreybeardFlag", _G.Settings.Quests["Auto Farm Greybeard"], function(state)
-            _G.Settings.Quests["Auto Farm Greybeard"] = state
-            _G.Settings.Main["Selected Boss"] = "Greybeard"
-            _G.Settings.Main["Auto Farm Boss"] = state
-        end)
-
-        QuestsTab:CreateSection("Swords Quest")
-        QuestsTab:CreateToggle("Auto Get Saber", "AutoGetSaberFlag", _G.Settings.Quests["Auto Get Saber"], function(s) _G.Settings.Quests["Auto Get Saber"]=s end)
-        QuestsTab:CreateToggle("Auto Get Sword Pole", "AutoGetPoleFlag", _G.Settings.Quests["Auto Get Sword Pole"], function(s) _G.Settings.Quests["Auto Get Sword Pole"]=s end)
-        QuestsTab:CreateToggle("Auto Get Sword Saw", "AutoGetSawFlag", _G.Settings.Quests["Auto Get Sword Saw"], function(s) _G.Settings.Quests["Auto Get Sword Saw"]=s end)
-        QuestsTab:CreateToggle("Auto Get Sword Wardens", "AutoGetWardensFlag", _G.Settings.Quests["Auto Get Sword Wardens"], function(s) _G.Settings.Quests["Auto Get Sword Wardens"]=s end)
-        QuestsTab:CreateToggle("Auto Get Sword Trident", "AutoGetTridentFlag", _G.Settings.Quests["Auto Get Sword Trident"], function(s) _G.Settings.Quests["Auto Get Sword Trident"]=s end)
-
-        QuestsTab:CreateSection("3rd Sea Farm")
-        QuestsTab:CreateToggle("Auto Elite Hunter", "QuestEliteHunterFlag", _G.Settings.SubFarm["Auto Elite Hunter"], function(s) _G.Settings.SubFarm["Auto Elite Hunter"]=s end)
-        QuestsTab:CreateToggle("Auto Rip Indra", "AutoRipIndraFlag", _G.Settings.Quests["Auto Rip Indra"], function(s) _G.Settings.Quests["Auto Rip Indra"]=s end)
-        QuestsTab:CreateSection("Sword")
-        QuestsTab:CreateToggle("Auto Yama", "AutoYamaFlag", _G.Settings.Quests["Auto Yama"], function(s) _G.Settings.Quests["Auto Yama"]=s; _G.Settings.Quests["Auto Yama Puzzle"]=s end)
-        QuestsTab:CreateToggle("Auto Tushita", "AutoTushitaFlag", _G.Settings.Quests["Auto Tushita"], function(s) _G.Settings.Quests["Auto Tushita"]=s; _G.Settings.Quests["Auto Tushita Puzzle"]=s end)
-        QuestsTab:CreateToggle("Auto Cursed Dual Katana", "QuestCDKFlag", _G.Settings.ItemsQuests["Auto Farm CDK"], function(s) _G.Settings.ItemsQuests["Auto Farm CDK"]=s end)
-        QuestsTab:CreateSection("Quest")
-        QuestsTab:CreateToggle("Auto Citizen Quest", "CitizenQuestRequestedFlag", _G.Settings.Quests["Auto Citizen Quest"], function(s) _G.Settings.Quests["Auto Citizen Quest"]=s end)
-        QuestsTab:CreateToggle("Auto Rainbow Haki", "RainbowHakiFlag", _G.Settings.Quests["Auto Rainbow Haki"], function(s) _G.Settings.Quests["Auto Rainbow Haki"]=s end)
-
-        QuestsTab:CreateSection("Quest Controller")
-
-        QuestsTab:CreateButton("Accept Current Level Quest", function()
-            CheckQuest()
-            if CommF_ then CommF_:InvokeServer("StartQuest", CurrentQuest.NameQuest, CurrentQuest.LevelQuest) end
-            AetherUI:Notify({Title = "Quests", Content = "Accepted quest: " .. CurrentQuest.NameMon, Duration = 2})
-        end)
-
-        QuestsTab:CreateButton("Abandon Current Quest", function()
-            if CommF_ then CommF_:InvokeServer("AbandonQuest") end
-            AetherUI:Notify({Title = "Quests", Content = "Current quest abandoned!", Duration = 2})
-        end)
-
-        QuestsTab:CreateSection("Citizen Quests Module")
-
-        QuestsTab:CreateToggle("Auto Citizen Quest Complete", "CitizenQuestFlag", false, function(state)
-            _G.Settings.Quests["Auto Citizen Quest"] = state
-            if not state then StopTween() end
-        end)
-
-        QuestsTab:CreateButton("Start Citizen Quest Immediately", function()
-            if CommF_ then
-                CommF_:InvokeServer("CitizenQuestProgress", "Citizen")
-                CommF_:InvokeServer("StartQuest", "CitizenQuest", 1)
-                AetherUI:Notify({Title = "Citizen Quest", Content = "Citizen Quest Started!", Duration = 2})
-            end
-        end)
-
-        QuestsTab:CreateSection("Puzzles & Special Challenges")
-        QuestsTab:CreateToggle("Auto Yama Puzzle", "YamaPuzzleFlag", false, function(s) _G.Settings.Quests["Auto Yama Puzzle"] = s; if not s then StopTween("Puzzle") end end)
-        QuestsTab:CreateToggle("Auto Tushita Puzzle", "TushitaPuzzleFlag", false, function(s) _G.Settings.Quests["Auto Tushita Puzzle"] = s; if not s then StopTween("Puzzle") end end)
-        QuestsTab:CreateToggle("Auto Colosseum Puzzle", "ColosseumPuzzleFlag", false, function(s) _G.Settings.Quests["Auto Colosseum Puzzle"] = s; if not s then StopTween("Puzzle") end end)
-        QuestsTab:CreateToggle("Auto Dough / Cake Challenges", "DoughChallengeFlag", false, function(s) _G.Settings.Quests["Auto Dough Challenges"] = s; if not s then StopTween("Puzzle") end end)
-        QuestsTab:CreateToggle("Auto Soul Guitar Puzzle", "SoulGuitarPuzzleFlag", false, function(s) _G.Settings.Quests["Auto Soul Guitar Puzzle"] = s; if not s then StopTween("Puzzle") end end)
-
-        ---------------------------------------------------------
-        -- 📌 3. TAB: SHOP & UPGRADES (Full Extracted Shop)
-        ---------------------------------------------------------
-        ShopTab:CreateSection("Sea Travel & Teleports")
-        ShopTab:CreateButton("Travel to First Sea", function() if CommF_ then CommF_:InvokeServer("TravelMain") end end)
+        ShopTab:CreateSection("Melees")
+        ShopTab:CreateButton("Buy Superhuman", function() if CommF_ then CommF_:InvokeServer("BuySuperhuman") end end)
+        ShopTab:CreateButton("Buy Death Step", function() if CommF_ then CommF_:InvokeServer("BuyDeathStep") end end)
+        ShopTab:CreateButton("Buy Sharkman Karate", function() if CommF_ then CommF_:InvokeServer("BuySharkmanKarate") end end)
+        ShopTab:CreateButton("Buy Electric Claw", function() if CommF_ then CommF_:InvokeServer("BuyElectricClaw") end end)
+        ShopTab:CreateButton("Buy Dragon Talon", function() if CommF_ then CommF_:InvokeServer("BuyDragonTalon") end end)
+        ShopTab:CreateButton("Buy Godhuman", function() if CommF_ then CommF_:InvokeServer("BuyGodhuman") end end)
+        ShopTab:CreateButton("Buy Sanguine Art", function() if CommF_ then CommF_:InvokeServer("BuySanguineArt") end end)
+        ShopTab:CreateSection("Guns")
+        ShopTab:CreateButton("Buy Dual Flintlock", function() if CommF_ then CommF_:InvokeServer("BuyItem","Dual Flintlock") end end)
+        ShopTab:CreateSection("Swords")
+        ShopTab:CreateToggle("Auto Buy Legendary Swords", "AutoBuyLeg2", _G.Settings.ItemsQuests["Auto Buy Legendary Swords"], function(v) _G.Settings.ItemsQuests["Auto Buy Legendary Swords"]=v end)
+        ShopTab:CreateButton("Buy Saber", function() if CommF_ then CommF_:InvokeServer("SaberExpert","Buy") end end)
+        ShopTab:CreateSection("Sea Travel")
         ShopTab:CreateButton("Travel to Second Sea", function() if CommF_ then CommF_:InvokeServer("TravelDressrosa") end end)
         ShopTab:CreateButton("Travel to Third Sea", function() if CommF_ then CommF_:InvokeServer("TravelZou") end end)
 
-        ShopTab:CreateSection("General Shop Items")
-        ShopTab:CreateButton("Buy Dual Flintlock", function() if CommF_ then CommF_:InvokeServer("BuyItem", "Dual Flintlock") end end)
-        ShopTab:CreateButton("Reroll Race (Beli/Fragments)", function()
-            if CommF_ then
-                CommF_:InvokeServer("BlackbeardReward", "Reroll", "1")
-                CommF_:InvokeServer("BlackbeardReward", "Reroll", "2")
-            end
-        end)
-        ShopTab:CreateButton("Reset Stats Refund", function()
-            if CommF_ then
-                CommF_:InvokeServer("BlackbeardReward", "Refund", "1")
-                CommF_:InvokeServer("BlackbeardReward", "Refund", "2")
-            end
-        end)
-        ShopTab:CreateButton("Buy Ghoul Race", function()
-            if CommF_ then
-                CommF_:InvokeServer("Ectoplasm", "BuyCheck", 4)
-                CommF_:InvokeServer("Ectoplasm", "Change", 4)
-            end
-        end)
-        ShopTab:CreateButton("Buy Cyborg Race", function() if CommF_ then CommF_:InvokeServer("CyborgTrainer", "Buy") end end)
-
-        ShopTab:CreateSection("Fighting Styles Shop")
-        ShopTab:CreateButton("Buy Black Leg ($150,000)", function() if CommF_ then CommF_:InvokeServer("BuyBlackLeg") end end)
-        ShopTab:CreateButton("Buy Fishman Karate ($750,000)", function() if CommF_ then CommF_:InvokeServer("BuyFishmanKarate") end end)
-        ShopTab:CreateButton("Buy Electro ($500,000)", function() if CommF_ then CommF_:InvokeServer("BuyElectro") end end)
-        ShopTab:CreateButton("Buy Dragon Breath (1,500 Frags)", function() if CommF_ then CommF_:InvokeServer("BlackbeardReward", "DragonClaw", "2") end end)
-        ShopTab:CreateButton("Buy Superhuman ($3,000,000)", function() if CommF_ then CommF_:InvokeServer("BuySuperhuman") end end)
-        ShopTab:CreateButton("Buy Death Step ($2,500,000 + 5k Frags)", function() if CommF_ then CommF_:InvokeServer("BuyDeathStep") end end)
-        ShopTab:CreateButton("Buy Sharkman Karate ($2,500,000 + 5k Frags)", function() if CommF_ then CommF_:InvokeServer("BuySharkmanKarate") end end)
-        ShopTab:CreateButton("Buy Electric Claw ($3,000,000 + 3k Frags)", function() if CommF_ then CommF_:InvokeServer("BuyElectricClaw") end end)
-        ShopTab:CreateButton("Buy Dragon Talon ($3,000,000 + 5k Frags)", function() if CommF_ then CommF_:InvokeServer("BuyDragonTalon") end end)
-        ShopTab:CreateButton("Buy Godhuman ($5,000,000 + 5k Frags)", function() if CommF_ then CommF_:InvokeServer("BuyGodhuman") end end)
-        ShopTab:CreateButton("Buy Sanguine Art ($5,000,000 + 5k Frags)", function() if CommF_ then CommF_:InvokeServer("BuySanguineArt") end end)
-
-        ShopTab:CreateSection("Ability & Haki Shop")
-        ShopTab:CreateButton("Buy Skyjump / Geppo ($10,000)", function() if CommF_ then CommF_:InvokeServer("BuyHaki", "Geppo") end end)
-        ShopTab:CreateButton("Buy Buso Haki ($25,000)", function() if CommF_ then CommF_:InvokeServer("BuyHaki", "Buso") end end)
-        ShopTab:CreateButton("Buy Observation Haki ($750,000)", function() if CommF_ then CommF_:InvokeServer("KenTalk", "Buy") end end)
-        ShopTab:CreateButton("Buy Soru ($100,000)", function() if CommF_ then CommF_:InvokeServer("BuyHaki", "Soru") end end)
-
-        ShopTab:CreateSection("Auto Buy Upgrades")
-        ShopTab:CreateToggle("Auto Buy Legendary Swords", "AutoBuyLegSwordsFlag", false, function(s) _G.Settings.ItemsQuests["Auto Buy Legendary Swords"] = s end)
-
-        ---------------------------------------------------------
-        -- 📌 4. TAB: SUBS FARM
-        ---------------------------------------------------------
-        SubFarmTab:CreateSection("Smart Mastery Engine")
-
-        SubFarmTab:CreateToggle("Melee Mastery (Tiki Outpost)", "AutoMasteryMeleeFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Mastery Melee (Tiki)"] = state
-            if not state then StopTween() end
-        end)
-
-        SubFarmTab:CreateToggle("Swords Mastery", "AutoMasterySwordsFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Mastery Swords"] = state
-            if not state then StopTween() end
-        end)
-
-        SubFarmTab:CreateToggle("Blox Fruits Mastery", "AutoMasteryBloxFruitsFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Mastery Blox Fruits"] = state
-            if not state then StopTween() end
-        end)
-
-        SubFarmTab:CreateToggle("Guns Mastery", "AutoMasteryGunsFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Mastery Guns"] = state
-            if not state then StopTween() end
-        end)
-
-        SubFarmTab:CreateSlider("Target HP % to Switch Weapon Skills", "MasteryHPSlider", 10, 50, 25, function(val)
-            _G.Settings.SubFarm["Mastery Target HP %"] = val
-        end)
-
-        SubFarmTab:CreateSection("Elite Hunter & Bone Farming")
-
-        SubFarmTab:CreateToggle("Auto Farm Bones", "AutoFarmBoneFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Farm Bone"] = state
-            if not state then StopTween() end
-        end)
-
-        SubFarmTab:CreateToggle("Auto Accept Bone Quest", "AutoAcceptBoneQuestFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Accept Bone Quest"] = state
-        end)
-
-        SubFarmTab:CreateToggle("Auto Random Surprise (Death King)", "AutoRandomSurpriseFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Random Surprise"] = state
-        end)
-
-        SubFarmTab:CreateToggle("Auto Elite Hunter", "EliteFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Elite Hunter"] = state
-            if not state then StopTween() end
-        end)
-
-        SubFarmTab:CreateToggle("Auto Elite Hunter Hop", "EliteHopFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Elite Hunter Hop"] = state
-            if not state then StopTween() end
-        end)
-
-        SubFarmTab:CreateSection("Chests Farming")
-
-        SubFarmTab:CreateToggle("Auto Chest (Tween)", "ChestTweenFlag", _G.Settings.SubFarm["Auto Chest Tween"], function(state)
-            _G.Settings.SubFarm["Auto Chest Tween"] = state
-            if not state then StopTween() end
-        end)
-
-        SubFarmTab:CreateToggle("Auto Chest (Instant)", "ChestInstantFlag", _G.Settings.SubFarm["Auto Chest Instant"], function(state)
-            _G.Settings.SubFarm["Auto Chest Instant"] = state
-            if not state then StopTween() end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 5. TAB: DUNGEONS & RAIDS (Enhanced Auto Next Island - 5 Islands Check)
-        ---------------------------------------------------------
-        RaidTab:CreateSection("Fruits")
-        RaidTab:CreateToggle("Auto Store Fruits", "RaidAutoStoreFruitsFlag", _G.Settings.Fruits["Auto Store Fruit"], function(s) _G.Settings.Fruits["Auto Store Fruit"]=s end)
-        RaidTab:CreateToggle("Auto Teleport Fruits", "AutoTeleportFruitsFlag", _G.Settings.Fruits["Auto Teleport Fruits"], function(s) _G.Settings.Fruits["Auto Teleport Fruits"]=s; _G.Settings.Fruits["Fruit Sniper"]=s end)
-        RaidTab:CreateToggle("Auto Random Fruits", "AutoRandomFruitsFlag", _G.Settings.Fruits["Auto Random Fruits"], function(s) _G.Settings.Fruits["Auto Random Fruits"]=s; _G.Settings.Fruits["Auto Roll Fruit"]=s end)
-
-        RaidTab:CreateSection("Dungeon & Fruits Raid Controller")
-
-        RaidTab:CreateDropdown("Select Raid Chip", "DungeonChipDropdown", DungeonChips, DungeonChips[1], function(selected)
-            _G.Settings.Raid["Selected Chip"] = selected
-        end)
-
-        RaidTab:CreateToggle("Auto Dungeon / Fruits Raid", "AutoDungeonFlag", false, function(state)
-            _G.Settings.Raid["Auto Dungeon / Raid"] = state
-            if not state then StopTween() end
-        end)
-
-        RaidTab:CreateToggle("Auto Buy Chip & Start Raid", "AutoBuyStartRaidFlag", false, function(state)
-            _G.Settings.Raid["Auto Buy Chip & Start"] = state
-        end)
-
-        RaidTab:CreateToggle("Auto Clear Dungeon Waves", "AutoClearDungeonFlag", false, function(state)
-            _G.Settings.Raid["Auto Clear Dungeon Waves"] = state
-            if not state then StopTween() end
-        end)
-
-        RaidTab:CreateToggle("Auto Next Island (5 Islands Full Scanner)", "AutoNextIslandFlag", false, function(state)
-            _G.Settings.Raid["Auto Next Island"] = state
-            if not state then StopTween() end
-        end)
-
-        RaidTab:CreateToggle("Auto Awaken Skills", "AutoAwakenSkillsFlag", false, function(state)
-            _G.Settings.Raid["Auto Awaken"] = state
-        end)
-
-        RaidTab:CreateToggle("Auto Law Raid", "LawRaidFlag", false, function(state)
-            _G.Settings.Raid["Law Raid"] = state
-            if not state then StopTween() end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 6. TAB: SEA EVENTS & PREHISTORIC
-        ---------------------------------------------------------
         SeaTab:CreateSection("Sea")
-        SeaTab:CreateToggle("Auto Farm Sea", "AutoFarmSeaRequestedFlag", _G.Settings.Sea["Auto Farm Sea"], function(s)
-            _G.Settings.Sea["Auto Farm Sea"]=s
-            _G.Settings.Sea["Auto Attack Sea Events"]=s
-        end)
-        SeaTab:CreateToggle("Auto Drive Boat", "AutoDriveBoatRequestedFlag", _G.Settings.Sea["Auto Drive Boat"], function(s)
-            _G.Settings.Sea["Auto Drive Boat"]=s
-            _G.Settings.Sea["Sail Boat"]=s
-        end)
+        SeaTab:CreateToggle("Auto Farm Sea", "AutoSea2", _G.Settings.Sea["Auto Farm Sea"], function(v) _G.Settings.Sea["Auto Farm Sea"]=v end)
+        SeaTab:CreateToggle("Auto Drive Boat", "DriveBoat2", _G.Settings.Sea["Auto Drive Boat"], function(v) _G.Settings.Sea["Auto Drive Boat"]=v; _G.Settings.Sea["Sail Boat"]=v end)
         SeaTab:CreateSection("Farm Select")
-        SeaTab:CreateDropdown("Sea Farm Target", "SeaFarmTargetDropdown", {"Terrorshark","Sea Beast","Piranha","Shark","Ghost Ship","Fish Crew Member","Leviathan"}, _G.Settings.Sea["Sea Farm Target"], function(s)
-            _G.Settings.Sea["Sea Farm Target"]=s
-        end)
-        SeaTab:CreateSection("Danger / Level")
-        SeaTab:CreateDropdown("Danger Level", "SeaDangerLevelDropdown", {"Level 1","Level 2","Level 3","Level 4","Level 5"}, _G.Settings.Sea["Sea Danger Level"], function(s) _G.Settings.Sea["Sea Danger Level"]=s end)
-        SeaTab:CreateSlider("Boat Speed", "BoatSpeedRequestedSlider", 100, 250, math.clamp(tonumber(_G.Settings.Sea["Boat Tween Speed"]) or 200,100,250), function(v) _G.Settings.Sea["Boat Tween Speed"]=v end)
-        _G.Settings.Sea["Boat Height"] = 30
-
-        SeaTab:CreateSection("Prehistoric Island Engine")
-
-        SeaTab:CreateButton("Teleport to Prehistoric Island", function()
-            SmartTeleportIsland("Prehistoric Island", MobSpecificTeleports["Prehistoric Island"], "PrehistoricTP")
-            AetherUI:Notify({Title = "Teleport", Content = "Teleporting to Prehistoric Island...", Duration = 2})
-        end)
-
-        SeaTab:CreateToggle("Auto Prehistoric Island", "AutoPrehistoricFlag", false, function(state)
-            _G.Settings.Sea["Auto Prehistoric Island"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("Auto Complete Prehistoric Torches", "AutoCompletePrehistoricFlag", false, function(state)
-            _G.Settings.Sea["Auto Complete Prehistoric Island"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("Auto Draco Trail", "AutoDracoTrailFlag", false, function(state)
-            _G.Settings.Sea["Auto Draco Trail"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateSection("Leviathan Hunter")
-
-        SeaTab:CreateToggle("Auto Find Leviathan", "AutoFindLeviathanFlag", false, function(state)
-            _G.Settings.Sea["Auto Find Leviathan"] = state
-            if not state then StopTween("LeviathanSpy"); StopTween("Leviathan") end
-        end)
-
-        SeaTab:CreateToggle("Auto Bribe Spy (4 × 1500 Fragments)", "AutoBribeSpyFlag", true, function(state)
-            _G.Settings.Sea["Auto Bribe Spy"] = state
-        end)
-
-        SeaTab:CreateDropdown("Leviathan Sea Danger", "LeviathanSeaZoneDropdown", {"Zone 4","Zone 5","Zone 6"}, "Zone 6", function(value)
-            _G.Settings.Sea["Leviathan Sea Zone"] = value
-        end)
-
-        SeaTab:CreateDropdown("Leviathan Boat", "LeviathanBoatDropdown", {"Beast Hunter","Guardian"}, "Beast Hunter", function(value)
-            _G.Settings.Sea["Leviathan Boat"] = value
-        end)
-
-        SeaTab:CreateSection("Advanced Sea Engines")
-
-        SeaTab:CreateToggle("Auto Attack Leviathan", "AutoLeviathanFlag", false, function(state)
-            _G.Settings.SubFarm["Auto Farm Leviathan"] = state
-            if not state then StopTween("Leviathan") end
-        end)
-
-        SeaTab:CreateToggle("Auto Frozen Dimension", "AutoFrozenDimensionFlag", false, function(state)
-            _G.Settings.Sea["Auto Frozen Dimension"] = state
-            if not state then StopTween("Frozen") end
-        end)
-
-        SeaTab:CreateToggle("Auto Drive Hydra", "AutoDriveHydraFlag", false, function(state)
-            _G.Settings.Sea["Auto Drive Hydra"] = state
-            if not state then StopTween("Hydra") end
-        end)
-
-        SeaTab:CreateSection("Sailing & Boat Controls")
-
-        SeaTab:CreateDropdown("Select Boat", "BoatDropdownFlag", {"Guardian", "Beast Hunter", "PirateGrandBrigade", "MarineGrandBrigade"}, "Guardian", function(selected)
-            _G.Settings.Sea["Selected Boat"] = selected
-        end)
-
-        SeaTab:CreateDropdown("Select Sailing Zone", "ZoneDropdownFlag", {"Zone 1", "Zone 2", "Zone 3", "Zone 4", "Zone 5", "Zone 6", "Infinite"}, "Zone 5", function(selected)
-            _G.Settings.Sea["Selected Zone"] = selected
-        end)
-
-        SeaTab:CreateSlider("Boat Speed", "BoatSpeedSlider", 50, 500, tonumber(_G.Settings.Sea["Boat Tween Speed"]) or 200, function(value)
-            _G.Settings.Sea["Boat Tween Speed"] = value
-        end)
-
-        SeaTab:CreateSlider("Boat Height", "BoatHeightSlider", 15, 120, tonumber(_G.Settings.Sea["Boat Height"]) or 30, function(value)
-            _G.Settings.Sea["Boat Height"] = value
-        end)
-
-        SeaTab:CreateToggle("Auto Set Sail", "SailBoatFlag", false, function(state)
-            _G.Settings.Sea["Sail Boat"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("Ship Noclip", "ShipNoclipFlag", false, function(state)
-            _G.Settings.Sea["Ship Noclip"] = state
-        end)
-
-        SeaTab:CreateSection("Sea Mobs Combat")
-
-        SeaTab:CreateToggle("Auto Attack Sea Events", "AutoAttackSeaFlag", false, function(state)
-            _G.Settings.Sea["Auto Attack Sea Events"] = state
-        end)
-
-        SeaTab:CreateToggle("Auto Farm Shark", "SharkFlag", false, function(state)
-            _G.Settings.Sea["Auto Farm Shark"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("Auto Farm Piranha", "PiranhaFlag", false, function(state)
-            _G.Settings.Sea["Auto Farm Piranha"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("Auto Farm Fish Crew Member", "CrewFlag", false, function(state)
-            _G.Settings.Sea["Auto Farm Fish Crew Member"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("Auto Farm Ghost Ship", "GhostShipFlag", false, function(state)
-            _G.Settings.Sea["Auto Farm Ghost Ship"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("Auto Farm Terrorshark", "TerrorFlag", false, function(state)
-            _G.Settings.Sea["Auto Farm Terrorshark"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("Auto Farm Seabeasts", "SeabeastFlag", false, function(state)
-            _G.Settings.Sea["Auto Farm Seabeasts"] = state
-            if not state then StopTween() end
-        end)
-
-        SeaTab:CreateToggle("Auto Find Kitsune Island", "AutoFindKitsuneIslandFlag", false, function(state)
-            _G.Settings.Sea["Auto Find Kitsune Island"] = state
-            if not state then StopTween("Kitsune") end
-        end)
-        SeaTab:CreateToggle("Auto Collect Azure Embers", "AutoCollectAzureEmberFlag", _G.Settings.Sea["Auto Collect Azure Embers"], function(state)
-            _G.Settings.Sea["Auto Collect Azure Embers"] = state
-            if not state then StopTween("KitsuneEmber") end
-        end)
-
-        SeaTab:CreateButton("Teleport To Kitsune Island", function()
-            if World3 then
-                local island = GetKitsuneIsland()
-                if island then
-                    local cf = GetModelCFrame(island)
-                    local cf = GetModelCFrame(island)
-                    local _, hrp, hum = GetCharacter()
-                    if cf and hrp then
-                        if hum then pcall(function() hum.Sit=false end) end
-                        pcall(function() SmartTeleportIsland("Kitsune Island", cf, "KitsuneTP") end)
-                    end
-                    AetherUI:Notify({Title = "Kitsune Island", Content = "Teleporting to Kitsune Island...", Duration = 2})
-                else
-                    AetherUI:Notify({Title = "Kitsune Island", Content = "Kitsune Island is not spawned.", Duration = 3})
-                end
-            end
-        end)
-
-        SeaTab:CreateToggle("Teleport To Kitsune (Auto)", "TeleportToKitsuneFlag", false, function(state)
-            _G.Settings.Sea["Teleport To Kitsune Island"] = state
-            if not state then StopTween("KitsuneTP") end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 7. TAB: RACE V4 & MIRAGE
-        ---------------------------------------------------------
-        RaceTab:CreateSection("Race Upgrades (V1-V4)")
-
-        RaceTab:CreateToggle("Auto Collect Flowers", "AutoCollectFlowersFlag", false, function(state)
-            _G.Settings.Race["Auto Collect Flowers"] = state
-        end)
-
-        RaceTab:CreateToggle("Auto Race V2 Quest", "AutoRaceV2QuestFlag", false, function(state)
-            _G.Settings.Race["Auto Race V2 Quest"] = state
-            if not state then StopTween() end
-        end)
-
-        RaceTab:CreateDropdown("Select Race V3 Quest", "RaceV3QuestDropdown", {"Human", "Fishman", "Skypian", "Mink", "Ghoul", "Cyborg"}, "Human", function(selected)
-            _G.Settings.Race["Selected Race V3"] = selected
-        end)
-
-        RaceTab:CreateToggle("Auto Race V3 Quest", "AutoRaceV3QuestFlag", false, function(state)
-            _G.Settings.Race["Auto Race V3 Quest"] = state
-            if not state then StopTween() end
-        end)
-
-        RaceTab:CreateToggle("Auto Activate Race V3 Ability", "AutoV3AbilityFlag", false, function(state)
-            _G.Settings.Race["Auto Race V3 Ability"] = state
-            task.spawn(function()
-                while _G.Settings.Race["Auto Race V3 Ability"] do
-                    task.wait(1)
-                    if CommE then pcall(function() CommE:FireServer("ActivateAbility") end) end
-                end
-            end)
-        end)
-
-        RaceTab:CreateSection("Mirage Island & Gear Suite")
-
-        RaceTab:CreateToggle("Auto Find Mirage Island", "AutoFindMirageFlag", false, function(state)
-            _G.Settings.Race["Auto Find Mirage"] = state
-            if not state then StopTween("Mirage") end
-        end)
-
-        RaceTab:CreateButton("Teleport To Mirage Island", function()
-            if World3 then
-                local island = GetMirageIsland()
-                if island then
-                    local cf = GetModelCFrame(island)
-                    local cf = GetModelCFrame(island)
-                    local _, hrp, hum = GetCharacter()
-                    if cf and hrp then
-                        if hum then pcall(function() hum.Sit=false end) end
-                        pcall(function() SmartTeleportIsland("Mirage Island", cf, "MirageTP") end)
-                    end
-                    AetherUI:Notify({Title = "Mirage Island", Content = "Teleporting to Mirage Island...", Duration = 2})
-                else
-                    AetherUI:Notify({Title = "Mirage Island", Content = "Mirage Island is not spawned.", Duration = 3})
-                end
-            end
-        end)
-
-        RaceTab:CreateToggle("Teleport To Mirage (Auto)", "TeleportToMirageFlag", false, function(state)
-            _G.Settings.Race["Teleport To Mirage"] = state
-            if not state then StopTween("MirageTP") end
-        end)
-
-        RaceTab:CreateToggle("Tween To Highest Mirage Point", "TweenMirageFlag", false, function(state)
-            _G.Settings.Race["Tween To Highest Mirage"] = state
-            if not state then StopTween() end
-            task.spawn(function()
-                while _G.Settings.Race["Tween To Highest Mirage"] do
-                    task.wait()
-                    pcall(function()
-                        if workspace.Map:FindFirstChild("MysticIsland") then
-                            for _, v in pairs(workspace.Map.MysticIsland:GetDescendants()) do
-                                if v:IsA("MeshPart") and v.MeshId == "rbxassetid://6745037796" then
-                                    TweenPlayer(v.CFrame, Vector3.new(0, 212, 0))
-                                end
-                            end
-                        end
-                    end)
-                end
-            end)
-        end)
-
-        RaceTab:CreateToggle("Teleport To Blue Gear", "TeleportToGearFlag", false, function(state)
-            _G.Settings.Race["Teleport To Blue Gear"] = state
-            if not state then StopTween() end
-            task.spawn(function()
-                while _G.Settings.Race["Teleport To Blue Gear"] do
-                    task.wait(0.2)
-                    pcall(function()
-                        if workspace.Map:FindFirstChild("MysticIsland") then
-                            for _, v in pairs(workspace.Map.MysticIsland:GetChildren()) do
-                                if v:IsA("MeshPart") and (v.Material == Enum.Material.Neon or string.find(v.Name:lower(), "gear")) then
-                                    TweenPlayer(v.CFrame)
-                                    if (LocalPlayer.Character.HumanoidRootPart.Position - v.Position).Magnitude < 15 then
-                                        if CommF_ then CommF_:InvokeServer("InteractGear", v) end
-                                    end
-                                end
-                            end
-                        end
-                    end)
-                end
-            end)
-        end)
-
-        RaceTab:CreateToggle("Auto Look Moon Ability", "LookMoonFlag", false, function(state)
-            _G.Settings.Race["Look Moon Ability"] = state
-            task.spawn(function()
-                while _G.Settings.Race["Look Moon Ability"] do
-                    task.wait()
-                    pcall(function()
-                        local moonDir = game.Lighting:GetMoonDirection()
-                        local lookAtPos = workspace.CurrentCamera.CFrame.p + moonDir * 100
-                        workspace.CurrentCamera.CFrame = CFrame.lookAt(workspace.CurrentCamera.CFrame.p, lookAtPos)
-                    end)
-                end
-            end)
-        end)
-
-        RaceTab:CreateToggle("Teleport To Race Door", "TPDoorFlag", false, function(state)
-            _G.Settings.Race["Teleport To Race Door"] = state
-            if not state then StopTween() end
-            if state then
-                local myRace = (LocalPlayer:FindFirstChild("Data") and LocalPlayer.Data:FindFirstChild("Race")) and LocalPlayer.Data.Race.Value or "Human"
-                local raceDoors = {
-                    ["Human"] = CFrame.new(29221.82, 14890.97, -205.99),
-                    ["Skypian"] = CFrame.new(28960.15, 14919.62, 235.03),
-                    ["Fishman"] = CFrame.new(28231.17, 14890.97, -211.64),
-                    ["Cyborg"] = CFrame.new(28502.68, 14895.97, -423.72),
-                    ["Ghoul"] = CFrame.new(28674.24, 14890.67, 445.43),
-                    ["Mink"] = CFrame.new(29012.34, 14890.97, -380.14)
-                }
-                local char, hrp = GetCharacter()
-                if char and hrp then
-                    hrp.CFrame = CFrame.new(28286.35, 14895.30, 102.62)
-                    task.wait(0.3)
-                    if raceDoors[myRace] then TweenPlayer(raceDoors[myRace]) end
-                end
-            end
-        end)
-
-        RaceTab:CreateToggle("Auto V4 Training", "AutoTrainFlag", false, function(state)
-            _G.Settings.Race["Auto Train"] = state
-            if not state then StopTween() end
-        end)
-
-        RaceTab:CreateToggle("Auto Complete Trial", "AutoTrialFlag", false, function(state)
-            _G.Settings.Race["Auto Trial"] = state
-            if not state then StopTween() end
-        end)
-
-        ---------------------------------------------------------
-        -- Race V4 Runtime Engine V26
-        ---------------------------------------------------------
-        local function promptText(obj)
-            if not obj then return "" end
-            if obj:IsA("ProximityPrompt") then return (tostring(obj.ObjectText).." "..tostring(obj.ActionText)):lower() end
-            if obj:IsA("TextLabel") or obj:IsA("TextButton") then return tostring(obj.Text):lower() end
-            return tostring(obj.Name):lower()
-        end
-        local function findRaceInteraction(keywords, radius)
-            local _, hrp = GetCharacter()
-            if not hrp then return nil end
-            local best, bestD = nil, radius or 5000
-            for _, obj in ipairs(workspace:GetDescendants()) do
-                local text = promptText(obj)
-                local match = false
-                for _, k in ipairs(keywords) do if text:find(k,1,true) then match=true break end end
-                if match then
-                    local part = obj:IsA("BasePart") and obj or (obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart",true))) or (obj.Parent and obj.Parent:IsA("BasePart") and obj.Parent)
-                    if part then
-                        local d=(hrp.Position-part.Position).Magnitude
-                        if d<bestD then best,bestD=obj,d end
-                    end
-                end
-            end
-            return best
-        end
-        local function interactRaceObject(obj)
-            if not obj then return false end
-            if obj:IsA("ProximityPrompt") and type(fireproximityprompt)=="function" then return pcall(fireproximityprompt,obj) end
-            local pp=obj:FindFirstChildWhichIsA("ProximityPrompt",true)
-            if pp and type(fireproximityprompt)=="function" then return pcall(fireproximityprompt,pp) end
-            if type(fireclickdetector)=="function" then
-                local cd=obj:IsA("ClickDetector") and obj or obj:FindFirstChildWhichIsA("ClickDetector",true)
-                if cd then return pcall(fireclickdetector,cd) end
-            end
-            local part=obj:IsA("BasePart") and obj or (obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart",true)))
-            if part then SafeTeleport100(part.CFrame*CFrame.new(0,-100,0), "RaceV4") return true end
-            return false
-        end
-        task.spawn(function()
-            while task.wait(0.35) do
-                pcall(function()
-                    local R=_G.Settings.Race
-                    if not World3 then return end
-                    if R["Auto Race V3 Ability"] then
-                        if CommE then CommE:FireServer("ActivateAbility") end
-                    end
-                    if R["Auto Trial"] then
-                        local obj=findRaceInteraction({"trial of flames","trial","race trial","start trial","trial button"}, 5000)
-                        if obj then interactRaceObject(obj) end
-                    end
-                    if R["Auto Train"] then
-                        local obj=findRaceInteraction({"train","training","ancient","gear"}, 5000)
-                        if obj then interactRaceObject(obj) end
-                    end
-                    if R["Auto Collect Flowers"] then
-                        for _,obj in ipairs(workspace:GetDescendants()) do
-                            local n=tostring(obj.Name):lower()
-                            if n:find("flower",1,true) then
-                                local cf=GetModelCFrame(obj)
-                                if cf then SafeTeleport100(cf*CFrame.new(0,-100,0), "RaceFlower"); interactRaceObject(obj); break end
-                            end
-                        end
-                    end
-                end)
-            end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 8. TAB: ITEMS & SWORDS
-        ---------------------------------------------------------
-        ItemsTab:CreateSection("Legendary Items & Weapons")
-
-        ItemsTab:CreateDropdown("Select CDK Method", "CDKMethodDropdown", {"Quest Yama", "Quest Tushita", "Last Quest"}, "Quest Yama", function(selected)
-            _G.Settings.ItemsQuests["CDK Trial Type"] = selected
-        end)
-
-        ItemsTab:CreateToggle("Auto Cursed Dual Katana (CDK)", "AutoFarmCDKFlag", false, function(state)
-            _G.Settings.ItemsQuests["Auto Farm CDK"] = state
-            if not state then StopTween() end
-        end)
-
-        ItemsTab:CreateToggle("Auto True Triple Katana (TTK)", "AutoFarmTTKFlag", false, function(state)
-            _G.Settings.ItemsQuests["Auto Farm TTK"] = state
-            if not state then StopTween() end
-        end)
-
-        ItemsTab:CreateToggle("Auto Soul Guitar", "AutoSoulGuitarFlag", false, function(state)
-            _G.Settings.ItemsQuests["Auto Soul Guitar"] = state
-            if not state then StopTween() end
-        end)
-
-        ItemsTab:CreateToggle("Auto Godhuman Fighting Style", "AutoGodhumanFlag", false, function(state)
-            _G.Settings.ItemsQuests["Auto Godhuman"] = state
-            if not state then StopTween() end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 9. TAB: FRUITS & SNIPER (Extracted from script_1)
-        ---------------------------------------------------------
-        FruitsTab:CreateSection("Blox Fruits Rolling & Management")
-
-        local function findFruitGachaNPC()
-            local keys={"zioles","blox fruit gacha","fruit gacha","fruit dealer"}
-            for _,obj in ipairs(workspace:GetDescendants()) do
-                if obj:IsA("Model") then
-                    local n=obj.Name:lower()
-                    for _,k in ipairs(keys) do if n:find(k,1,true) then return obj end end
-                end
-            end
-        end
-        local function interactNPC(obj)
-            if not obj then return false end
-            local prompt=obj:FindFirstChildWhichIsA("ProximityPrompt",true)
-            if prompt and type(fireproximityprompt)=="function" then
-                local ok=pcall(fireproximityprompt,prompt); if ok then return true end
-            end
-            local cd=obj:FindFirstChildWhichIsA("ClickDetector",true)
-            if cd and type(fireclickdetector)=="function" then
-                local ok=pcall(fireclickdetector,cd); if ok then return true end
-            end
-            return false
-        end
-        local function rollFruitOnce()
-            local result=nil; local ok=false
-            if CommF_ then ok,result=pcall(function() return CommF_:InvokeServer("Cousin","Buy") end) end
-            if not ok or result==nil then
-                interactNPC(findFruitGachaNPC())
-                if CommF_ then pcall(function() CommF_:InvokeServer("Cousin","Buy") end) end
-            end
-            if AetherUI then AetherUI:Notify({Title="Fruit Gacha",Content=tostring(result or "Roll request sent"),Duration=3}) end
-            return ok
-        end
-        FruitsTab:CreateButton("Roll Fruit Once (Blox Fruit Gacha)", function() rollFruitOnce() end)
-        FruitsTab:CreateToggle("Auto Roll Fruit (Loop)", "AutoRollFruitFlag", _G.Settings.Fruits["Auto Roll Fruit"], function(state)
-            _G.Settings.Fruits["Auto Roll Fruit"]=state
-            local token=os.clock(); getgenv().HaroonFruitRollToken=token
-            if state then task.spawn(function() while _G.Settings.Fruits["Auto Roll Fruit"] and getgenv().HaroonFruitRollToken==token do pcall(rollFruitOnce); task.wait(3) end end) end
-        end)
-
-        FruitsTab:CreateSection("Fruit Notifier & ESP")
-
-        FruitsTab:CreateToggle("Fruit Notifier (ESP)", "FruitESPFlag", false, function(state)
-            _G.Settings.Fruits["Fruit ESP"] = state
-        end)
-
-        FruitsTab:CreateToggle("Fruit Sniper (Tween to Fruit)", "FruitSniperFlag", false, function(state)
-            _G.Settings.Fruits["Fruit Sniper"] = state
-            if not state then StopTween() end
-        end)
-
-        FruitsTab:CreateToggle("Auto Store Fruit", "AutoStoreFruitFlag", _G.Settings.Fruits["Auto Store Fruit"], function(state)
-            _G.Settings.Fruits["Auto Store Fruit"] = state
-            task.spawn(function()
-                while _G.Settings.Fruits["Auto Store Fruit"] do
-                    task.wait(0.5)
-                    local backpack = LocalPlayer:FindFirstChild("Backpack")
-                    if backpack then
-                        for _, tool in pairs(backpack:GetChildren()) do
-                            if tool:IsA("Tool") and string.find(tool.Name:lower(), "fruit") then
-                                pcall(function() CommF_:InvokeServer("StoreFruit", tool.Name) end)
-                            end
-                        end
-                    end
-                end
-            end)
-        end)
-
-        FruitsTab:CreateToggle("Auto Drop Fruit", "AutoDropFruitFlag", _G.Settings.Fruits["Auto Drop Fruit"], function(state)
-            _G.Settings.Fruits["Auto Drop Fruit"] = state
-            task.spawn(function()
-                while _G.Settings.Fruits["Auto Drop Fruit"] do
-                    task.wait(0.5)
-                    local backpack = LocalPlayer:FindFirstChild("Backpack")
-                    if backpack then
-                        for _, tool in pairs(backpack:GetChildren()) do
-                            if tool:IsA("Tool") and string.find(tool.Name:lower(), "fruit") then
-                                tool.Parent = workspace
-                            end
-                        end
-                    end
-                end
-            end)
-        end)
-
-        FruitsTab:CreateButton("Open Blox Fruits Shop", function()
-            local opened=false
-            if CommF_ then
-                for _,args in ipairs({{"GetFruits"},{"GetFruits",true},{"Shop","Open"},{"OpenShop"}}) do
-                    local ok=pcall(function() CommF_:InvokeServer(table.unpack(args)) end); opened=opened or ok
-                end
-            end
-            local dealer
-            for _,obj in ipairs(workspace:GetDescendants()) do
-                if obj:IsA("Model") then
-                    local n=obj.Name:lower()
-                    if n:find("blox fruit dealer",1,true) or n=="fruit dealer" then dealer=obj; break end
-                end
-            end
-            opened=interactNPC(dealer) or opened
-            if AetherUI then AetherUI:Notify({Title="Blox Fruits Shop",Content=opened and "Shop request sent." or "Fruit Dealer was not found.",Duration=3}) end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 10. TAB: DRAGON DOJO
-        ---------------------------------------------------------
-        DragonDojoTab:CreateSection("Blaze Ember & Dojo Collector")
-
-        DragonDojoTab:CreateToggle("Auto Farm Blaze Ember", "FarmBlazeEmberFlag", false, function(state)
-            _G.Settings.DragonDojo["Auto Farm Blaze Ember"] = state
-            if not state then StopTween() end
-        end)
-
-        DragonDojoTab:CreateToggle("Auto Collect Spawned Blaze Ember", "CollectBlazeEmberFlag", false, function(state)
-            _G.Settings.DragonDojo["Auto Collect Blaze Ember"] = state
-            if not state then StopTween() end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 11. TAB: COMBAT & PVP
-        ---------------------------------------------------------
-        CombatTab:CreateSection("Target Player Selector")
-
-        local playerList = {}
-        for _, p in pairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer then table.insert(playerList, p.Name) end
-        end
-
-        local PVPPlayerDropdown = CombatTab:CreateDropdown("Select Player Target", "PVPPlayerDropdown", playerList, playerList[1] or "None", function(selected)
-            _G.Settings.Combat["Selected Player"] = selected
-        end)
-
-        CombatTab:CreateSection("Selected Player Combat")
-
-        CombatTab:CreateToggle("Auto Attack Selected Player", "AutoAttackSelectedPlayerFlag", false, function(state)
-            _G.Settings.Combat["Auto Attack Selected Player"] = state
-            if not state then StopTween("CombatPVP") end
-        end)
-
-        CombatTab:CreateSlider("PvP Hover Height", "PvPHoverHeightSlider", 4, 18, 8, function(value)
-            _G.Settings.Combat["PvP Hover Height"] = value
-        end)
-
-        CombatTab:CreateToggle("Spectate Selected Player", "SpectateFlag", false, function(state)
-            _G.Settings.Combat["Spectate Player"] = state
-            if state and _G.Settings.Combat["Selected Player"] then
-                local target = Players:FindFirstChild(_G.Settings.Combat["Selected Player"])
-                if target and target.Character and target.Character:FindFirstChild("Humanoid") then
-                    workspace.CurrentCamera.CameraSubject = target.Character.Humanoid
-                end
-            else
-                local char, hum = GetCharacter()
-                if char and hum then
-                    workspace.CurrentCamera.CameraSubject = hum
-                end
-            end
-        end)
-
-        CombatTab:CreateToggle("Aimbot Gun", "AimbotGunFlag", false, function(state)
-            _G.Settings.Combat["Aimbot Gun"] = state
-        end)
-
-        CombatTab:CreateToggle("Teleport To Player", "TPPlayerFlag", false, function(state)
-            _G.Settings.Combat["Teleport To Player"] = state
-            if not state then StopTween() end
-            task.spawn(function()
-                while _G.Settings.Combat["Teleport To Player"] do
-                    task.wait()
-                    pcall(function()
-                        local target = Players:FindFirstChild(_G.Settings.Combat["Selected Player"])
-                        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-                            TweenPlayer(target.Character.HumanoidRootPart.CFrame)
-                        end
-                    end)
-                end
-            end)
-        end)
-
-        CombatTab:CreateButton("Refresh Players List", function()
-            local fresh = {}
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= LocalPlayer then table.insert(fresh, p.Name) end
-            end
-            table.sort(fresh)
-            local defaultName = fresh[1] or "None"
-            _G.Settings.Combat["Selected Player"] = defaultName
-            if PVPPlayerDropdown and type(PVPPlayerDropdown.SetValues) == "function" then
-                pcall(function() PVPPlayerDropdown:SetValues(fresh, defaultName) end)
-            elseif PVPPlayerDropdown and type(PVPPlayerDropdown.Set) == "function" then
-                pcall(function() PVPPlayerDropdown:Set(defaultName) end)
-            elseif AetherUI.Elements and AetherUI.Elements.PVPPlayerDropdown then
-                local elem = AetherUI.Elements.PVPPlayerDropdown
-                if type(elem.SetValues) == "function" then pcall(function() elem:SetValues(fresh, defaultName) end) end
-                if type(elem.Set) == "function" and defaultName ~= "None" then pcall(function() elem:Set(defaultName) end) end
-            end
-            if AetherUI then
-                AetherUI:Notify({Title="Players", Content=(#fresh > 0 and ("Refreshed " .. tostring(#fresh) .. " players.") or "No other players in this server."), Duration=2})
-            end
-        end)
-
-        -- Live player list synchronization.
-        local function refreshPlayerDropdownLive()
-            local fresh = {}
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= LocalPlayer then table.insert(fresh, p.Name) end
-            end
-            table.sort(fresh)
-            if #fresh == 0 then _G.Settings.Combat["Selected Player"] = nil end
-            if PVPPlayerDropdown and type(PVPPlayerDropdown.SetValues) == "function" then
-                pcall(function() PVPPlayerDropdown:SetValues(fresh, _G.Settings.Combat["Selected Player"]) end)
-            end
-        end
-        Players.PlayerAdded:Connect(function() task.delay(0.25, refreshPlayerDropdownLive) end)
-        Players.PlayerRemoving:Connect(function(player)
-            if _G.Settings.Combat["Selected Player"] == player.Name then _G.Settings.Combat["Selected Player"] = nil end
-            task.delay(0.05, refreshPlayerDropdownLive)
-        end)
-
-        CombatTab:CreateSection("Combat Assist")
-
-        CombatTab:CreateToggle("Kill Aura (Attack Nearby Enemies)", "KillAuraFlag", false, function(state)
-            _G.Settings.Combat["Kill Aura"] = state
-        end)
-
-        CombatTab:CreateSlider("Kill Aura Range", "KillAuraRangeSlider", 5, 50, 25, function(val)
-            _G.Settings.Combat["Kill Aura Range"] = val
-        end)
-
-        CombatTab:CreateSlider("Attack Speed Multiplier", "AttackSpeedSlider", 1, 5, 1, function(val)
-            _G.Settings.Combat["Attack Speed"] = val
-        end)
-
-        CombatTab:CreateSection("Haki & Attack Assistance")
-        CombatTab:CreateToggle("Auto Enable Buso Haki (Once Per Life)", "AutoHakiOnceFlag", false, function(state)
-            _G.Settings.Combat["Auto Enable Haki"] = state
-        end)
-
-        CombatTab:CreateSection("PvP Safety")
-        CombatTab:CreateToggle("Auto PvP Escape & Safety Return", "AutoPvPEscapeFlag", false, function(state)
-            _G.Settings.Combat["Auto PvP Escape"] = state
-            if not state then StopTween() end
-        end)
-
-        CombatTab:CreateSlider("Escape HP %", "EscapeHPSlider", 10, 90, 30, function(val)
-            _G.Settings.Combat["Escape HP %"] = val
-        end)
-
-        CombatTab:CreateSlider("Return HP %", "ReturnHPSlider", 20, 100, 70, function(val)
-            _G.Settings.Combat["Return HP %"] = val
-        end)
-
-
-        ---------------------------------------------------------
-        -- Combat Runtime Engine V26
-        ---------------------------------------------------------
-        local CombatRuntime = {LastTarget=nil, LastAttack=0}
-        local function getSelectedPlayer()
-            local name = _G.Settings.Combat["Selected Player"]
-            if not name or name == "None" then return nil end
-            local p = Players:FindFirstChild(name)
-            if p == LocalPlayer then return nil end
-            return p
-        end
-        local function playerModel(p)
-            return p and p.Character or nil
-        end
-        local function attackPlayerTarget(model)
-            local root = model and model:FindFirstChild("HumanoidRootPart")
-            local hum = model and model:FindFirstChildOfClass("Humanoid")
-            if not root or not hum or hum.Health <= 0 then return false end
-            AutoHaki()
-            local char, hrp, myHum = GetCharacter()
-            if not hrp or not myHum then return false end
-            myHum.Sit = false
-            local hover = math.clamp(tonumber(_G.Settings.Combat["PvP Hover Height"]) or 8, 4, 18)
-            local above = root.Position + Vector3.new(0, hover, 0)
-            if (hrp.Position-above).Magnitude > 14 then
-                TweenPlayer(CFrame.lookAt(above, root.Position), nil, "CombatPVP")
-                pcall(function() myHum.AutoRotate = false end)
-            end
-            -- Once close, continuously lock above the target and attack. This avoids the
-            -- old state where the tween completed but the combat loop stopped applying damage.
-            pcall(function()
-                hrp.CFrame = CFrame.lookAt(above, root.Position)
-                hrp.AssemblyLinearVelocity = Vector3.zero
-                myHum.AutoRotate = false
-            end)
-            AimAtTarget(root.Position)
-            EquipWeapon(_G.Settings.Main["Select Weapon"])
-            pcall(function()
-                local tool = char:FindFirstChildOfClass("Tool")
-                if tool and type(tool.Activate)=="function" then tool:Activate() end
-            end)
-            pcall(function()
-                VirtualInputManager:SendMouseButtonEvent(0,0,0,true,game,0)
-                VirtualInputManager:SendMouseButtonEvent(0,0,0,false,game,0)
-            end)
-            FastAttackTarget(model)
-            return true
-        end
-
-        task.spawn(function()
-            while task.wait(0.12) do
-                pcall(function()
-                    local C = _G.Settings.Combat
-                    local p = getSelectedPlayer()
-                    if C["Spectate Player"] and p and p.Character then
-                        local ph = p.Character:FindFirstChildOfClass("Humanoid")
-                        if ph then workspace.CurrentCamera.CameraSubject = ph end
-                    elseif not C["Spectate Player"] then
-                        local _, _, h = GetCharacter()
-                        if h then workspace.CurrentCamera.CameraSubject = h end
-                    end
-                    if C["Teleport To Player"] and p and p.Character then
-                        local root = p.Character:FindFirstChild("HumanoidRootPart")
-                        if root then
-                            local safe = root.Position + Vector3.new(0,100,0)
-                            local char, hrp = GetCharacter()
-                            if hrp and (hrp.Position-safe).Magnitude > 20 then
-                                TweenPlayer(CFrame.lookAt(safe, root.Position), nil, "CombatPVP")
-                            end
-                        end
-                    end
-                    if C["Kill Aura"] then
-                        local _, hrp = GetCharacter()
-                        local enemies = workspace:FindFirstChild("Enemies")
-                        local range = tonumber(C["Kill Aura Range"]) or 25
-                        if hrp and enemies then
-                            local nearest
-                            for _, mob in ipairs(enemies:GetChildren()) do
-                                local mh=mob:IsA("Model") and mob:FindFirstChildOfClass("Humanoid")
-                                local mr=mob:IsA("Model") and (mob:FindFirstChild("HumanoidRootPart") or mob.PrimaryPart)
-                                if mh and mh.Health>0 and mr and (hrp.Position-mr.Position).Magnitude<=range then nearest=mob break end
-                            end
-                            if nearest then SmartAttackMob(nearest) end
-                        end
-                    end
-                    if C["Auto Enable Haki"] then AutoHaki() end
-                    if p and (C["Aimbot Gun"] or C["Auto Attack Selected Player"]) then attackPlayerTarget(playerModel(p)) end
-                    if C["Auto PvP Escape"] then
-                        local _, myRoot, myHum = GetCharacter()
-                        if myRoot and myHum then
-                            local hpPercent=(myHum.Health/math.max(myHum.MaxHealth,1))*100
-                            if hpPercent <= (tonumber(C["Escape HP %"]) or 30) then
-                                CombatRuntime.SafeReturn = CombatRuntime.SafeReturn or myRoot.CFrame
-                                local safe = CombatRuntime.SafeReturn * CFrame.new(0,100,0)
-                                pcall(function() myRoot.CFrame=safe; myRoot.AssemblyLinearVelocity=Vector3.zero end)
-                            elseif CombatRuntime.SafeReturn and hpPercent >= (tonumber(C["Return HP %"]) or 70) then
-                                pcall(function() myRoot.CFrame=CombatRuntime.SafeReturn end)
-                                CombatRuntime.SafeReturn=nil
-                            end
-                        end
-                    else
-                        CombatRuntime.SafeReturn=nil
-                    end
-                end)
-            end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 12. TAB: CRAFTING (Extracted from script_1)
-        ---------------------------------------------------------
-        CraftingTab:CreateSection("Item Crafting Automation")
-
-        CraftingTab:CreateToggle("Auto-Craft Shark Tooth Necklace", "CraftSharkNecklaceFlag", false, function(v) _G.Settings.Crafting.SharkToothNecklace = v end)
-        CraftingTab:CreateToggle("Auto-Craft Terror Jaw", "CraftTerrorJawFlag", false, function(v) _G.Settings.Crafting.TerrorJaw = v end)
-        CraftingTab:CreateToggle("Auto-Craft Monster Magnet", "CraftMonsterMagnetFlag", false, function(v) _G.Settings.Crafting.MonsterMagnet = v end)
-        CraftingTab:CreateToggle("Auto-Craft Shark Anchor", "CraftSharkAnchorFlag", false, function(v) _G.Settings.Crafting.SharkAnchor = v end)
-        CraftingTab:CreateToggle("Auto-Craft Leviathan Shield", "CraftLeviShieldFlag", false, function(v) _G.Settings.Crafting.LeviathanShield = v end)
-        CraftingTab:CreateToggle("Auto-Craft Leviathan Boat", "CraftLeviBoatFlag", false, function(v) _G.Settings.Crafting.LeviathanBoat = v end)
-        CraftingTab:CreateToggle("Auto-Craft Leviathan Crown", "CraftLeviCrownFlag", false, function(v) _G.Settings.Crafting.LeviathanCrown = v end)
-        CraftingTab:CreateToggle("Auto-Craft Legendary Scroll", "CraftLegScrollFlag", false, function(v) _G.Settings.Crafting.LegendaryScroll = v end)
-        CraftingTab:CreateToggle("Auto-Craft Mythical Scroll", "CraftMythScrollFlag", false, function(v) _G.Settings.Crafting.MythicalScroll = v end)
-
-        ---------------------------------------------------------
-        -- Requested Stats tab
-        ---------------------------------------------------------
-        StatsTab:CreateSection("Points")
-        StatsTab:CreateSlider("Points Amount", "StatsPointsAmountFlag", 1, 100, _G.Settings.Stats["Points Amount"], function(val)
-            _G.Settings.Stats["Points Amount"] = val
-            _G.Settings.Stats["Points Per Tick"] = val
-        end)
-        StatsTab:CreateToggle("Auto Stats", "AutoStatsRequestedFlag", _G.Settings.Stats["Auto Stats"], function(s) _G.Settings.Stats["Auto Stats"]=s end)
-        StatsTab:CreateSection("Select Stats")
-        for _, statName in ipairs({"Melee","Defense","Gun","Sword","Demon Fruit"}) do
-            StatsTab:CreateToggle(statName, "Stat_"..statName, _G.Settings.Stats["Selected Stat"] == statName, function(state)
-                if state then _G.Settings.Stats["Selected Stat"]=statName; _G.Settings.Stats["Auto Stats"]=true end
-            end)
-        end
-
-        ---------------------------------------------------------
-        -- 📌 13. TAB: TELEPORTS
-        ---------------------------------------------------------
-        TeleportsTab:CreateSection("Travel")
-        TeleportsTab:CreateButton("Teleport To Sea 1", function() if CommF_ then CommF_:InvokeServer("TravelMain") end end)
-        TeleportsTab:CreateButton("Teleport To Sea 2", function() if CommF_ then CommF_:InvokeServer("TravelDressrosa") end end)
-        TeleportsTab:CreateButton("Teleport To Sea 3", function() if CommF_ then CommF_:InvokeServer("TravelZou") end end)
-        local IslandNames = {"Bandit Island","Jungle","Pirate Village","Desert","Frozen Village","Marine Fortress","Colosseum","Factory","Kingdom of Rose","Green Zone","Graveyard","Cursed Ship","Ice Castle","Forgotten Island","Port Town","Hydra Island","Great Tree","Floating Turtle","Haunted Castle","Castle on the Sea","Tiki Outpost","Sea of Treats"}
-        _G.Settings.Teleports["Selected Island"] = _G.Settings.Teleports["Selected Island"] or IslandNames[1]
-        TeleportsTab:CreateSection("Islands")
-        TeleportsTab:CreateDropdown("Select Island", "IslandSelectRequestedFlag", IslandNames, _G.Settings.Teleports["Selected Island"], function(s) _G.Settings.Teleports["Selected Island"]=s end)
-        TeleportsTab:CreateButton("Teleport To Island", function()
-            local target=_G.Settings.Teleports["Selected Island"]
-            if target then
-                local obj=workspace:FindFirstChild(target,true)
-                local cf=obj and GetModelCFrame(obj)
-                if cf then SmartTeleportIsland(target,cf,"IslandRequestedTP") end
-            end
-        end)
-        TeleportsTab:CreateSection("Race V4")
-        TeleportsTab:CreateButton("Teleport To Temple Of Time", function()
-            local obj=workspace:FindFirstChild("Temple of Time",true) or workspace:FindFirstChild("TempleOfTime",true)
-            local cf=obj and GetModelCFrame(obj)
-            if cf then SmartTeleportIsland("Temple Of Time",cf,"TempleOfTime") end
-        end)
-
-        TeleportsTab:CreateSection("First Sea Islands Teleport")
-        for islandName, cf in pairs(FullIslandLocations.Sea1) do
-            local key = "TP_" .. islandName
-            TeleportsTab:CreateToggle("Teleport to " .. islandName, key, false, function(state)
-                _G.Settings.Teleports[key] = state
-                if state then
-                    SmartTeleportIsland(islandName, cf, "IslandTeleport")
-                    task.wait(1)
-                    _G.Settings.Teleports[key] = false
-                end
-            end)
-        end
-
-        TeleportsTab:CreateSection("Second Sea Islands Teleport")
-        for islandName, cf in pairs(FullIslandLocations.Sea2) do
-            local key = "TP_" .. islandName
-            TeleportsTab:CreateToggle("Teleport to " .. islandName, key, false, function(state)
-                _G.Settings.Teleports[key] = state
-                if state then
-                    SmartTeleportIsland(islandName, cf, "IslandTeleport")
-                    task.wait(1)
-                    _G.Settings.Teleports[key] = false
-                end
-            end)
-        end
-
-        TeleportsTab:CreateSection("Submerged Island • Level 2600-2800")
-        TeleportsTab:CreateButton("Smart Submerged Route (Level Based)", function()
-            local lv=BFGetLevel()
-            if not World3 or lv<2600 then AetherUI:Notify({Title="Submerged",Content="Requires Level 2600+ in Third Sea.",Duration=3}); return end
-            local chosen=SubmergedQuests[#SubmergedQuests]
-            for _,r in ipairs(SubmergedQuests) do if lv>=r.Min and lv<=r.Max then chosen=r break end end
-            local giver=BFFindSubmergedQuest(chosen.Giver)
-            local cf=giver and GetModelCFrame(giver)
-            if cf then SmartTeleportIsland("Submerged Island", cf*CFrame.new(0,-100,0), "SubmergedTP") else SmartTeleportIsland("Submerged Island", chosen.Giver=="Submerged Quest Giver 1" and CFrame.new(-11034,-201,-9330) or chosen.Giver=="Submerged Quest Giver 2" and CFrame.new(-10439,-316,-9484) or CFrame.new(-10420,-405,-10470), "SubmergedTP") end
-        end)
-
-        TeleportsTab:CreateSection("Third Sea Islands Teleport")
-        for islandName, cf in pairs(FullIslandLocations.Sea3) do
-            local key = "TP_" .. islandName
-            TeleportsTab:CreateToggle("Teleport to " .. islandName, key, false, function(state)
-                _G.Settings.Teleports[key] = state
-                if state then
-                    SmartTeleportIsland(islandName, cf, "IslandTeleport")
-                    task.wait(1)
-                    _G.Settings.Teleports[key] = false
-                end
-            end)
-        end
-
-        ---------------------------------------------------------
-        -- 📌 14. TAB: VISUALS & ESP
-        ---------------------------------------------------------
-        VisualTab:CreateSection("ESP")
-        VisualTab:CreateToggle("ESP Players", "ESPPlayersRequestedFlag", _G.Settings.Visuals["ESP Players"], function(s) _G.Settings.Visuals["ESP Players"]=s end)
-        VisualTab:CreateToggle("ESP Fruits", "ESPFruitsRequestedFlag", _G.Settings.Visuals["ESP Fruits"], function(s) _G.Settings.Visuals["ESP Fruits"]=s; _G.Settings.Fruits["Fruit ESP"]=s end)
-        VisualTab:CreateToggle("ESP Enemies", "ESPEnemiesRequestedFlag", _G.Settings.Visuals["ESP Enemies"], function(s) _G.Settings.Visuals["ESP Enemies"]=s end)
-        VisualTab:CreateToggle("ESP Chests", "ESPChestsRequestedFlag", _G.Settings.Visuals["ESP Chests"], function(s) _G.Settings.Visuals["ESP Chests"]=s end)
-        VisualTab:CreateSection("Sea 3")
-        VisualTab:CreateToggle("ESP Mirage", "ESPMirageRequestedFlag", _G.Settings.Visuals["ESP Mirage Island"], function(s) _G.Settings.Visuals["ESP Mirage Island"]=s end)
-        VisualTab:CreateToggle("ESP Kitsune", "ESPKitsuneRequestedFlag", _G.Settings.Visuals["ESP Kitsune Island"], function(s) _G.Settings.Visuals["ESP Kitsune Island"]=s end)
-
-        VisualTab:CreateSection("Visual Object Detectors")
-
-        VisualTab:CreateToggle("ESP Players", "ESPPlayersFlag", false, function(state) _G.Settings.Visuals["ESP Players"] = state end)
-        VisualTab:CreateToggle("ESP Bosses", "ESPBossesFlag", false, function(state) _G.Settings.Visuals["ESP Bosses"] = state end)
-        VisualTab:CreateToggle("ESP Chests", "ESPChestsFlag", false, function(state) _G.Settings.Visuals["ESP Chests"] = state end)
-        VisualTab:CreateToggle("ESP Enemies", "ESPEnemiesFlag", false, function(state) _G.Settings.Visuals["ESP Enemies"] = state end)
-        VisualTab:CreateToggle("ESP Mirage Island", "ESPMirageFlag", false, function(state) _G.Settings.Visuals["ESP Mirage Island"] = state end)
-        VisualTab:CreateToggle("ESP Kitsune Island", "ESPKitsuneFlag", false, function(state) _G.Settings.Visuals["ESP Kitsune Island"] = state end)
-
-        ---------------------------------------------------------
-        -- 📌 15. TAB: MISC & LIVE SERVER STATUS (Completely Fixed Display)
-        ---------------------------------------------------------
-        MiscTab:CreateSection("Game Promo Codes Master")
-
-        MiscTab:CreateButton("Redeem All Active Promo Codes", function()
-            RedeemAllCodes()
-            AetherUI:Notify({Title = "Codes", Content = "Redeeming all working codes automatically...", Duration = 4})
-        end)
-
-        ----------------------------------------------------------------------
-        -- Real server join helpers: join a candidate, verify locally, then hop
-        -- again when the requested condition is not present. Cross-server
-        -- Roblox public-server listings do not expose Blox Fruits event state.
-        ----------------------------------------------------------------------
-        local SERVER_PAGE_LIMIT = 100
-        local HUB_SCRIPT_URL = HUB_SCRIPT_URL_GLOBAL
-
-        local function moonStage()
-            local sky = Lighting:FindFirstChildOfClass("Sky")
-            local id = sky and tostring(sky.MoonTextureId or "") or ""
-            local stageMap = {
-                ["9709149431"] = 100,
-                ["9709149052"] = 75,
-                ["9709143733"] = 50,
-                ["9709150401"] = 25,
-                ["9709149680"] = 15,
-            }
-            local key = id:match("id=(%d+)") or id:match("(%d+)$")
-            if key and stageMap[key] then return stageMap[key] end
-            local ok, phase = pcall(function() return Lighting:GetMoonPhase() end)
-            if ok and type(phase) == "number" then
-                return math.floor(math.clamp(phase,0,1)*100 + 0.5)
-            end
-            return nil
-        end
-
-        local function localJoinCondition(mode)
-            mode = tostring(mode or "")
-            if mode == "Mirage" then return GetMirageIsland() ~= nil end
-            if mode == "Kitsune" then return GetKitsuneIsland() ~= nil end
-            if mode == "FourHour" then return (tonumber(workspace.DistributedGameTime) or 0) >= 4*60*60 end
-            if mode == "FullMoon" then return moonStage() == 100 end
-            if mode == "NearFullMoon" then
-                local stage = moonStage()
-                return stage ~= nil and stage >= 75
-            end
-            return false
-        end
-
-        local function queueResumeMode(mode)
-            GEN.HaroonServerJoinMode = mode
-            if HUB_SCRIPT_URL ~= "" then
-                local code = string.format([[local g=(getgenv and getgenv()) or _G; g.HaroonServerJoinMode=%q; local s=game:HttpGet(%q); local f=loadstring(s); if f then f() end]], mode, HUB_SCRIPT_URL)
-                safeQueueOnTeleport(code)
-            end
-        end
-
-        local function fetchPublicServers()
-            local list, seen = {}, {}
-            local cursor = nil
-            for _ = 1, 5 do
-                local url = "https://games.roblox.com/v1/games/"..tostring(game.PlaceId).."/servers/Public?sortOrder=Asc&limit="..SERVER_PAGE_LIMIT
-                if cursor and cursor ~= "" then url = url .. "&cursor=" .. HttpService:UrlEncode(cursor) end
-                local raw = safeHttpGet(url)
-                if not raw then
-                    local resp = safeRequest({Url=url, Method="GET"})
-                    raw = resp and (resp.Body or resp.body)
-                end
-                if not raw then break end
-                local ok, data = pcall(function() return HttpService:JSONDecode(raw) end)
-                if not ok or type(data) ~= "table" then break end
-                for _, server in ipairs(data.data or {}) do
-                    local id = tostring(server.id or "")
-                    local playing = tonumber(server.playing or 0) or 0
-                    local maxPlayers = tonumber(server.maxPlayers or 0) or 0
-                    if id ~= "" and id ~= tostring(game.JobId) and playing < maxPlayers and not seen[id] then
-                        seen[id] = true
-                        table.insert(list, id)
-                    end
-                end
-                cursor = data.nextPageCursor
-                if not cursor or cursor == "" then break end
-            end
-            return list
-        end
-
-        local function hopForMode(mode)
-            if localJoinCondition(mode) then
-                GEN.HaroonServerJoinMode = nil
-                if AetherUI then AetherUI:Notify({Title="Server Finder", Content="Condition found in this server.", Duration=3}) end
-                return true
-            end
-            queueResumeMode(mode)
-            local servers = fetchPublicServers()
-            if #servers == 0 then
-                if AetherUI then AetherUI:Notify({Title="Server Finder", Content="No joinable public server returned.", Duration=3}) end
-                return false
-            end
-            local target = servers[math.random(1,#servers)]
-            TeleportService:TeleportToPlaceInstance(game.PlaceId, target, LocalPlayer)
-            return true
-        end
-        GEN.HaroonHopForMode = hopForMode
-
-        MiscTab:CreateSection("Real Server Finder")
-        local function addServerJoinButton(label, mode, allowed)
-            if allowed then
-                MiscTab:CreateButton(label, function() hopForMode(mode) end)
-            end
-        end
-        addServerJoinButton("Join 4 Hour Server", "FourHour", World1 or World2 or World3)
-        addServerJoinButton("Join Mirage Island Server", "Mirage", World3)
-        addServerJoinButton("Join Kitsune Island Server", "Kitsune", World3)
-        addServerJoinButton("Join Near Full Moon Server", "NearFullMoon", World3)
-        addServerJoinButton("Join Full Moon Server", "FullMoon", World3)
-
-        MiscTab:CreateSection("Live Server & World Status")
-
-        local function UpdateParagraph(paragraph, description)
-            if not paragraph then return false end
-            local text = tostring(description or "")
-            for _, methodName in ipairs({"SetContent","SetDesc","SetDescription","SetStatus","Update","Set","SetText"}) do
-                local method = paragraph[methodName]
-                if type(method) == "function" then
-                    local ok = pcall(function() method(paragraph, text) end)
-                    if ok then return true end
-                end
-            end
-            return false
-        end
-
-        local SessionTimePara = MiscTab:CreateParagraph({Title="Session Time", Desc="00:00:00", Image="rbxassetid://6034287594", ImageSize=20})
-        local ServerTimePara = MiscTab:CreateParagraph({Title="Server Uptime", Desc="00:00:00", Image="rbxassetid://6034287594", ImageSize=20})
-        local AFKTimePara = MiscTab:CreateParagraph({Title="AFK / Idle Time", Desc="00:00:00", Image="rbxassetid://6034287594", ImageSize=20})
-        local TimezonePara = MiscTab:CreateParagraph({Title="Time", Desc="Local: --:--:-- | UTC: --:--:--", Image="rbxassetid://6034287594", ImageSize=20})
-        local SeaIslandPara = MiscTab:CreateParagraph({Title="Location & Sea", Desc="Sea: Detecting... | Island: Detecting...", Image="rbxassetid://6034453535", ImageSize=20})
-        local StatsPara = MiscTab:CreateParagraph({Title="Player Stats & Currency", Desc="Level: -- | Beli: -- | Fragments: --", Image="rbxassetid://6031280882", ImageSize=20})
-        local ServerInfoPara = MiscTab:CreateParagraph({Title="Server", Desc="Players: 0/0 | Server Time: 00:00:00", Image="rbxassetid://6034287594", ImageSize=20})
-        local CakePrincePara = MiscTab:CreateParagraph({Title="Cake Prince", Desc="🔴 Not Spawned | Progress: 0/500 | Remaining: 500", Image="rbxassetid://6034834832", ImageSize=20})
-        local DoughKingPara = MiscTab:CreateParagraph({Title="Dough King", Desc="🔴 Not Spawned | Progress: 0/500 | Remaining: 500 | Sweet Chalice: ❌", Image="rbxassetid://6034834832", ImageSize=20})
-        local MiragePara = MiscTab:CreateParagraph({Title="Mirage Status", Desc="🔴 Not Spawned", Image="rbxassetid://6034453535", ImageSize=20})
-        local KitsunePara = MiscTab:CreateParagraph({Title="Kitsune Status", Desc="🔴 Not Spawned", Image="rbxassetid://6034453535", ImageSize=20})
-        local AzureEmberPara = MiscTab:CreateParagraph({Title="Azure Embers", Desc="0 found | Auto Collect: OFF", Image="rbxassetid://6034453535", ImageSize=20})
-        local SeaEventPara = MiscTab:CreateParagraph({Title="Sea Events", Desc="No active sea events detected.", Image="rbxassetid://6034453535", ImageSize=20})
-        local ElitePara = MiscTab:CreateParagraph({Title="Elite Hunters Killed", Desc="N/A", Image="rbxassetid://6034834832", ImageSize=20})
-        local SwordPara = MiscTab:CreateParagraph({Title="Legendary Swords Owned", Desc="0 / 3", Image="rbxassetid://6034834832", ImageSize=20})
-        local NetworkPara = MiscTab:CreateParagraph({Title="Network", Desc="FPS: -- | Ping: -- ms", Image="rbxassetid://6031280882", ImageSize=20})
-
-        local uiStartClock = os.clock()
-        local lastInputClock = os.clock()
-        UserInputService.InputBegan:Connect(function(input, processed)
-            if not processed then lastInputClock = os.clock() end
-        end)
-        UserInputService.InputChanged:Connect(function(input, processed)
-            if not processed then lastInputClock = os.clock() end
-        end)
-
-        local function fmtHMS(sec)
-            sec = math.max(0, math.floor(sec or 0))
-            return string.format("%02d:%02d:%02d", math.floor(sec/3600), math.floor((sec%3600)/60), sec%60)
-        end
-
-        local localServerStart = os.clock()
-        local function getServerClock()
-            local ok, value = pcall(function() return workspace:GetServerTimeNow() end)
-            if ok and type(value) == "number" and value > 0 then return value end
-            return os.time()
-        end
-
-        local function liveServerElapsed()
-            local v = workspace.DistributedGameTime
-            if type(v) == "number" and v > 0 then return v end
-            return math.max(0, os.clock() - localServerStart)
-        end
-
-        do
-            local frames=0
-            local last=os.clock()
-            RunService.RenderStepped:Connect(function()
-                frames+=1
-                local now=os.clock()
-                if now-last>=1 then
-                    getgenv().HaroonFPS=frames/(now-last)
-                    frames=0
-                    last=now
-                end
-            end)
-        end
+        SeaTab:CreateDropdown("Select Sea Farm", "SeaFarmSelector", {"Sea Beast","Shark","Piranha","Fish Crew Member","Ghost Ship","Terrorshark","Leviathan"}, "Sea Beast", function(v) _G.Settings.Sea["Selected Sea Farm"]=v end)
+        SeaTab:CreateSection("Dropdown")
+        SeaTab:CreateDropdown("Danger Level", "DangerSelector", {"Low","Normal","High","Extreme"}, "Normal", function(v) _G.Settings.Sea["Selected Danger Level"]=v end)
+        SeaTab:CreateSlider("Boat Speed", "BoatSpeed2", 100, 250, 200, function(v) _G.Settings.Sea["Boat Tween Speed"]=v end)
+        SeaTab:CreateSlider("Boat Height", "BoatHeight2", 20, 60, 30, function(v) _G.Settings.Sea["Boat Height"]=v end)
 
         task.spawn(function()
             while task.wait(0.5) do
                 pcall(function()
-                    local stats = LocalPlayer:FindFirstChild("Data") or LocalPlayer:FindFirstChild("leaderstats")
-                    local sessionElapsed = os.clock() - uiStartClock
-                    local serverElapsed = liveServerElapsed()
-                    local serverNow = 0
-                    pcall(function() serverNow = workspace:GetServerTimeNow() end)
-                    local afkElapsed = os.clock() - lastInputClock
-                    UpdateParagraph(SessionTimePara, fmtHMS(sessionElapsed))
-                    local serverEpoch = getServerClock()
-                    UpdateParagraph(ServerTimePara, "Uptime: " .. fmtHMS(serverElapsed) .. " | Server: " .. os.date("%H:%M:%S", serverEpoch) .. " | UTC: " .. os.date("!%H:%M:%S", serverEpoch))
-                    UpdateParagraph(AFKTimePara, "Idle: " .. fmtHMS(afkElapsed) .. (afkElapsed >= 60 and " | AFK" or ""))
-                    UpdateParagraph(TimezonePara, "Local: " .. os.date("%H:%M:%S") .. " | UTC: " .. os.date("!%H:%M:%S"))
-
-                    local currentSeaName = World1 and "First Sea" or (World2 and "Second Sea" or (World3 and "Third Sea" or "Unknown"))
-                    local islandText = "Unknown"
-                    local locations = workspace:FindFirstChild("_WorldOrigin") and workspace._WorldOrigin:FindFirstChild("Locations")
-                    if World3 then
-                        local mi = GetMirageIsland(); local ki = GetKitsuneIsland()
-                        if mi then islandText = "Mirage Island" elseif ki then islandText = "Kitsune Island" end
-                    end
-                    UpdateParagraph(SeaIslandPara, "Sea: " .. currentSeaName .. " | Island/Event: " .. islandText)
-
-                    local level = stats and stats:FindFirstChild("Level") and stats.Level.Value or "N/A"
-                    local beli = stats and stats:FindFirstChild("Beli") and stats.Beli.Value or "N/A"
-                    local frags = stats and stats:FindFirstChild("Fragments") and stats.Fragments.Value or "N/A"
-                    UpdateParagraph(StatsPara, "Level: " .. tostring(level) .. " | Beli: " .. tostring(beli) .. " | Fragments: " .. tostring(frags))
-
-                    local pCount = #Players:GetPlayers()
-                    UpdateParagraph(ServerInfoPara, "Players: " .. pCount .. "/" .. tostring(Players.MaxPlayers) .. " | Uptime: " .. fmtHMS(serverElapsed) .. " | Job: " .. string.sub(tostring(game.JobId),1,8))
-
-                    local princeResult = "🔴 Not Spawned | Progress: 0/500 | Remaining: 500"
-                    pcall(function() princeResult=getCakePrinceProgressIntegrated() end)
-                    pcall(function() UpdateParagraph(CakePrincePara, princeResult) end)
-                    local doughText="🔴 Not Spawned | Progress: 0/500 | Remaining: 500 | Sweet Chalice: ❌"
-                    pcall(function() doughText=getDoughKingStatusText() end)
-                    pcall(function() UpdateParagraph(DoughKingPara, doughText) end)
-
-                    local mirage=GetMirageIsland()
-                    local kitsune=GetKitsuneIsland()
-                    if mirage then notifyEventOnce("Mirage","🌙 Mirage Island") else resetEventNotice("Mirage") end
-                    if kitsune then notifyEventOnce("Kitsune","🦊 Kitsune Island") else resetEventNotice("Kitsune") end
-                    pcall(function() UpdateParagraph(MiragePara, mirage and "🟢 Spawned" or "🔴 Not Spawned") end)
-                    if mirage and not EventNoticeState.Mirage then
-                        EventNoticeState.Mirage=true
-                        pcall(function() AetherUI:Notify({Title="🌙 Mirage Island",Content="Mirage Island spawned! Teleporting if enabled.",Duration=5}) end)
-                    elseif not mirage then
-                        EventNoticeState.Mirage=false
-                    end
-                    pcall(function() UpdateParagraph(KitsunePara, kitsune and "🟢 Spawned" or "🔴 Not Spawned") end)
-                    if kitsune and not EventNoticeState.Kitsune then
-                        EventNoticeState.Kitsune=true
-                        pcall(function() AetherUI:Notify({Title="🦊 Kitsune Island",Content="Kitsune Island spawned! Azure Embers can now be collected.",Duration=5}) end)
-                    elseif not kitsune then
-                        EventNoticeState.Kitsune=false
-                    end
-                    local emberCount = 0
-                    pcall(function() emberCount = #findAzureEmbers() end)
-                    UpdateParagraph(AzureEmberPara, tostring(emberCount) .. " found | Auto Collect: " .. (_G.Settings.Sea["Auto Collect Azure Embers"] and "🟢 ON" or "🔴 OFF"))
-
-                    local counts = {}
-                    pcall(function() counts=getSeaEventCounts() or {} end)
-                    local active = {}
-                    for name, count in pairs(counts) do table.insert(active, name .. " x" .. count) end
-                    table.sort(active)
-                    UpdateParagraph(SeaEventPara, #active > 0 and table.concat(active, " | ") or "🔴 No active Sea Events")
-                    for name, count in pairs(counts) do
-                        if count > 0 and name ~= "Mirage Island" and name ~= "Kitsune Island" then
-                            if not EventNoticeState.Sea[name] then
-                                EventNoticeState.Sea[name] = true
-                                pcall(function()
-                                    AetherUI:Notify({Title="🌊 Sea Event", Content=tostring(name) .. " spawned (" .. tostring(count) .. ")", Duration=4})
-                                end)
-                            end
-                        else
-                            EventNoticeState.Sea[name] = nil
-                        end
-                    end
-
-                    local ek = "N/A"
-                    if stats then
-                        for _, v in ipairs(stats:GetChildren()) do
-                            if v.Name:lower():find("elite") then ek = tostring(v.Value) break end
-                        end
-                    end
-                    UpdateParagraph(ElitePara, ek)
-                    local swords = 0
-                    local bp = LocalPlayer:FindFirstChildOfClass("Backpack"); local c = LocalPlayer.Character
-                    for _, name in ipairs({"Shisui", "Saddi", "Wando"}) do
-                        if (bp and bp:FindFirstChild(name)) or (c and c:FindFirstChild(name)) then swords += 1 end
-                    end
-                    UpdateParagraph(SwordPara, swords .. " / 3")
-                    local fps = math.floor(getgenv().HaroonFPS or 0)
-                    local ping = 0
-                    pcall(function() ping = math.floor(game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue()) end)
-                    UpdateParagraph(NetworkPara, "FPS: " .. tostring(fps) .. " | Ping: " .. tostring(ping) .. " ms")
+                    local selected=_G.Settings.Main["Selected Boss"]
+                    local function norm(n) return tostring(n or ""):lower():gsub("%s*%[lv%.%s*%d+%]%s*",""):gsub("%s*%[raid boss%]%s*",""):gsub("%s+"," "):gsub("^%s+",""):gsub("%s+$","") end
+                    local enemies=workspace:FindFirstChild("Enemies")
+                    local alive=false
+                    if enemies then for _,m in ipairs(enemies:GetChildren()) do if m:IsA("Model") and norm(m.Name)==norm(selected) then local h=m:FindFirstChildOfClass("Humanoid"); if h and h.Health>0 then alive=true break end end end end
+                    UpdateParagraph(BossStatusPara, alive and "🟢 Spawned" or "🔴 Not Spawned")
+                    local soul=enemies and enemies:FindFirstChild("Soul Reaper"); local sh=soul and soul:FindFirstChildOfClass("Humanoid"); UpdateParagraph(SoulStatusPara, sh and sh.Health>0 and "🟢 Spawned" or "🔴 Not Spawned")
+                    local _,remaining=integratedCakeProgress(); local killed=math.max(0,500-(tonumber(remaining) or 500)); UpdateParagraph(CakeStatusPara,tostring(killed).."/500")
+                    local gray=enemies and enemies:FindFirstChild("Greybeard"); local gh=gray and gray:FindFirstChildOfClass("Humanoid"); UpdateParagraph(GreyStatusPara, gh and gh.Health>0 and "🟢 Spawned" or "🔴 Not Spawned")
                 end)
             end
         end)
-
-        MiscTab:CreateSection("Auto Stat Point Allocator")
-
-        MiscTab:CreateDropdown("Select Stat Target", "SelectStatDropdown", {"Melee", "Defense", "Sword", "Gun", "Demon Fruit"}, "Melee", function(selected)
-            _G.Settings.Stats["Selected Stat"] = selected
-        end)
-
-        MiscTab:CreateSlider("Points Per Tick", "StatPointsSlider", 1, 100, 1, function(val)
-            _G.Settings.Stats["Points Per Tick"] = val
-        end)
-
-        MiscTab:CreateToggle("Auto Stat Points", "AutoStatsToggleFlag", false, function(state)
-            _G.Settings.Stats["Auto Stats"] = state
-        end)
-
-        MiscTab:CreateSection("Server Utilities & Anti-AFK")
-
-        MiscTab:CreateToggle("Anti-AFK (Prevent Kick)", "AntiAFKFlag", false, function(state)
-            _G.Settings.Misc["Anti AFK"] = state
-        end)
-
-        MiscTab:CreateToggle("Hover Over Water (Walk On Water)", "WalkOnWaterFlag", false, function(state)
-            _G.Settings.Misc["Walk On Water"] = state
-        end)
-
-        MiscTab:CreateToggle("Auto Server Hop on Admin/VIP Join", "AutoHopVIPFlag", false, function(state)
-            _G.Settings.Misc["Auto Server Hop VIP"] = state
-        end)
-
-        MiscTab:CreateToggle("Bypass Anticheat (30-Min Server Hop)", "BypassAnticheatFlag", false, function(state)
-            _G.Settings.Misc["Bypass Anticheat"] = state
-        end)
-
-        local function joinRandomPublicServer(preferNearFull)
-            local ok, target = pcall(function()
-                local placeId = game.PlaceId
-                local result = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Desc&limit=100"))
-                local candidates = {}
-                if result and result.data then
-                    for _, server in ipairs(result.data) do
-                        if server.id ~= tostring(game.JobId) and server.playing < server.maxPlayers then
-                            local score = preferNearFull and (server.playing / math.max(server.maxPlayers,1)) or (1 - server.playing / math.max(server.maxPlayers,1))
-                            table.insert(candidates, {id=server.id, score=score})
-                        end
-                    end
-                end
-                table.sort(candidates, function(a,b) return a.score > b.score end)
-                return candidates[1] and candidates[1].id
-            end)
-            if ok and target then TeleportService:TeleportToPlaceInstance(game.PlaceId, target, LocalPlayer) end
-        end
-
-        MiscTab:CreateButton("Join 4 Hour Server", function()
-            -- The supplied source does not contain an exact 4-hour server detector; use a public-server hop.
-            joinRandomPublicServer(false)
-        end)
-        MiscTab:CreateButton("Join Mirage Island Server", function() joinRandomPublicServer(true) end)
-        MiscTab:CreateButton("Join Kitsune Island Server", function() joinRandomPublicServer(true) end)
-        MiscTab:CreateButton("Join Near Full Moon Server", function() joinRandomPublicServer(true) end)
-        MiscTab:CreateButton("Join Full Moon Server", function() joinRandomPublicServer(true) end)
-
-        MiscTab:CreateButton("Server Hub • Public Server Hop", function()
-            local servers=fetchPublicServers()
-            if #servers==0 then
-                AetherUI:Notify({Title="Server Hub",Content="No available public servers were returned.",Duration=3})
-                return
-            end
-            local target=servers[math.random(1,#servers)]
-            TeleportService:TeleportToPlaceInstance(game.PlaceId,target,LocalPlayer)
-        end)
-
-        MiscTab:CreateButton("Manual Server Hop", function()
-            local success, targetServer = pcall(function()
-                local placeId = game.PlaceId
-                local servers = {}
-                local result = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100"))
-                if result and result.data then
-                    for _, server in ipairs(result.data) do
-                        if server.playing < server.maxPlayers and server.id ~= tostring(game.JobId) then
-                            table.insert(servers, server.id)
-                        end
-                    end
-                end
-                if #servers > 0 then return servers[math.random(#servers)] end
-            end)
-
-            if success and targetServer then
-                TeleportService:TeleportToPlaceInstance(game.PlaceId, targetServer, LocalPlayer)
-            end
-        end)
-
-        ---------------------------------------------------------
-        -- 📌 16. TAB: SETTINGS
-        ---------------------------------------------------------
-        SettingsTab:CreateSection("Movement & Character")
-
-        SettingsTab:CreateSlider("Walk Speed", "SettingsWalkSpeed", 16, 300, _G.Settings.Misc["Walk Speed"], function(value)
-            _G.Settings.Misc["Walk Speed"] = value
-        end)
-
-        SettingsTab:CreateToggle("Enable Custom Speed", "SettingsCustomSpeed", false, function(state)
-            _G.Settings.Misc["Custom Speed"] = state
-        end)
-
-        SettingsTab:CreateSlider("Jump Power", "SettingsJumpPower", 50, 300, _G.Settings.Misc["Jump Power"], function(value)
-            _G.Settings.Misc["Jump Power"] = value
-        end)
-
-        SettingsTab:CreateToggle("Enable Custom Jump", "SettingsCustomJump", false, function(state)
-            _G.Settings.Misc["Custom Jump"] = state
-        end)
-
-        SettingsTab:CreateToggle("Infinity Jump", "SettingsInfinityJump", false, function(state)
-            _G.Settings.Misc["Infinity Jump"] = state
-        end)
-        SettingsTab:CreateSection("Hub Controls")
-
-        SettingsTab:CreateButton("Rejoin Current Server", function()
-            TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
-        end)
-
-        SettingsTab:CreateButton("Destroy Hub Interface", function()
-            local master = game:GetService("CoreGui"):FindFirstChild("HaroonHub_Master") or game:GetService("Players").LocalPlayer.PlayerGui:FindFirstChild("HaroonHub_Master")
-            if master then master:Destroy() end
-        end)
     end)
 end)
-
 --------------------------------------------------------------------------------
 -- 7B. SETTINGS MOVEMENT ENGINE
 --------------------------------------------------------------------------------
@@ -3255,11 +1610,9 @@ end)
 task.spawn(function()
     while task.wait(0.08) do
         if _G.Settings.Main["Auto Farm Level (New)"] then
-            pcall(function()
-                if BFSubmergedStep() then return end
-            end)
+            pcall(function() BFSubmergedStep() end)
         end
-        if _G.Settings.Main["Auto Farm Level"] then
+        if _G.Settings.Main["Auto Farm Level"] and not _G.Settings.Main["Auto Farm Level (New)"] then
             pcall(function()
                 local char, hrp, hum = GetCharacter()
                 if not char or not hrp or not hum or hum.Health <= 0 then return end
@@ -3304,66 +1657,6 @@ task.spawn(function()
                 end
             end)
         end
-    end
-end)
-
---------------------------------------------------------------------------------
--- Requested Main combat helpers: Pirate Raid / Soul Reaper
---------------------------------------------------------------------------------
-local function findRequestedEnemy(predicate, maxDistance)
-    local enemies=workspace:FindFirstChild("Enemies")
-    local _,hrp=GetCharacter()
-    if not enemies then return nil end
-    local best,bestD=nil,math.huge
-    for _,mob in ipairs(enemies:GetChildren()) do
-        if mob:IsA("Model") then
-            local hum=mob:FindFirstChildOfClass("Humanoid")
-            local root=mob:FindFirstChild("HumanoidRootPart") or mob.PrimaryPart
-            if hum and hum.Health>0 and root and predicate(mob) then
-                local d=hrp and (hrp.Position-root.Position).Magnitude or 0
-                if (not maxDistance or d<=maxDistance) and d<bestD then
-                    best,bestD=mob,d
-                end
-            end
-        end
-    end
-    return best
-end
-
-task.spawn(function()
-    while task.wait(0.18) do
-        pcall(function()
-            if _G.Settings.Main["Auto Farm Soul Reaper"] and World2 or _G.Settings.Main["Auto Farm Soul Reaper"] and World3 then
-                local boss=findRequestedEnemy(function(m)
-                    return m.Name:lower()=="soul reaper" or m.Name:lower():find("soul reaper",1,true) ~= nil
-                end)
-                if boss then
-                    AutoHaki()
-                    local root=boss:FindFirstChild("HumanoidRootPart") or boss.PrimaryPart
-                    if root then
-                        TweenPlayer(root.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0), "SoulReaper")
-                        SmartAttackMob(boss)
-                    end
-                end
-            end
-
-            if _G.Settings.Main["Auto Farm Pirates"] then
-                local pirate=findRequestedEnemy(function(m)
-                    local n=m.Name:lower()
-                    return n:find("pirate",1,true) ~= nil
-                        or n:find("raider",1,true) ~= nil
-                        or n:find("crew",1,true) ~= nil
-                end, 3500)
-                if pirate then
-                    AutoHaki()
-                    local root=pirate:FindFirstChild("HumanoidRootPart") or pirate.PrimaryPart
-                    if root then
-                        TweenPlayer(root.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0), "PirateRaid")
-                        SmartAttackMob(pirate)
-                    end
-                end
-            end
-        end)
     end
 end)
 
@@ -4573,7 +2866,7 @@ local function espTick()
     if not hrp then return end
     local seen = {}
     local S = _G.Settings.Visuals
-    local fruitEnabled = _G.Settings.Fruits["Fruit ESP"] == true
+    local fruitEnabled = (_G.Settings.Fruits["Fruit ESP"] == true) or (_G.Settings.Visuals["ESP Fruits"] == true)
     if _G.Settings.Fruits["Player ESP"] then S["ESP Players"] = true end
     if _G.Settings.Fruits["Chest ESP"] then S["ESP Chests"] = true end
 
@@ -5219,6 +3512,165 @@ task.spawn(function()
                     boat:PivotTo(cf)
                 end
             end
+        end)
+    end
+end)
+
+
+--------------------------------------------------------------------------------
+-- AETHER HUB • REQUESTED AUTOMATION ADAPTERS
+--------------------------------------------------------------------------------
+local AetherBoneState={last=0}
+local AetherFruitState={lastRoll=0,lastStore=0}
+local function AetherHasTool(name)
+    local n=tostring(name or ""):lower()
+    for _,root in ipairs({LocalPlayer.Character,LocalPlayer:FindFirstChildOfClass("Backpack")}) do
+        if root then for _,obj in ipairs(root:GetChildren()) do if obj:IsA("Tool") and obj.Name:lower():find(n,1,true) then return true end end end
+    end
+    return false
+end
+local function AetherFindAlive(names,origin,radius)
+    if type(names)=="string" then names={names} end
+    local en=workspace:FindFirstChild("Enemies"); if not en then return nil end
+    local best,bd=nil,math.huge
+    for _,m in ipairs(en:GetChildren()) do
+        if m:IsA("Model") then
+            local lower=m.Name:lower(); local match=false
+            for _,n in ipairs(names or {}) do if lower==tostring(n):lower() or lower:find(tostring(n):lower(),1,true) then match=true break end end
+            local h=m:FindFirstChildOfClass("Humanoid"); local r=m:FindFirstChild("HumanoidRootPart") or m.PrimaryPart
+            if match and h and h.Health>0 and r then local d=origin and (origin-r.Position).Magnitude or 0; if (not radius or d<=radius) and d<bd then best,bd=m,d end end
+        end
+    end
+    return best
+end
+local function AetherAttackAt(names,owner)
+    local _,hrp,hum=GetCharacter(); if not hrp or not hum or hum.Health<=0 then return false end
+    local t=AetherFindAlive(names,hrp.Position,2500); if not t then return false end
+    local root=t:FindFirstChild("HumanoidRootPart") or t.PrimaryPart; if not root then return false end
+    AutoHaki(); local pos=root.Position+Vector3.new(0,math.max(25,tonumber(_G.Settings.Main["Farm Distance"]) or 28),0)
+    if (hrp.Position-pos).Magnitude>14 then TweenPlayer(CFrame.lookAt(pos,root.Position),nil,owner or "Aether") else pcall(function() hrp.CFrame=CFrame.lookAt(pos,root.Position); hrp.AssemblyLinearVelocity=Vector3.zero end); SmartAttackMob(t) end
+    return true
+end
+local function AetherBoneActions(force)
+    if not World3 or not CommF_ then return end
+    if not force and os.clock()-AetherBoneState.last<0.75 then return end
+    if _G.Settings.SubFarm["Auto Trade Bones"] or _G.Settings.SubFarm["Auto Pray"] or _G.Settings.SubFarm["Auto Try Luck"] then AetherBoneState.last=os.clock() else return end
+    if _G.Settings.SubFarm["Auto Trade Bones"] then pcall(function() CommF_:InvokeServer("Bones","Buy",1,1) end) end
+    if _G.Settings.SubFarm["Auto Pray"] then pcall(function() CommF_:InvokeServer("gravestoneEvent",1) end) end
+    if _G.Settings.SubFarm["Auto Try Luck"] then pcall(function() CommF_:InvokeServer("gravestoneEvent",2) end) end
+end
+local function AetherSoulStep()
+    if not World3 then return end
+    if _G.Settings.SubFarm["Auto Kill Soul Reaper"] then
+        if not AetherAttackAt({"Soul Reaper"},"SoulReaper") then AetherBoneActions(false) end
+    end
+end
+local function AetherPirateStep()
+    if World3 and _G.Settings.Main["Auto Pirates"] then
+        AetherAttackAt({"Pirate", "Commander", "Guard", "Pirate Brigade", "Pirate Millionaire"},"PirateRaid")
+    end
+end
+local function AetherGreybeardStep()
+    if not _G.Settings.Quests["Auto Greybeard"] then return end
+    local saved=_G.Settings.Main["Selected Boss"]
+    local savedAuto=_G.Settings.Main["Auto Farm Boss"]
+    _G.Settings.Main["Selected Boss"]="Greybeard"
+    _G.Settings.Main["Auto Farm Boss"]=true
+    pcall(bossFarmStepV5)
+    _G.Settings.Main["Auto Farm Boss"]=savedAuto
+    _G.Settings.Main["Selected Boss"]=saved
+end
+local function AetherSecondSeaStep()
+    if _G.Settings.ItemsQuests["Auto Second Sea"] and World1 and BFGetLevel()>=700 and CommF_ then
+        -- Prefer the game's travel remote once the level requirement is met.
+        pcall(function() CommF_:InvokeServer("TravelDressrosa") end)
+    end
+end
+local function AetherYamaStep()
+    if not World3 or not _G.Settings.ItemsQuests["Auto Yama"] or AetherHasTool("Yama") then return end
+    local ok,progress=pcall(function() return CommF_ and CommF_:InvokeServer("EliteHunter","Progress") end)
+    if ok and tonumber(progress) and tonumber(progress)>=30 then
+        local map=workspace:FindFirstChild("Map"); local wf=map and map:FindFirstChild("Waterfall"); local seal=wf and wf:FindFirstChild("SealedKatana"); local h=seal and seal:FindFirstChild("Handle"); local cd=h and h:FindFirstChildOfClass("ClickDetector")
+        if cd and fireclickdetector then pcall(function() fireclickdetector(cd) end) end
+    else
+        _G.Settings.SubFarm["Auto Elite Hunter"]=true
+    end
+end
+local function AetherSwordStep()
+    local saved=_G.Settings.Main["Selected Boss"]
+    local function bossJob(flag,expected,worldAllowed,target)
+        if not _G.Settings.ItemsQuests[flag] or AetherHasTool(expected) or not worldAllowed() then return false end
+        _G.Settings.Main["Selected Boss"]=target
+        _G.Settings.Main["Auto Farm Boss"]=true
+        pcall(bossFarmStepV5)
+        _G.Settings.Main["Auto Farm Boss"]=false
+        _G.Settings.Main["Selected Boss"]=saved
+        return true
+    end
+    if bossJob("Auto Get Pole","Pole",function() return World1 end,"Thunder God") then return end
+    if bossJob("Auto Get Saw","Saber Saw",function() return World1 end,"The Saw") then return end
+    if bossJob("Auto Get Warden Sword","Warden's Sword",function() return World1 end,"Warden") then return end
+    if bossJob("Auto Get Saber","Saber",function() return World1 end,"Saber Expert") then return end
+    if bossJob("Auto Get Trident","Trident",function() return World2 end,"Tide Keeper") then return end
+end
+local function AetherIndraStep()
+    if not World3 or not _G.Settings.ItemsQuests["Auto Rip Indra"] then return end
+    if not AetherAttackAt({"rip_indra True Form","Indra"},"RipIndra") then
+        local cf=MobSpecificTeleports["Indra"]; local _,hrp=GetCharacter()
+        if cf and hrp and (hrp.Position-cf.Position).Magnitude>25 then TweenPlayer(cf,nil,"RipIndra") end
+    end
+end
+local function AetherFruitStep()
+    if _G.Settings.Fruits["Auto Teleport Fruits"] then
+        local _,hrp=GetCharacter()
+        if hrp then
+            for _,obj in ipairs(workspace:GetDescendants()) do
+                if (obj:IsA("Tool") or obj:IsA("Model")) and (obj.Name:lower():find("fruit",1,true) or obj:GetAttribute("FruitName")) then
+                    local p=getEspPart(obj); if p then pcall(function() hrp.CFrame=CFrame.new(p.Position+Vector3.new(0,3,0)) end); break end
+                end
+            end
+        end
+    end
+    if _G.Settings.Fruits["Auto Store Fruit"] and CommF_ and os.clock()-AetherFruitState.lastStore>=0.8 then
+        AetherFruitState.lastStore=os.clock()
+        for _,root in ipairs({LocalPlayer:FindFirstChildOfClass("Backpack"),LocalPlayer.Character}) do
+            if root then
+                for _,fruit in ipairs(root:GetChildren()) do
+                    if fruit:IsA("Tool") and (fruit:FindFirstChild("Fruit") or fruit:FindFirstChild("EatRemote") or fruit.Name:lower():find("fruit",1,true)) then
+                        local name=fruit:GetAttribute("OriginalName") or fruit.Name:gsub(" Fruit$","")
+                        if not tostring(name):find("%-",1,true) then name=tostring(name).."-"..tostring(name) end
+                        pcall(function() CommF_:InvokeServer("StoreFruit",name,fruit) end)
+                    end
+                end
+            end
+        end
+    end
+    if _G.Settings.Fruits["Auto Roll Fruit"] and CommF_ and os.clock()-AetherFruitState.lastRoll>=2.5 then
+        AetherFruitState.lastRoll=os.clock(); pcall(function() CommF_:InvokeServer("Cousin","Buy") end)
+    end
+end
+local function AetherSeaStep()
+    local S=_G.Settings.Sea
+    if S["Auto Farm Sea"] then
+        S["Auto Attack Sea Events"]=true
+        S["Auto Farm Seabeasts"]=S["Selected Sea Farm"]=="Sea Beast"
+        S["Auto Farm Shark"]=S["Selected Sea Farm"]=="Shark"
+        S["Auto Farm Piranha"]=S["Selected Sea Farm"]=="Piranha"
+        S["Auto Farm Fish Crew Member"]=S["Selected Sea Farm"]=="Fish Crew Member"
+        S["Auto Farm Ghost Ship"]=S["Selected Sea Farm"]=="Ghost Ship"
+        S["Auto Farm Terrorshark"]=S["Selected Sea Farm"]=="Terrorshark"
+        S["Auto Farm Leviathan"]=S["Selected Sea Farm"]=="Leviathan"
+    else
+        S["Auto Attack Sea Events"]=false
+    end
+    S["Boat Tween Speed"]=math.clamp(tonumber(S["Boat Tween Speed"]) or 200,100,250)
+    S["Boat Height"]=30
+    if S["Auto Drive Boat"] then S["Sail Boat"]=true else S["Sail Boat"]=false end
+end
+task.spawn(function()
+    while task.wait(0.18) do
+        pcall(function()
+            AetherSecondSeaStep(); AetherGreybeardStep(); AetherYamaStep(); AetherSwordStep(); AetherIndraStep(); AetherPirateStep(); AetherBoneActions(false); AetherSoulStep(); AetherFruitStep(); AetherSeaStep()
         end)
     end
 end)
