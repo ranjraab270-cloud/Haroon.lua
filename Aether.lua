@@ -104,6 +104,13 @@ Lighting.FogEnd = 1e10
 _G.Settings = {
     Main = {
         ["Auto Farm Level"] = false,
+        ["Auto Farm Level (New)"] = false,
+        ["Selected Combat Style"] = "Melee",
+        ["Auto Farm Pirates"] = false,
+        ["Auto Farm Soul Reaper"] = false,
+        ["Auto Pray"] = false,
+        ["Auto Trade Bones"] = false,
+        ["Auto Try Luck"] = false,
         ["Include Boss Quests"] = false,
         ["Select Weapon"] = "Melee",
         ["Farm Distance"] = 28,
@@ -138,6 +145,8 @@ _G.Settings = {
         ["Island ESP"] = false,
         ["Fruit Sniper"] = false,
         ["Auto Store Fruit"] = false,
+        ["Auto Teleport Fruits"] = false,
+        ["Auto Random Fruits"] = false,
         ["Auto Drop Fruit"] = false,
         ["Auto Roll Fruit"] = false,
     },
@@ -145,6 +154,7 @@ _G.Settings = {
         ["Auto Elite Hunter"] = false,
         ["Auto Elite Hunter Hop"] = false,
         ["Auto Farm Bone"] = false,
+        ["Auto Farm Bones"] = false,
         ["Auto Accept Bone Quest"] = false,
         ["Auto Random Surprise"] = false,
         ["Auto Chest Tween"] = false,
@@ -165,6 +175,8 @@ _G.Settings = {
     },
     Cake = {
         ["Auto Katakuri"] = false,
+        ["Auto Katakuri V1"] = false,
+        ["Auto Katakuri V2"] = false,
         ["Auto Spawn Cake Prince"] = false,
         ["Auto Kill Cake Prince"] = false,
         ["Auto Kill Dough King"] = false
@@ -192,6 +204,10 @@ _G.Settings = {
         ["Boat Tween Speed"] = 200,
         ["Boat Height"] = 30,
         ["Sail Boat"] = false,
+        ["Auto Farm Sea"] = false,
+        ["Auto Drive Boat"] = false,
+        ["Sea Farm Target"] = "Terrorshark",
+        ["Sea Danger Level"] = "Level 1",
         ["Ship Noclip"] = false,
         ["Auto Attack Sea Events"] = false,
         ["Sea Event Attack Range"] = 50,
@@ -218,6 +234,7 @@ _G.Settings = {
     Raid = {
         ["Selected Chip"] = "Flame",
         ["Auto Dungeon / Raid"] = false,
+        ["Auto Farm Raid"] = false,
         ["Auto Buy Chip & Start"] = false,
         ["Auto Clear Dungeon Waves"] = false,
         ["Auto Next Island"] = false,
@@ -226,6 +243,7 @@ _G.Settings = {
     },
     Stats = {
         ["Auto Stats"] = false,
+        ["Points Amount"] = 1,
         ["Selected Stat"] = "Melee",
         ["Points Per Tick"] = 1,
         ["Auto Melee"] = false,
@@ -242,6 +260,7 @@ _G.Settings = {
         ["ESP Enemies"] = false,
         ["ESP Mirage Island"] = false,
         ["ESP Kitsune Island"] = false,
+        ["ESP Fruits"] = false,
     },
     ItemsQuests = {
         ["Auto Sword Quest"] = false,
@@ -256,6 +275,17 @@ _G.Settings = {
     },
     Quests = {
         ["Auto Citizen Quest"] = false,
+        ["Auto Second Sea"] = false,
+        ["Auto Get Saber"] = false,
+        ["Auto Get Sword Pole"] = false,
+        ["Auto Get Sword Saw"] = false,
+        ["Auto Get Sword Wardens"] = false,
+        ["Auto Get Sword Trident"] = false,
+        ["Auto Farm Greybeard"] = false,
+        ["Auto Yama"] = false,
+        ["Auto Tushita"] = false,
+        ["Auto Rainbow Haki"] = false,
+        ["Auto Rip Indra"] = false,
         ["Auto Yama Puzzle"] = false,
         ["Auto Tushita Puzzle"] = false,
         ["Auto Colosseum Puzzle"] = false,
@@ -338,7 +368,7 @@ end
 
 local function AnyMovementFeatureActive()
     local S = _G.Settings
-    return S.Main["Auto Farm Level"] or S.Main["Auto Farm Material"] or S.Main["Auto Farm Boss"] or
+    return S.Main["Auto Farm Level"] or S.Main["Auto Farm Level (New)"] or S.Main["Auto Farm Pirates"] or S.Main["Auto Farm Soul Reaper"] or S.Main["Auto Farm Material"] or S.Main["Auto Farm Boss"] or
            S.Main["Auto Farm All Boss"] or S.SubFarm["Auto Farm Bone"] or S.Cake["Auto Katakuri"] or
            S.Sea["Sail Boat"] or S.Race["Auto Find Mirage"] or S.Sea["Auto Find Kitsune Island"] or
            S.Raid["Auto Dungeon / Raid"] or S.Cake["Auto Kill Cake Prince"] or S.Cake["Auto Kill Dough King"] or S.Main["Auto Farm Material"] or S.SubFarm["Auto Farm Leviathan"] or S.Sea["Auto Frozen Dimension"] or S.Sea["Auto Drive Hydra"] or S.SubFarm["Auto Chest Tween"] or S.Race["Auto Train"] or
@@ -1370,31 +1400,130 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
             ToggleKey = Enum.KeyCode.RightControl
         })
 
-        local MainTab = Window:CreateTab("Main Farm", "rbxassetid://6034287594")
-        local QuestsTab = Window:CreateTab("All Quests", "rbxassetid://6034453535")
-        local ShopTab = Window:CreateTab("Shop & Upgrades", "rbxassetid://6031280882")
+        local function RequestedFindAliveModel(name)
+            for _,root in ipairs({workspace:FindFirstChild("Enemies"), workspace, ReplicatedStorage}) do
+                if root then
+                    local obj = root:FindFirstChild(name, true)
+                    if obj and obj:IsA("Model") then
+                        local hum=obj:FindFirstChildOfClass("Humanoid")
+                        if not hum or hum.Health > 0 then return obj end
+                    end
+                end
+            end
+            return nil
+        end
+        local function RequestedProgressText()
+            local direct = _G.Settings.Cake["Auto Katakuri V1"] and "Cake Prince tracker active" or "Cake Prince tracker idle"
+            local progress = LocalPlayer.PlayerGui:FindFirstChild("Main") and LocalPlayer.PlayerGui.Main:FindFirstChild("Quest")
+            if progress and progress.Container and progress.Container.QuestTitle and progress.Container.QuestTitle.Title then
+                local t=tostring(progress.Container.QuestTitle.Title.Text or "")
+                local n=t:match("(%d+)%s*/%s*500")
+                if n then return n.."/500" end
+            end
+            return direct
+        end
+
+        local MainTab = Window:CreateTab("Main", "rbxassetid://6034287594")
+        local StatsTab = Window:CreateTab("Stats", "rbxassetid://6031280882")
+        local QuestsTab = Window:CreateTab("Quest | Items", "rbxassetid://6034453535")
+        local ShopTab = Window:CreateTab("Shop", "rbxassetid://6031280882")
         local SubFarmTab = Window:CreateTab("Subs Farm", "rbxassetid://6034834832")
-        local RaidTab = Window:CreateTab("Dungeons & Raids", "rbxassetid://6034834832")
-        local SeaTab = Window:CreateTab("Sea Events & Prehistoric", "rbxassetid://6034453535")
+        local RaidTab = Window:CreateTab("Fruits / Raids", "rbxassetid://6034834832")
+        local SeaTab = Window:CreateTab("Sea", "rbxassetid://6034453535")
         local RaceTab = Window:CreateTab("Race V4 & Mirage", "rbxassetid://6034453535")
         local ItemsTab = Window:CreateTab("Items & Swords", "rbxassetid://6034834832")
         local FruitsTab = Window:CreateTab("Fruits & Sniper", "rbxassetid://6034453535")
         local DragonDojoTab = Window:CreateTab("Dragon Dojo", "rbxassetid://6034453535")
         local CombatTab = Window:CreateTab("Combat & PVP", "rbxassetid://6034834832")
         local CraftingTab = Window:CreateTab("Crafting", "rbxassetid://6034834832")
-        local TeleportsTab = Window:CreateTab("Teleports", "rbxassetid://6034453535")
-        local VisualTab = Window:CreateTab("Visuals & ESP", "rbxassetid://6034453535")
+        local TeleportsTab = Window:CreateTab("Teleport", "rbxassetid://6034453535")
+        local VisualTab = Window:CreateTab("Visuals", "rbxassetid://6034453535")
         local MiscTab = Window:CreateTab("Misc & Server Status", "rbxassetid://6031280882")
         local SettingsTab = Window:CreateTab("Settings", "rbxassetid://6031280882")
 
         ---------------------------------------------------------
         -- 📌 1. TAB: MAIN FARM
         ---------------------------------------------------------
-        MainTab:CreateSection("Level Farm Configuration")
+        MainTab:CreateSection("Combat System")
+        MainTab:CreateDropdown("Select Hit System", "CombatSystemDropdown", {"Melee", "Sword", "Gun", "Blox Fruit"}, "Melee", function(selected)
+            _G.Settings.Main["Selected Combat Style"] = selected
+            _G.Settings.Main["Select Weapon"] = selected
+        end)
+
+        MainTab:CreateSection("Boss")
+        local BossStatusPara = MainTab:CreateParagraph({Title="Boss Spawn", Desc="🔴 Not Spawned", Image="rbxassetid://6034834832", ImageSize=20})
+        MainTab:CreateDropdown("Select Boss", "BossWorldDropdown", BossList, BossList[1], function(selected)
+            _G.Settings.Main["Selected Boss"] = selected
+        end)
+        MainTab:CreateToggle("Auto Farm Boss", "AutoFarmBossRequestedFlag", _G.Settings.Main["Auto Farm Boss"], function(state)
+            _G.Settings.Main["Auto Farm Boss"] = state
+            if not state then StopTween("BossFarm") end
+        end)
+
+        MainTab:CreateSection("Pirate Raid")
+        MainTab:CreateToggle("Auto Farm Pirates", "AutoFarmPiratesFlag", _G.Settings.Main["Auto Farm Pirates"], function(state)
+            _G.Settings.Main["Auto Farm Pirates"] = state
+            if not state then StopTween("PirateRaid") end
+        end)
+
+        MainTab:CreateSection("Haunted Castle")
+        local SoulReaperPara = MainTab:CreateParagraph({Title="Soul Reaper Spawned", Desc="🔴", Image="rbxassetid://6034834832", ImageSize=20})
+        MainTab:CreateToggle("Auto Farm Bones", "AutoFarmBonesMainFlag", _G.Settings.SubFarm["Auto Farm Bones"], function(state)
+            _G.Settings.SubFarm["Auto Farm Bones"] = state
+            _G.Settings.SubFarm["Auto Farm Bone"] = state
+            if not state then StopTween("BoneFarm") end
+        end)
+        MainTab:CreateToggle("Auto Pray", "AutoPrayFlag", _G.Settings.Main["Auto Pray"], function(state)
+            _G.Settings.Main["Auto Pray"] = state
+        end)
+        MainTab:CreateToggle("Auto Trade Bones", "AutoTradeBonesFlag", _G.Settings.Main["Auto Trade Bones"], function(state)
+            _G.Settings.Main["Auto Trade Bones"] = state
+        end)
+        MainTab:CreateToggle("Auto Try Luck", "AutoTryLuckFlag", _G.Settings.Main["Auto Try Luck"], function(state)
+            _G.Settings.Main["Auto Try Luck"] = state
+            _G.Settings.SubFarm["Auto Random Surprise"] = state
+        end)
+        MainTab:CreateToggle("Auto Kill Soul Reaper", "AutoSoulReaperFlag", _G.Settings.Main["Auto Farm Soul Reaper"], function(state)
+            _G.Settings.Main["Auto Farm Soul Reaper"] = state
+            if not state then StopTween("SoulReaper") end
+        end)
+
+        MainTab:CreateSection("Katakuri")
+        local CakePrinceProgressPara = MainTab:CreateParagraph({Title="Check Cake Prince", Desc="100/500", Image="rbxassetid://6034834832", ImageSize=20})
+        MainTab:CreateToggle("Auto Farm Katakuri V1", "AutoKatakuriV1Flag", _G.Settings.Cake["Auto Katakuri V1"], function(state)
+            _G.Settings.Cake["Auto Katakuri V1"] = state
+            _G.Settings.Cake["Auto Kill Cake Prince"] = state
+            _G.Settings.Cake["Auto Spawn Cake Prince"] = state
+        end)
+        MainTab:CreateToggle("Auto Farm Katakuri V2", "AutoKatakuriV2Flag", _G.Settings.Cake["Auto Katakuri V2"], function(state)
+            _G.Settings.Cake["Auto Katakuri V2"] = state
+            _G.Settings.Cake["Auto Kill Dough King"] = state
+        end)
+
+        MainTab:CreateSection("Factory")
+        MainTab:CreateToggle("Auto Farm Factory (2nd)", "AutoFarmFactory2Flag", _G.Settings.Main["Auto Farm Factory"], function(state)
+            _G.Settings.Main["Auto Farm Factory"] = state
+            if not state then StopTween("Factory") end
+        end)
+
+        MainTab:CreateSection("Materials")
+        MainTab:CreateDropdown("Select World / Material", "MaterialWorldDropdown", MaterialList, _G.Settings.Main["Selected Material"] or MaterialList[1], function(selected)
+            _G.Settings.Main["Selected Material"] = selected
+        end)
+        MainTab:CreateToggle("Auto Farm Material", "FarmMatMainFlag", _G.Settings.Main["Auto Farm Material"], function(state)
+            _G.Settings.Main["Auto Farm Material"] = state
+            if not state then MaterialState.Target=nil; StopTween("Material") end
+        end)
+
 
         MainTab:CreateToggle("Auto Farm Level", "AutoFarmFlag", _G.Settings.Main["Auto Farm Level"], function(state)
             _G.Settings.Main["Auto Farm Level"] = state
             if not state then StopTween() end
+        end)
+
+        MainTab:CreateToggle("Auto Farm Level (New)", "AutoFarmLevelNewFlag", _G.Settings.Main["Auto Farm Level (New)"], function(state)
+            _G.Settings.Main["Auto Farm Level (New)"] = state
+            if not state then StopTween("SubmergedNew") end
         end)
 
         MainTab:CreateSection("Update 28 • Submerged Island")
@@ -1414,6 +1543,19 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
             if not cf then cf = picked.Giver == "Submerged Quest Giver 1" and CFrame.new(-11034,-201,-9330) or picked.Giver == "Submerged Quest Giver 2" and CFrame.new(-10439,-316,-9484) or CFrame.new(-10420,-405,-10470) end
             SmartTeleportIsland("Submerged Island", cf * CFrame.new(0,-100,0), "SubmergedTP")
             AetherUI:Notify({Title="Submerged Island", Content="Smart route selected for Level "..tostring(level).." → "..picked.Mob..".", Duration=3})
+        end)
+
+        task.spawn(function()
+            while task.wait(0.5) do
+                pcall(function()
+                    local selected=tostring(_G.Settings.Main["Selected Boss"] or "None")
+                    local boss=RequestedFindAliveModel(selected)
+                    if BossStatusPara then BossStatusPara:SetContent(boss and "🟢 Spawned" or "🔴 Not Spawned") end
+                    local sr=RequestedFindAliveModel("Soul Reaper")
+                    if SoulReaperPara then SoulReaperPara:SetContent(sr and "🟢" or "🔴") end
+                    if CakePrinceProgressPara then CakePrinceProgressPara:SetContent(RequestedProgressText()) end
+                end)
+            end
         end)
 
         MainTab:CreateToggle("Include Boss Quests", "IncludeBossQuestFlag", false, function(state)
@@ -1484,6 +1626,45 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
         ---------------------------------------------------------
         -- 📌 2. TAB: ALL QUESTS (Including Citizen Quests)
         ---------------------------------------------------------
+        QuestsTab:CreateSection("Sea 1 Quest")
+        QuestsTab:CreateToggle("Auto Second Sea", "AutoSecondSeaFlag", _G.Settings.Quests["Auto Second Sea"], function(state)
+            _G.Settings.Quests["Auto Second Sea"] = state
+        end)
+        QuestsTab:CreateSection("Greybeard Boss")
+        local GreybeardPara = QuestsTab:CreateParagraph({Title="Greybeard Boss", Desc="🔴", Image="rbxassetid://6034834832", ImageSize=20})
+        task.spawn(function()
+            while task.wait(0.6) do
+                pcall(function()
+                    if GreybeardPara then
+                        GreybeardPara:SetContent(RequestedFindAliveModel("Greybeard") and "🟢 Spawned" or "🔴 Not Spawned")
+                    end
+                end)
+            end
+        end)
+        QuestsTab:CreateToggle("Auto Farm Greybeard", "AutoGreybeardFlag", _G.Settings.Quests["Auto Farm Greybeard"], function(state)
+            _G.Settings.Quests["Auto Farm Greybeard"] = state
+            _G.Settings.Main["Selected Boss"] = "Greybeard"
+            _G.Settings.Main["Auto Farm Boss"] = state
+        end)
+
+        QuestsTab:CreateSection("Swords Quest")
+        QuestsTab:CreateToggle("Auto Get Saber", "AutoGetSaberFlag", _G.Settings.Quests["Auto Get Saber"], function(s) _G.Settings.Quests["Auto Get Saber"]=s end)
+        QuestsTab:CreateToggle("Auto Get Sword Pole", "AutoGetPoleFlag", _G.Settings.Quests["Auto Get Sword Pole"], function(s) _G.Settings.Quests["Auto Get Sword Pole"]=s end)
+        QuestsTab:CreateToggle("Auto Get Sword Saw", "AutoGetSawFlag", _G.Settings.Quests["Auto Get Sword Saw"], function(s) _G.Settings.Quests["Auto Get Sword Saw"]=s end)
+        QuestsTab:CreateToggle("Auto Get Sword Wardens", "AutoGetWardensFlag", _G.Settings.Quests["Auto Get Sword Wardens"], function(s) _G.Settings.Quests["Auto Get Sword Wardens"]=s end)
+        QuestsTab:CreateToggle("Auto Get Sword Trident", "AutoGetTridentFlag", _G.Settings.Quests["Auto Get Sword Trident"], function(s) _G.Settings.Quests["Auto Get Sword Trident"]=s end)
+
+        QuestsTab:CreateSection("3rd Sea Farm")
+        QuestsTab:CreateToggle("Auto Elite Hunter", "QuestEliteHunterFlag", _G.Settings.SubFarm["Auto Elite Hunter"], function(s) _G.Settings.SubFarm["Auto Elite Hunter"]=s end)
+        QuestsTab:CreateToggle("Auto Rip Indra", "AutoRipIndraFlag", _G.Settings.Quests["Auto Rip Indra"], function(s) _G.Settings.Quests["Auto Rip Indra"]=s end)
+        QuestsTab:CreateSection("Sword")
+        QuestsTab:CreateToggle("Auto Yama", "AutoYamaFlag", _G.Settings.Quests["Auto Yama"], function(s) _G.Settings.Quests["Auto Yama"]=s; _G.Settings.Quests["Auto Yama Puzzle"]=s end)
+        QuestsTab:CreateToggle("Auto Tushita", "AutoTushitaFlag", _G.Settings.Quests["Auto Tushita"], function(s) _G.Settings.Quests["Auto Tushita"]=s; _G.Settings.Quests["Auto Tushita Puzzle"]=s end)
+        QuestsTab:CreateToggle("Auto Cursed Dual Katana", "QuestCDKFlag", _G.Settings.ItemsQuests["Auto Farm CDK"], function(s) _G.Settings.ItemsQuests["Auto Farm CDK"]=s end)
+        QuestsTab:CreateSection("Quest")
+        QuestsTab:CreateToggle("Auto Citizen Quest", "CitizenQuestRequestedFlag", _G.Settings.Quests["Auto Citizen Quest"], function(s) _G.Settings.Quests["Auto Citizen Quest"]=s end)
+        QuestsTab:CreateToggle("Auto Rainbow Haki", "RainbowHakiFlag", _G.Settings.Quests["Auto Rainbow Haki"], function(s) _G.Settings.Quests["Auto Rainbow Haki"]=s end)
+
         QuestsTab:CreateSection("Quest Controller")
 
         QuestsTab:CreateButton("Accept Current Level Quest", function()
@@ -1640,6 +1821,11 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
         ---------------------------------------------------------
         -- 📌 5. TAB: DUNGEONS & RAIDS (Enhanced Auto Next Island - 5 Islands Check)
         ---------------------------------------------------------
+        RaidTab:CreateSection("Fruits")
+        RaidTab:CreateToggle("Auto Store Fruits", "RaidAutoStoreFruitsFlag", _G.Settings.Fruits["Auto Store Fruit"], function(s) _G.Settings.Fruits["Auto Store Fruit"]=s end)
+        RaidTab:CreateToggle("Auto Teleport Fruits", "AutoTeleportFruitsFlag", _G.Settings.Fruits["Auto Teleport Fruits"], function(s) _G.Settings.Fruits["Auto Teleport Fruits"]=s; _G.Settings.Fruits["Fruit Sniper"]=s end)
+        RaidTab:CreateToggle("Auto Random Fruits", "AutoRandomFruitsFlag", _G.Settings.Fruits["Auto Random Fruits"], function(s) _G.Settings.Fruits["Auto Random Fruits"]=s; _G.Settings.Fruits["Auto Roll Fruit"]=s end)
+
         RaidTab:CreateSection("Dungeon & Fruits Raid Controller")
 
         RaidTab:CreateDropdown("Select Raid Chip", "DungeonChipDropdown", DungeonChips, DungeonChips[1], function(selected)
@@ -1677,6 +1863,24 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
         ---------------------------------------------------------
         -- 📌 6. TAB: SEA EVENTS & PREHISTORIC
         ---------------------------------------------------------
+        SeaTab:CreateSection("Sea")
+        SeaTab:CreateToggle("Auto Farm Sea", "AutoFarmSeaRequestedFlag", _G.Settings.Sea["Auto Farm Sea"], function(s)
+            _G.Settings.Sea["Auto Farm Sea"]=s
+            _G.Settings.Sea["Auto Attack Sea Events"]=s
+        end)
+        SeaTab:CreateToggle("Auto Drive Boat", "AutoDriveBoatRequestedFlag", _G.Settings.Sea["Auto Drive Boat"], function(s)
+            _G.Settings.Sea["Auto Drive Boat"]=s
+            _G.Settings.Sea["Sail Boat"]=s
+        end)
+        SeaTab:CreateSection("Farm Select")
+        SeaTab:CreateDropdown("Sea Farm Target", "SeaFarmTargetDropdown", {"Terrorshark","Sea Beast","Piranha","Shark","Ghost Ship","Fish Crew Member","Leviathan"}, _G.Settings.Sea["Sea Farm Target"], function(s)
+            _G.Settings.Sea["Sea Farm Target"]=s
+        end)
+        SeaTab:CreateSection("Danger / Level")
+        SeaTab:CreateDropdown("Danger Level", "SeaDangerLevelDropdown", {"Level 1","Level 2","Level 3","Level 4","Level 5"}, _G.Settings.Sea["Sea Danger Level"], function(s) _G.Settings.Sea["Sea Danger Level"]=s end)
+        SeaTab:CreateSlider("Boat Speed", "BoatSpeedRequestedSlider", 100, 250, math.clamp(tonumber(_G.Settings.Sea["Boat Tween Speed"]) or 200,100,250), function(v) _G.Settings.Sea["Boat Tween Speed"]=v end)
+        _G.Settings.Sea["Boat Height"] = 30
+
         SeaTab:CreateSection("Prehistoric Island Engine")
 
         SeaTab:CreateButton("Teleport to Prehistoric Island", function()
@@ -2456,8 +2660,47 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
         CraftingTab:CreateToggle("Auto-Craft Mythical Scroll", "CraftMythScrollFlag", false, function(v) _G.Settings.Crafting.MythicalScroll = v end)
 
         ---------------------------------------------------------
+        -- Requested Stats tab
+        ---------------------------------------------------------
+        StatsTab:CreateSection("Points")
+        StatsTab:CreateSlider("Points Amount", "StatsPointsAmountFlag", 1, 100, _G.Settings.Stats["Points Amount"], function(val)
+            _G.Settings.Stats["Points Amount"] = val
+            _G.Settings.Stats["Points Per Tick"] = val
+        end)
+        StatsTab:CreateToggle("Auto Stats", "AutoStatsRequestedFlag", _G.Settings.Stats["Auto Stats"], function(s) _G.Settings.Stats["Auto Stats"]=s end)
+        StatsTab:CreateSection("Select Stats")
+        for _, statName in ipairs({"Melee","Defense","Gun","Sword","Demon Fruit"}) do
+            StatsTab:CreateToggle(statName, "Stat_"..statName, _G.Settings.Stats["Selected Stat"] == statName, function(state)
+                if state then _G.Settings.Stats["Selected Stat"]=statName; _G.Settings.Stats["Auto Stats"]=true end
+            end)
+        end
+
+        ---------------------------------------------------------
         -- 📌 13. TAB: TELEPORTS
         ---------------------------------------------------------
+        TeleportsTab:CreateSection("Travel")
+        TeleportsTab:CreateButton("Teleport To Sea 1", function() if CommF_ then CommF_:InvokeServer("TravelMain") end end)
+        TeleportsTab:CreateButton("Teleport To Sea 2", function() if CommF_ then CommF_:InvokeServer("TravelDressrosa") end end)
+        TeleportsTab:CreateButton("Teleport To Sea 3", function() if CommF_ then CommF_:InvokeServer("TravelZou") end end)
+        local IslandNames = {"Bandit Island","Jungle","Pirate Village","Desert","Frozen Village","Marine Fortress","Colosseum","Factory","Kingdom of Rose","Green Zone","Graveyard","Cursed Ship","Ice Castle","Forgotten Island","Port Town","Hydra Island","Great Tree","Floating Turtle","Haunted Castle","Castle on the Sea","Tiki Outpost","Sea of Treats"}
+        _G.Settings.Teleports["Selected Island"] = _G.Settings.Teleports["Selected Island"] or IslandNames[1]
+        TeleportsTab:CreateSection("Islands")
+        TeleportsTab:CreateDropdown("Select Island", "IslandSelectRequestedFlag", IslandNames, _G.Settings.Teleports["Selected Island"], function(s) _G.Settings.Teleports["Selected Island"]=s end)
+        TeleportsTab:CreateButton("Teleport To Island", function()
+            local target=_G.Settings.Teleports["Selected Island"]
+            if target then
+                local obj=workspace:FindFirstChild(target,true)
+                local cf=obj and GetModelCFrame(obj)
+                if cf then SmartTeleportIsland(target,cf,"IslandRequestedTP") end
+            end
+        end)
+        TeleportsTab:CreateSection("Race V4")
+        TeleportsTab:CreateButton("Teleport To Temple Of Time", function()
+            local obj=workspace:FindFirstChild("Temple of Time",true) or workspace:FindFirstChild("TempleOfTime",true)
+            local cf=obj and GetModelCFrame(obj)
+            if cf then SmartTeleportIsland("Temple Of Time",cf,"TempleOfTime") end
+        end)
+
         TeleportsTab:CreateSection("First Sea Islands Teleport")
         for islandName, cf in pairs(FullIslandLocations.Sea1) do
             local key = "TP_" .. islandName
@@ -2511,6 +2754,15 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
         ---------------------------------------------------------
         -- 📌 14. TAB: VISUALS & ESP
         ---------------------------------------------------------
+        VisualTab:CreateSection("ESP")
+        VisualTab:CreateToggle("ESP Players", "ESPPlayersRequestedFlag", _G.Settings.Visuals["ESP Players"], function(s) _G.Settings.Visuals["ESP Players"]=s end)
+        VisualTab:CreateToggle("ESP Fruits", "ESPFruitsRequestedFlag", _G.Settings.Visuals["ESP Fruits"], function(s) _G.Settings.Visuals["ESP Fruits"]=s; _G.Settings.Fruits["Fruit ESP"]=s end)
+        VisualTab:CreateToggle("ESP Enemies", "ESPEnemiesRequestedFlag", _G.Settings.Visuals["ESP Enemies"], function(s) _G.Settings.Visuals["ESP Enemies"]=s end)
+        VisualTab:CreateToggle("ESP Chests", "ESPChestsRequestedFlag", _G.Settings.Visuals["ESP Chests"], function(s) _G.Settings.Visuals["ESP Chests"]=s end)
+        VisualTab:CreateSection("Sea 3")
+        VisualTab:CreateToggle("ESP Mirage", "ESPMirageRequestedFlag", _G.Settings.Visuals["ESP Mirage Island"], function(s) _G.Settings.Visuals["ESP Mirage Island"]=s end)
+        VisualTab:CreateToggle("ESP Kitsune", "ESPKitsuneRequestedFlag", _G.Settings.Visuals["ESP Kitsune Island"], function(s) _G.Settings.Visuals["ESP Kitsune Island"]=s end)
+
         VisualTab:CreateSection("Visual Object Detectors")
 
         VisualTab:CreateToggle("ESP Players", "ESPPlayersFlag", false, function(state) _G.Settings.Visuals["ESP Players"] = state end)
@@ -3002,6 +3254,11 @@ end)
 --------------------------------------------------------------------------------
 task.spawn(function()
     while task.wait(0.08) do
+        if _G.Settings.Main["Auto Farm Level (New)"] then
+            pcall(function()
+                if BFSubmergedStep() then return end
+            end)
+        end
         if _G.Settings.Main["Auto Farm Level"] then
             pcall(function()
                 local char, hrp, hum = GetCharacter()
@@ -3047,6 +3304,66 @@ task.spawn(function()
                 end
             end)
         end
+    end
+end)
+
+--------------------------------------------------------------------------------
+-- Requested Main combat helpers: Pirate Raid / Soul Reaper
+--------------------------------------------------------------------------------
+local function findRequestedEnemy(predicate, maxDistance)
+    local enemies=workspace:FindFirstChild("Enemies")
+    local _,hrp=GetCharacter()
+    if not enemies then return nil end
+    local best,bestD=nil,math.huge
+    for _,mob in ipairs(enemies:GetChildren()) do
+        if mob:IsA("Model") then
+            local hum=mob:FindFirstChildOfClass("Humanoid")
+            local root=mob:FindFirstChild("HumanoidRootPart") or mob.PrimaryPart
+            if hum and hum.Health>0 and root and predicate(mob) then
+                local d=hrp and (hrp.Position-root.Position).Magnitude or 0
+                if (not maxDistance or d<=maxDistance) and d<bestD then
+                    best,bestD=mob,d
+                end
+            end
+        end
+    end
+    return best
+end
+
+task.spawn(function()
+    while task.wait(0.18) do
+        pcall(function()
+            if _G.Settings.Main["Auto Farm Soul Reaper"] and World2 or _G.Settings.Main["Auto Farm Soul Reaper"] and World3 then
+                local boss=findRequestedEnemy(function(m)
+                    return m.Name:lower()=="soul reaper" or m.Name:lower():find("soul reaper",1,true) ~= nil
+                end)
+                if boss then
+                    AutoHaki()
+                    local root=boss:FindFirstChild("HumanoidRootPart") or boss.PrimaryPart
+                    if root then
+                        TweenPlayer(root.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0), "SoulReaper")
+                        SmartAttackMob(boss)
+                    end
+                end
+            end
+
+            if _G.Settings.Main["Auto Farm Pirates"] then
+                local pirate=findRequestedEnemy(function(m)
+                    local n=m.Name:lower()
+                    return n:find("pirate",1,true) ~= nil
+                        or n:find("raider",1,true) ~= nil
+                        or n:find("crew",1,true) ~= nil
+                end, 3500)
+                if pirate then
+                    AutoHaki()
+                    local root=pirate:FindFirstChild("HumanoidRootPart") or pirate.PrimaryPart
+                    if root then
+                        TweenPlayer(root.CFrame, Vector3.new(0, _G.Settings.Main["Farm Distance"], 0), "PirateRaid")
+                        SmartAttackMob(pirate)
+                    end
+                end
+            end
+        end)
     end
 end)
 
