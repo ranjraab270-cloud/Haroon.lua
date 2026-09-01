@@ -1,4 +1,4 @@
--- [StarterPlayerScripts > LocalScript: HaroonHub_V30_TARGETED_FIXES]
+-- [StarterPlayerScripts > LocalScript: HaroonHub_V12_Ultimate_Cross_Executor_Fixed]
 repeat task.wait() until game:IsLoaded()
 task.wait(1)
 
@@ -130,9 +130,6 @@ _G.Settings = {
         ["Auto Enable Haki"] = false,
         ["Auto Attack Selected Player"] = false,
         ["PvP Hover Height"] = 8,
-        ["PvP Attack Height"] = 8,
-        ["PvP Attack Range"] = 35,
-        ["PvP Reacquire Delay"] = 0.15,
     },
     Fruits = {
         ["Fruit ESP"] = false,
@@ -394,90 +391,35 @@ local function SafeTeleport100(cf: CFrame, owner: string?)
     return true
 end
 
-local activeTeleportGuardId = 0
-
 local function TweenPlayer(pos: CFrame | Vector3 | BasePart, offset: Vector3?, owner: string?): Tween?
     local char, hrp, hum = GetCharacter()
     if not char or not hrp or not hum then return nil end
-    if hum.Sit then pcall(function() hum.Sit = false end) end
+    if hum.Sit then hum.Sit = false end
 
     local targetCFrame: CFrame
     if typeof(pos) == "CFrame" then targetCFrame = pos
     elseif typeof(pos) == "Vector3" then targetCFrame = CFrame.new(pos)
-    elseif pos and pos:IsA("BasePart") then targetCFrame = pos.CFrame
+    elseif pos:IsA("BasePart") then targetCFrame = pos.CFrame
     else return nil end
     if offset then targetCFrame = targetCFrame * CFrame.new(offset) end
 
-    -- Keep movement above the destination while travelling. Chest farming uses
-    -- a small final offset so the player reaches the chest instead of hovering
-    -- 100 studs above it; all other movement keeps the original high safety.
-    local heightOffset = (owner == "ChestFarm") and 7 or 100
-    local safeY = targetCFrame.Position.Y + heightOffset
-    local safeTarget = Vector3.new(targetCFrame.Position.X, safeY, targetCFrame.Position.Z)
-    local look = safeTarget + Vector3.new(targetCFrame.LookVector.X, 0, targetCFrame.LookVector.Z)
-    if (look - safeTarget).Magnitude < 0.01 then look = safeTarget + Vector3.new(0, 0, -1) end
-    local uprightCFrame = CFrame.lookAt(safeTarget, look)
-
-    local distance = (hrp.Position - uprightCFrame.Position).Magnitude
+    local distance = (hrp.Position - targetCFrame.Position).Magnitude
+    local uprightCFrame = CFrame.new(targetCFrame.Position, targetCFrame.Position + Vector3.new(targetCFrame.LookVector.X, 0, targetCFrame.LookVector.Z))
     if distance <= 25 then
-        if currentTween then pcall(function() currentTween:Cancel() end) end
+        hrp.CFrame = uprightCFrame
+        if currentTween then currentTween:Cancel() end
         currentTween = nil
         currentTweenOwner = nil
-        pcall(function()
-            local p = hrp.Position
-            local y = math.max(p.Y, safeY)
-            hrp.CFrame = CFrame.lookAt(Vector3.new(uprightCFrame.Position.X, y, uprightCFrame.Position.Z), look)
-            hrp.AssemblyLinearVelocity = Vector3.zero
-            hrp.AssemblyAngularVelocity = Vector3.zero
-        end)
         return nil
     end
 
-    if currentTween then pcall(function() currentTween:Cancel() end) end
-    activeTeleportGuardId += 1
-    local guardId = activeTeleportGuardId
+    local speed = _G.Settings.Main["Player Tween Speed"] or 180
+    local tweenInfo = TweenInfo.new(math.max(0.05, distance / speed), Enum.EasingStyle.Linear)
+    if currentTween then currentTween:Cancel() end
     currentTweenOwner = owner or "Generic"
-
-    local speed = math.clamp(tonumber(_G.Settings.Main["Player Tween Speed"]) or 180, 1, 180)
-    local tweenInfo = TweenInfo.new(math.max(0.08, distance / speed), Enum.EasingStyle.Linear)
     currentTween = TweenService:Create(hrp, tweenInfo, {CFrame = uprightCFrame})
-    local tweenRef = currentTween
-
-    -- Heartbeat guard only corrects accidental downward physics while the Tween
-    -- is active; it never creates an Instance and never replaces the Tween.
-    local guardConn
-    guardConn = RunService.Heartbeat:Connect(function()
-        if guardId ~= activeTeleportGuardId or currentTween ~= tweenRef or not hrp.Parent then
-            if guardConn then guardConn:Disconnect() end
-            return
-        end
-        local p = hrp.Position
-        if p.Y < safeY - 2 then
-            local corrected = Vector3.new(p.X, safeY, p.Z)
-            pcall(function() hrp.CFrame = CFrame.lookAt(corrected, corrected + Vector3.new(uprightCFrame.LookVector.X, 0, uprightCFrame.LookVector.Z)) end)
-        end
-    end)
-
-    tweenRef.Completed:Connect(function()
-        if guardConn then guardConn:Disconnect() end
-        if guardId == activeTeleportGuardId and currentTween == tweenRef then
-            currentTween = nil
-            currentTweenOwner = nil
-            pcall(function()
-                local finalPos = uprightCFrame.Position
-                hrp.CFrame = uprightCFrame
-                hrp.AssemblyLinearVelocity = Vector3.zero
-                hrp.AssemblyAngularVelocity = Vector3.zero
-            end)
-        end
-    end)
-
     currentTween:Play()
     return currentTween
-end
-
-local function TweenIslandAtSafeHeight(cf: CFrame, owner: string?)
-    return TweenPlayer(cf, Vector3.new(0, 0, 0), owner or "IslandTeleport")
 end
 
 local function StopTween(owner: string?)
@@ -1578,459 +1520,56 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
         QuestsTab:CreateToggle("Auto Soul Guitar Puzzle", "SoulGuitarPuzzleFlag", false, function(s) _G.Settings.Quests["Auto Soul Guitar Puzzle"] = s; if not s then StopTween("Puzzle") end end)
 
         ---------------------------------------------------------
-        -- 📌 3. TAB: SHOP, STOCK & UPGRADES
+        -- 📌 3. TAB: SHOP & UPGRADES (Full Extracted Shop)
         ---------------------------------------------------------
-        ShopTab:CreateSection("🌐 Current World Travel")
+        ShopTab:CreateSection("Sea Travel & Teleports")
+        ShopTab:CreateButton("Travel to First Sea", function() if CommF_ then CommF_:InvokeServer("TravelMain") end end)
+        ShopTab:CreateButton("Travel to Second Sea", function() if CommF_ then CommF_:InvokeServer("TravelDressrosa") end end)
+        ShopTab:CreateButton("Travel to Third Sea", function() if CommF_ then CommF_:InvokeServer("TravelZou") end end)
 
-        local function currentWorldPlaceId()
-            return game.PlaceId
-        end
-
-        local function safeShopInvoke(candidates)
-            if not CommF_ then return false, "CommF_ not found" end
-            local lastResult = nil
-            for _, args in ipairs(candidates) do
-                local ok, result = pcall(function()
-                    return CommF_:InvokeServer(table.unpack(args))
-                end)
-                if ok then
-                    lastResult = result
-                    if result ~= false then
-                        return true, result
-                    end
-                end
-            end
-            return false, lastResult
-        end
-
-        local function shopAction(label, candidates)
-            local ok, result = safeShopInvoke(candidates)
-            if AetherUI then
-                local resultText
-                if ok then
-                    resultText = label .. " request sent."
-                    if type(result) == "string" and #result > 0 then
-                        resultText = label .. ": " .. result
-                    end
-                else
-                    resultText = label .. " could not be requested."
-                end
-                AetherUI:Notify({Title="Shop", Content=resultText, Duration=2.5})
-            end
-            return ok, result
-        end
-
-        ShopTab:CreateButton("Travel to First Sea", function()
-            shopAction("First Sea", {{"TravelMain"}})
-        end)
-        ShopTab:CreateButton("Travel to Second Sea", function()
-            shopAction("Second Sea", {{"TravelDressrosa"}})
-        end)
-        ShopTab:CreateButton("Travel to Third Sea", function()
-            shopAction("Third Sea", {{"TravelZou"}})
-        end)
-
-        local function interactShopNPC(obj)
-            if not obj then return false end
-            local prompt = obj:FindFirstChildWhichIsA("ProximityPrompt", true)
-            if prompt and type(fireproximityprompt) == "function" then
-                local ok = pcall(fireproximityprompt, prompt)
-                if ok then return true end
-            end
-            local click = obj:FindFirstChildWhichIsA("ClickDetector", true)
-            if click and type(fireclickdetector) == "function" then
-                local ok = pcall(fireclickdetector, click)
-                if ok then return true end
-            end
-            return false
-        end
-
-        ----------------------------------------------------------------------
-        -- REAL IN-GAME STOCK ENGINE
-        -- Reads stock from the actual dealer/Shop UI after interacting with
-        -- the NPC, with GetFruits fallbacks. It never invents a stock list.
-        ----------------------------------------------------------------------
-        local StockState = {
-            Normal = {},
-            Mirage = {},
-            NormalText = "Not loaded",
-            MirageText = "Not loaded",
-            NormalTimer = "--:--:--",
-            MirageTimer = "--:--:--",
-            LastRefresh = 0,
-        }
-
-        local fruitHints = {
-            "rocket","spin","blade","bomb","smoke","flame","ice","sand","dark","light",
-            "diamond","barrier","ghost","magma","quake","buddha","love","spider","sound",
-            "phoenix","portal","rumble","pain","blizzard","gravity","mammoth","trex","dough",
-            "shadow","venom","control","spirit","dragon","leopard","yeti","kitsune","gas",
-            "rubber","falcon","eagle","spring","chop","revive","tiger","lightning","creation"
-        }
-
-        local function isFruitDisplayText(text)
-            text = tostring(text or "")
-            if #text < 2 or #text > 80 then return false end
-            local low = text:lower()
-            if low:find("stock",1,true) or low:find("dealer",1,true) or low:find("purchase",1,true)
-                or low:find("buy",1,true) or low:find("beli",1,true) or low:find("robux",1,true)
-                or low:find("refresh",1,true) or low:find("restock",1,true) then
-                return false
-            end
-            for _, hint in ipairs(fruitHints) do
-                if low == hint or low:find(hint.." fruit",1,true) or low:find("^"..hint) then
-                    return true
-                end
-            end
-            return false
-        end
-
-        local function collectFruitText(root)
-            local found, seen = {}, {}
-            if not root then return found end
-            for _, obj in ipairs(root:GetDescendants()) do
-                if obj:IsA("TextLabel") or obj:IsA("TextButton") then
-                    local txt = tostring(obj.Text or "")
-                    if isFruitDisplayText(txt) then
-                        local key = txt:gsub("%s+"," "):gsub("^%s+",""):gsub("%s+$","")
-                        if not seen[key] then
-                            seen[key] = true
-                            found[#found+1] = key
-                        end
-                    end
-                end
-            end
-            return found
-        end
-
-        local function recursiveFruitStrings(value, out, seen)
-            out, seen = out or {}, seen or {}
-            if type(value) == "table" then
-                if seen[value] then return out end
-                seen[value] = true
-                for _, v in pairs(value) do
-                    recursiveFruitStrings(v, out, seen)
-                end
-            elseif type(value) == "string" and isFruitDisplayText(value) then
-                local clean = value:gsub("%s+"," "):gsub("^%s+",""):gsub("%s+$","")
-                local exists = false
-                for _, old in ipairs(out) do
-                    if old == clean then exists = true break end
-                end
-                if not exists then out[#out+1] = clean end
-            end
-            return out
-        end
-
-        local function findDealerModel(kind)
-            local names
-            if kind == "Mirage" then
-                names = {
-                    "Advanced Fruit Dealer", "Advanced Fruit Dealer (Mirage)",
-                    "Mirage Fruit Dealer"
-                }
-            else
-                names = {"Blox Fruit Dealer", "Fruit Dealer", "Fruit Shop"}
-            end
-            local exact, partial
-            for _, obj in ipairs(workspace:GetDescendants()) do
-                if obj:IsA("Model") then
-                    local n = obj.Name:lower()
-                    for _, wanted in ipairs(names) do
-                        local w = wanted:lower()
-                        if n == w then exact = obj break end
-                        if n:find(w,1,true) then partial = partial or obj end
-                    end
-                    if exact then return exact end
-                end
-            end
-            return partial
-        end
-
-        local function extractTimerText(root, kind)
-            if not root then return "--:--:--" end
-            local best
-            for _, obj in ipairs(root:GetDescendants()) do
-                if obj:IsA("TextLabel") or obj:IsA("TextButton") then
-                    local t = tostring(obj.Text or "")
-                    local low = t:lower()
-                    if low:find("restock",1,true) or low:find("next",1,true) or low:find("stock",1,true) then
-                        local hh,mm,ss = t:match("(%d%d):(%d%d):(%d%d)")
-                        if hh then best = string.format("%02d:%02d:%02d", hh,mm,ss) end
-                    end
-                end
-            end
-            return best or "--:--:--"
-        end
-
-        local NormalStockPara = ShopTab:CreateParagraph({
-            Title="Normal Stock",
-            Desc="Not loaded • Press Refresh Stock",
-            Image="rbxassetid://6034453535",
-            ImageSize=20
-        })
-        local MirageStockPara = ShopTab:CreateParagraph({
-            Title="Mirage Stock",
-            Desc=World3 and "Not loaded • Press Refresh Stock" or "Requires Third Sea / Mirage",
-            Image="rbxassetid://6034453535",
-            ImageSize=20
-        })
-
-        local function setStockParagraph(paragraph, title, items, timer)
-            local body = (#items > 0 and table.concat(items, "  •  ") or "No stock data captured from the in-game dealer")
-            if timer and timer ~= "--:--:--" then
-                body = body .. "\nNext refresh: " .. timer
-            end
-            for _, methodName in ipairs({"SetContent","SetDesc","SetDescription","SetStatus","Update","Set","SetText"}) do
-                local method = paragraph and paragraph[methodName]
-                if type(method) == "function" then
-                    local ok = pcall(function() method(paragraph, body) end)
-                    if ok then return end
-                end
-            end
-        end
-
-        local function refreshOneStock(kind)
-            local dealer = findDealerModel(kind)
-            local guiBefore = collectFruitText(LocalPlayer:FindFirstChild("PlayerGui"))
-            if dealer then
-                interactShopNPC(dealer)
-                task.wait(0.15)
-            end
-
-            local responseItems = {}
+        ShopTab:CreateSection("General Shop Items")
+        ShopTab:CreateButton("Buy Dual Flintlock", function() if CommF_ then CommF_:InvokeServer("BuyItem", "Dual Flintlock") end end)
+        ShopTab:CreateButton("Reroll Race (Beli/Fragments)", function()
             if CommF_ then
-                local candidates = (kind == "Mirage")
-                    and {{"GetFruits", true}, {"GetFruits"}}
-                    or {{"GetFruits"}, {"GetFruits", false}}
-                for _, args in ipairs(candidates) do
-                    local ok, result = pcall(function()
-                        return CommF_:InvokeServer(table.unpack(args))
-                    end)
-                    if ok and result ~= false and result ~= nil then
-                        local candidate = recursiveFruitStrings(result)
-                        -- Keep a remote result only when it resembles a dealer stock
-                        -- (small list), not the game's entire fruit catalog.
-                        if #candidate > 0 and #candidate <= 12 then
-                            responseItems = candidate
-                            break
-                        end
-                    end
-                end
-            end
-
-            task.wait(0.20)
-            local guiItems = collectFruitText(LocalPlayer:FindFirstChild("PlayerGui"))
-            local merged = {}
-            local seen = {}
-            for _, list in ipairs({responseItems, guiItems, guiBefore}) do
-                for _, v in ipairs(list) do
-                    if not seen[v] then
-                        seen[v] = true
-                        merged[#merged+1] = v
-                    end
-                end
-            end
-
-            table.sort(merged, function(a,b) return a:lower() < b:lower() end)
-            local timer = extractTimerText(LocalPlayer:FindFirstChild("PlayerGui"), kind)
-
-            if kind == "Normal" then
-                StockState.Normal = merged
-                StockState.NormalText = (#merged > 0 and "Live in-game data" or "No data captured")
-                StockState.NormalTimer = timer
-            else
-                StockState.Mirage = merged
-                StockState.MirageText = (#merged > 0 and "Live in-game data" or "No data captured")
-                StockState.MirageTimer = timer
-            end
-            return #merged > 0, merged
-        end
-
-        local function RefreshStock()
-            local nOk, n = refreshOneStock("Normal")
-            local mOk, m = false, {}
-            if World3 then
-                mOk, m = refreshOneStock("Mirage")
-            end
-            setStockParagraph(
-                NormalStockPara,
-                "Normal Stock",
-                StockState.Normal,
-                StockState.NormalTimer
-            )
-            setStockParagraph(
-                MirageStockPara,
-                "Mirage Stock",
-                StockState.Mirage,
-                StockState.MirageTimer
-            )
-            StockState.LastRefresh = os.clock()
-
-            if AetherUI then
-                AetherUI:Notify({
-                    Title="Stock Refresh",
-                    Content=string.format(
-                        "Normal: %s (%d) • Mirage: %s (%d)",
-                        nOk and "OK" or "No data",
-                        #n,
-                        World3 and (mOk and "OK" or "No data") or "N/A",
-                        #m
-                    ),
-                    Duration=3
-                })
-            end
-        end
-
-        ShopTab:CreateButton("🔄 Refresh Stock", function()
-            task.spawn(RefreshStock)
-        end)
-
-        ShopTab:CreateButton("Open Normal Fruit Dealer", function()
-            local npc = findDealerModel("Normal")
-            local ok = npc and interactShopNPC(npc)
-            if AetherUI then
-                AetherUI:Notify({
-                    Title="Normal Dealer",
-                    Content=ok and "Dealer interaction triggered." or "Blox Fruit Dealer not found in this world.",
-                    Duration=2.5
-                })
+                CommF_:InvokeServer("BlackbeardReward", "Reroll", "1")
+                CommF_:InvokeServer("BlackbeardReward", "Reroll", "2")
             end
         end)
-
-        ShopTab:CreateButton("Open Mirage Fruit Dealer", function()
-            if not World3 then
-                AetherUI:Notify({Title="Mirage Dealer", Content="Third Sea is required.", Duration=2.5})
-                return
-            end
-            local npc = findDealerModel("Mirage")
-            local ok = npc and interactShopNPC(npc)
-            if AetherUI then
-                AetherUI:Notify({
-                    Title="Mirage Dealer",
-                    Content=ok and "Advanced Fruit Dealer interaction triggered." or "Advanced Fruit Dealer not found. Mirage may not be spawned.",
-                    Duration=2.5
-                })
-            end
-        end)
-
-        ShopTab:CreateSection("🛒 General Shop")
-
-        ShopTab:CreateButton("Buy Dual Flintlock", function()
-            shopAction("Dual Flintlock", {
-                {"BuyItem", "Dual Flintlock"},
-                {"BuyItem", "Dual Flintlock", 1}
-            })
-        end)
-
-        ShopTab:CreateButton("Reroll Race", function()
-            shopAction("Race Reroll", {
-                {"BlackbeardReward", "Reroll", "1"},
-                {"BlackbeardReward", "Reroll", "2"}
-            })
-        end)
-
         ShopTab:CreateButton("Reset Stats Refund", function()
-            shopAction("Stats Refund", {
-                {"BlackbeardReward", "Refund", "1"},
-                {"BlackbeardReward", "Refund", "2"}
-            })
-        end)
-
-        ShopTab:CreateButton("Buy / Change Ghoul Race", function()
-            shopAction("Ghoul Race", {
-                {"Ectoplasm", "BuyCheck", 4},
-                {"Ectoplasm", "Change", 4}
-            })
-        end)
-
-        ShopTab:CreateButton("Buy Cyborg Race", function()
-            shopAction("Cyborg Race", {
-                {"CyborgTrainer", "Buy"},
-                {"CyborgTrainer", "Buy", true}
-            })
-        end)
-
-        ShopTab:CreateSection("🥋 Fighting Styles")
-
-        local FightingStyleCandidates = {
-            ["Black Leg"] = {
-                {"BuyBlackLeg"}, {"BuyFightingStyle", "Black Leg"}, {"BuyItem", "Black Leg"}
-            },
-            ["Fishman Karate"] = {
-                {"BuyFishmanKarate"}, {"BuyFightingStyle", "Fishman Karate"}, {"BuyItem", "Fishman Karate"}
-            },
-            ["Electro"] = {
-                {"BuyElectro"}, {"BuyFightingStyle", "Electro"}, {"BuyItem", "Electro"}
-            },
-            ["Dragon Breath"] = {
-                {"BlackbeardReward", "DragonClaw", "2"}, {"BuyFightingStyle", "Dragon Breath"}, {"BuyItem", "Dragon Breath"}
-            },
-            ["Superhuman"] = {
-                {"BuySuperhuman"}, {"BuyFightingStyle", "Superhuman"}, {"BuyItem", "Superhuman"}
-            },
-            ["Death Step"] = {
-                {"BuyDeathStep"}, {"BuyFightingStyle", "Death Step"}, {"BuyItem", "Death Step"}
-            },
-            ["Sharkman Karate"] = {
-                {"BuySharkmanKarate"}, {"BuyFightingStyle", "Sharkman Karate"}, {"BuyItem", "Sharkman Karate"}
-            },
-            ["Electric Claw"] = {
-                {"BuyElectricClaw"}, {"BuyFightingStyle", "Electric Claw"}, {"BuyItem", "Electric Claw"}
-            },
-            ["Dragon Talon"] = {
-                {"BuyDragonTalon"}, {"BuyFightingStyle", "Dragon Talon"}, {"BuyItem", "Dragon Talon"}
-            },
-            ["Godhuman"] = {
-                {"BuyGodhuman"}, {"BuyFightingStyle", "Godhuman"}, {"BuyItem", "Godhuman"}
-            },
-            ["Sanguine Art"] = {
-                {"BuySanguineArt"}, {"BuyFightingStyle", "Sanguine Art"}, {"BuyItem", "Sanguine Art"}
-            },
-        }
-
-        for styleName, candidates in pairs(FightingStyleCandidates) do
-            ShopTab:CreateButton("Buy "..styleName, function()
-                shopAction(styleName, candidates)
-            end)
-        end
-
-        ShopTab:CreateSection("🛡️ Ability & Haki")
-
-        ShopTab:CreateButton("Buy Geppo / Skyjump", function()
-            shopAction("Geppo", {
-                {"BuyHaki", "Geppo"},
-                {"BuyItem", "Geppo"}
-            })
-        end)
-        ShopTab:CreateButton("Buy Buso Haki", function()
-            shopAction("Buso Haki", {
-                {"BuyHaki", "Buso"},
-                {"BuyItem", "Buso"}
-            })
-        end)
-        ShopTab:CreateButton("Buy Observation Haki", function()
-            shopAction("Observation Haki", {
-                {"KenTalk", "Buy"},
-                {"BuyHaki", "Ken"}
-            })
-        end)
-        ShopTab:CreateButton("Buy Soru", function()
-            shopAction("Soru", {
-                {"BuyHaki", "Soru"},
-                {"BuyItem", "Soru"}
-            })
-        end)
-
-        ShopTab:CreateSection("⚔️ Auto Upgrades")
-        ShopTab:CreateToggle(
-            "Auto Buy Legendary Swords",
-            "AutoBuyLegSwordsFlag",
-            _G.Settings.ItemsQuests["Auto Buy Legendary Swords"],
-            function(state)
-                _G.Settings.ItemsQuests["Auto Buy Legendary Swords"] = state
+            if CommF_ then
+                CommF_:InvokeServer("BlackbeardReward", "Refund", "1")
+                CommF_:InvokeServer("BlackbeardReward", "Refund", "2")
             end
-        )
+        end)
+        ShopTab:CreateButton("Buy Ghoul Race", function()
+            if CommF_ then
+                CommF_:InvokeServer("Ectoplasm", "BuyCheck", 4)
+                CommF_:InvokeServer("Ectoplasm", "Change", 4)
+            end
+        end)
+        ShopTab:CreateButton("Buy Cyborg Race", function() if CommF_ then CommF_:InvokeServer("CyborgTrainer", "Buy") end end)
+
+        ShopTab:CreateSection("Fighting Styles Shop")
+        ShopTab:CreateButton("Buy Black Leg ($150,000)", function() if CommF_ then CommF_:InvokeServer("BuyBlackLeg") end end)
+        ShopTab:CreateButton("Buy Fishman Karate ($750,000)", function() if CommF_ then CommF_:InvokeServer("BuyFishmanKarate") end end)
+        ShopTab:CreateButton("Buy Electro ($500,000)", function() if CommF_ then CommF_:InvokeServer("BuyElectro") end end)
+        ShopTab:CreateButton("Buy Dragon Breath (1,500 Frags)", function() if CommF_ then CommF_:InvokeServer("BlackbeardReward", "DragonClaw", "2") end end)
+        ShopTab:CreateButton("Buy Superhuman ($3,000,000)", function() if CommF_ then CommF_:InvokeServer("BuySuperhuman") end end)
+        ShopTab:CreateButton("Buy Death Step ($2,500,000 + 5k Frags)", function() if CommF_ then CommF_:InvokeServer("BuyDeathStep") end end)
+        ShopTab:CreateButton("Buy Sharkman Karate ($2,500,000 + 5k Frags)", function() if CommF_ then CommF_:InvokeServer("BuySharkmanKarate") end end)
+        ShopTab:CreateButton("Buy Electric Claw ($3,000,000 + 3k Frags)", function() if CommF_ then CommF_:InvokeServer("BuyElectricClaw") end end)
+        ShopTab:CreateButton("Buy Dragon Talon ($3,000,000 + 5k Frags)", function() if CommF_ then CommF_:InvokeServer("BuyDragonTalon") end end)
+        ShopTab:CreateButton("Buy Godhuman ($5,000,000 + 5k Frags)", function() if CommF_ then CommF_:InvokeServer("BuyGodhuman") end end)
+        ShopTab:CreateButton("Buy Sanguine Art ($5,000,000 + 5k Frags)", function() if CommF_ then CommF_:InvokeServer("BuySanguineArt") end end)
+
+        ShopTab:CreateSection("Ability & Haki Shop")
+        ShopTab:CreateButton("Buy Skyjump / Geppo ($10,000)", function() if CommF_ then CommF_:InvokeServer("BuyHaki", "Geppo") end end)
+        ShopTab:CreateButton("Buy Buso Haki ($25,000)", function() if CommF_ then CommF_:InvokeServer("BuyHaki", "Buso") end end)
+        ShopTab:CreateButton("Buy Observation Haki ($750,000)", function() if CommF_ then CommF_:InvokeServer("KenTalk", "Buy") end end)
+        ShopTab:CreateButton("Buy Soru ($100,000)", function() if CommF_ then CommF_:InvokeServer("BuyHaki", "Soru") end end)
+
+        ShopTab:CreateSection("Auto Buy Upgrades")
+        ShopTab:CreateToggle("Auto Buy Legendary Swords", "AutoBuyLegSwordsFlag", false, function(s) _G.Settings.ItemsQuests["Auto Buy Legendary Swords"] = s end)
 
         ---------------------------------------------------------
         -- 📌 4. TAB: SUBS FARM
@@ -2273,6 +1812,7 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
                 local island = GetKitsuneIsland()
                 if island then
                     local cf = GetModelCFrame(island)
+                    local cf = GetModelCFrame(island)
                     local _, hrp, hum = GetCharacter()
                     if cf and hrp then
                         if hum then pcall(function() hum.Sit=false end) end
@@ -2334,6 +1874,7 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
             if World3 then
                 local island = GetMirageIsland()
                 if island then
+                    local cf = GetModelCFrame(island)
                     local cf = GetModelCFrame(island)
                     local _, hrp, hum = GetCharacter()
                     if cf and hrp then
@@ -2522,9 +2063,7 @@ AetherUI:InitLoadingScreen("Haroon Hub V22 Master Edition", "Initializing Module
             if not state then StopTween() end
         end)
 
-        ItemsTab:CreateSection("⚔️ TTK Quest Automation")
-
-ItemsTab:CreateToggle("Auto True Triple Katana (TTK)", "AutoFarmTTKFlag", false, function(state)
+        ItemsTab:CreateToggle("Auto True Triple Katana (TTK)", "AutoFarmTTKFlag", false, function(state)
             _G.Settings.ItemsQuests["Auto Farm TTK"] = state
             if not state then StopTween() end
         end)
@@ -2544,84 +2083,46 @@ ItemsTab:CreateToggle("Auto True Triple Katana (TTK)", "AutoFarmTTKFlag", false,
         ---------------------------------------------------------
         FruitsTab:CreateSection("Blox Fruits Rolling & Management")
 
-        local function findNamedNPC(names)
-            local wanted={}
-            for _,n in ipairs(names) do wanted[tostring(n):lower()]=true end
-            local preferred={}
+        local function findFruitGachaNPC()
+            local keys={"zioles","blox fruit gacha","fruit gacha","fruit dealer"}
             for _,obj in ipairs(workspace:GetDescendants()) do
                 if obj:IsA("Model") then
                     local n=obj.Name:lower()
-                    if wanted[n] then return obj end
-                    for key in pairs(wanted) do
-                        if n:find(key,1,true) then preferred[#preferred+1]=obj; break end
-                    end
+                    for _,k in ipairs(keys) do if n:find(k,1,true) then return obj end end
                 end
             end
-            return preferred[1]
         end
-
         local function interactNPC(obj)
             if not obj then return false end
             local prompt=obj:FindFirstChildWhichIsA("ProximityPrompt",true)
             if prompt and type(fireproximityprompt)=="function" then
-                local ok=pcall(fireproximityprompt,prompt)
-                if ok then return true end
+                local ok=pcall(fireproximityprompt,prompt); if ok then return true end
             end
-            local click=obj:FindFirstChildWhichIsA("ClickDetector",true)
-            if click and type(fireclickdetector)=="function" then
-                local ok=pcall(fireclickdetector,click)
-                if ok then return true end
+            local cd=obj:FindFirstChildWhichIsA("ClickDetector",true)
+            if cd and type(fireclickdetector)=="function" then
+                local ok=pcall(fireclickdetector,cd); if ok then return true end
             end
             return false
         end
-
-        local function findFruitGachaNPC()
-            return findNamedNPC({"Zioles","Blox Fruit Gacha","Fruit Gacha","Cousin"})
-        end
-
-        -- Extracted from the supplied script: the current roll call is
-        -- CommF_ -> Cousin -> Buy. We also interact with the local Gacha NPC
-        -- first so the UI/interaction state is initialized where required.
         local function rollFruitOnce()
-            local npc=findFruitGachaNPC()
-            interactNPC(npc)
-            local ok,result=false,nil
-            if CommF_ then
-                ok,result=pcall(function()
-                    return CommF_:InvokeServer("Cousin","Buy")
-                end)
-                if not ok then
-                    ok,result=pcall(function()
-                        return CommF_:InvokeServer("Cousin","Buy",true)
-                    end)
-                end
+            local result=nil; local ok=false
+            if CommF_ then ok,result=pcall(function() return CommF_:InvokeServer("Cousin","Buy") end) end
+            if not ok or result==nil then
+                interactNPC(findFruitGachaNPC())
+                if CommF_ then pcall(function() CommF_:InvokeServer("Cousin","Buy") end) end
             end
-            if AetherUI then
-                AetherUI:Notify({
-                    Title="Fruit Gacha",
-                    Content=ok and ("Roll request sent • "..tostring(result or "Success")) or "Unable to send roll request.",
-                    Duration=3
-                })
-            end
+            if AetherUI then AetherUI:Notify({Title="Fruit Gacha",Content=tostring(result or "Roll request sent"),Duration=3}) end
             return ok
         end
-
         FruitsTab:CreateButton("Roll Fruit Once (Blox Fruit Gacha)", function() rollFruitOnce() end)
         FruitsTab:CreateToggle("Auto Roll Fruit (Loop)", "AutoRollFruitFlag", _G.Settings.Fruits["Auto Roll Fruit"], function(state)
             _G.Settings.Fruits["Auto Roll Fruit"]=state
-            local token=os.clock()
-            getgenv().HaroonFruitRollToken=token
-            if state then
-                task.spawn(function()
-                    while _G.Settings.Fruits["Auto Roll Fruit"] and getgenv().HaroonFruitRollToken==token do
-                        pcall(rollFruitOnce)
-                        task.wait(3)
-                    end
-                end)
-            end
+            local token=os.clock(); getgenv().HaroonFruitRollToken=token
+            if state then task.spawn(function() while _G.Settings.Fruits["Auto Roll Fruit"] and getgenv().HaroonFruitRollToken==token do pcall(rollFruitOnce); task.wait(3) end end) end
         end)
 
-        FruitsTab:CreateSection("🍎 Fruit Notifier / ESP")
+        FruitsTab:CreateSection("Fruit Notifier & ESP")
+
         FruitsTab:CreateToggle("Fruit Notifier (ESP)", "FruitESPFlag", false, function(state)
             _G.Settings.Fruits["Fruit ESP"] = state
         end)
@@ -2636,11 +2137,11 @@ ItemsTab:CreateToggle("Auto True Triple Katana (TTK)", "AutoFarmTTKFlag", false,
             task.spawn(function()
                 while _G.Settings.Fruits["Auto Store Fruit"] do
                     task.wait(0.5)
-                    local backpack=LocalPlayer:FindFirstChild("Backpack")
-                    if backpack and CommF_ then
-                        for _,tool in ipairs(backpack:GetChildren()) do
-                            if tool:IsA("Tool") and string.find(tool.Name:lower(),"fruit") then
-                                pcall(function() CommF_:InvokeServer("StoreFruit",tool.Name) end)
+                    local backpack = LocalPlayer:FindFirstChild("Backpack")
+                    if backpack then
+                        for _, tool in pairs(backpack:GetChildren()) do
+                            if tool:IsA("Tool") and string.find(tool.Name:lower(), "fruit") then
+                                pcall(function() CommF_:InvokeServer("StoreFruit", tool.Name) end)
                             end
                         end
                     end
@@ -2653,11 +2154,11 @@ ItemsTab:CreateToggle("Auto True Triple Katana (TTK)", "AutoFarmTTKFlag", false,
             task.spawn(function()
                 while _G.Settings.Fruits["Auto Drop Fruit"] do
                     task.wait(0.5)
-                    local backpack=LocalPlayer:FindFirstChild("Backpack")
+                    local backpack = LocalPlayer:FindFirstChild("Backpack")
                     if backpack then
-                        for _,tool in ipairs(backpack:GetChildren()) do
-                            if tool:IsA("Tool") and string.find(tool.Name:lower(),"fruit") then
-                                pcall(function() tool.Parent=workspace end)
+                        for _, tool in pairs(backpack:GetChildren()) do
+                            if tool:IsA("Tool") and string.find(tool.Name:lower(), "fruit") then
+                                tool.Parent = workspace
                             end
                         end
                     end
@@ -2665,52 +2166,23 @@ ItemsTab:CreateToggle("Auto True Triple Katana (TTK)", "AutoFarmTTKFlag", false,
             end)
         end)
 
-        local function openShopByNPC(npcNames, shopTitle)
-            local npc=findNamedNPC(npcNames)
-            local opened=interactNPC(npc)
+        FruitsTab:CreateButton("Open Blox Fruits Shop", function()
+            local opened=false
             if CommF_ then
-                -- Common requests used by Blox Fruits shop/dealer interactions.
-                for _,args in ipairs({
-                    {"GetFruits"},
-                    {"GetFruits",true},
-                    {"Shop","Open"},
-                    {"OpenShop"}
-                }) do
-                    local ok=pcall(function() CommF_:InvokeServer(table.unpack(args)) end)
-                    opened=opened or ok
+                for _,args in ipairs({{"GetFruits"},{"GetFruits",true},{"Shop","Open"},{"OpenShop"}}) do
+                    local ok=pcall(function() CommF_:InvokeServer(table.unpack(args)) end); opened=opened or ok
                 end
             end
-            if AetherUI then
-                AetherUI:Notify({
-                    Title=shopTitle,
-                    Content=opened and "Shop interaction sent." or "Shop NPC was not found.",
-                    Duration=3
-                })
-            end
-            return opened
-        end
-
-        FruitsTab:CreateSection("🛒 Fruit Shops")
-        FruitsTab:CreateButton("Open Normal Shop", function()
-            openShopByNPC({"Blox Fruit Dealer","Fruit Dealer","Fruit Shop"},"Normal Fruit Shop")
-        end)
-        FruitsTab:CreateButton("Open Mirage Shop", function()
-            openShopByNPC({"Advanced Fruit Dealer","Advanced Fruit Dealer (Mirage)","Mirage Fruit Dealer"},"Mirage Fruit Shop")
-        end)
-
-        FruitsTab:CreateSection("🥋 Melees Shop")
-        local MeleeShopItems={
-            "Black Leg","Electro","Fishman Karate","Dragon Claw","Superhuman",
-            "Death Step","Electric Claw","Sharkman Karate","Dragon Talon","Godhuman","Sanguine Art"
-        }
-        for _,styleName in ipairs(MeleeShopItems) do
-            FruitsTab:CreateButton("Buy "..styleName, function()
-                if CommF_ then
-                    local ok=pcall(function() CommF_:InvokeServer("BuyFightingStyle",styleName) end)
-                    if not ok then pcall(function() CommF_:InvokeServer("BuyItem",styleName,1) end) end
+            local dealer
+            for _,obj in ipairs(workspace:GetDescendants()) do
+                if obj:IsA("Model") then
+                    local n=obj.Name:lower()
+                    if n:find("blox fruit dealer",1,true) or n=="fruit dealer" then dealer=obj; break end
                 end
-            end)
-        end
+            end
+            opened=interactNPC(dealer) or opened
+            if AetherUI then AetherUI:Notify({Title="Blox Fruits Shop",Content=opened and "Shop request sent." or "Fruit Dealer was not found.",Duration=3}) end
+        end)
 
         ---------------------------------------------------------
         -- 📌 10. TAB: DRAGON DOJO
@@ -2730,7 +2202,7 @@ ItemsTab:CreateToggle("Auto True Triple Katana (TTK)", "AutoFarmTTKFlag", false,
         ---------------------------------------------------------
         -- 📌 11. TAB: COMBAT & PVP
         ---------------------------------------------------------
-        CombatTab:CreateSection("🎯 Target Player Selection")
+        CombatTab:CreateSection("Target Player Selector")
 
         local playerList = {}
         for _, p in pairs(Players:GetPlayers()) do
@@ -2741,7 +2213,7 @@ ItemsTab:CreateToggle("Auto True Triple Katana (TTK)", "AutoFarmTTKFlag", false,
             _G.Settings.Combat["Selected Player"] = selected
         end)
 
-        CombatTab:CreateSection("⚔️ Selected Player Combat")
+        CombatTab:CreateSection("Selected Player Combat")
 
         CombatTab:CreateToggle("Auto Attack Selected Player", "AutoAttackSelectedPlayerFlag", false, function(state)
             _G.Settings.Combat["Auto Attack Selected Player"] = state
@@ -2767,7 +2239,6 @@ ItemsTab:CreateToggle("Auto True Triple Katana (TTK)", "AutoFarmTTKFlag", false,
             end
         end)
 
-        CombatTab:CreateSection("🎯 Aim & Position")
         CombatTab:CreateToggle("Aimbot Gun", "AimbotGunFlag", false, function(state)
             _G.Settings.Combat["Aimbot Gun"] = state
         end)
@@ -2828,9 +2299,8 @@ ItemsTab:CreateToggle("Auto True Triple Katana (TTK)", "AutoFarmTTKFlag", false,
             task.delay(0.05, refreshPlayerDropdownLive)
         end)
 
-        CombatTab:CreateSection("🛡️ Combat Assistance")
+        CombatTab:CreateSection("Combat Assist")
 
-        CombatTab:CreateSection("🗡️ Nearby Combat")
         CombatTab:CreateToggle("Kill Aura (Attack Nearby Enemies)", "KillAuraFlag", false, function(state)
             _G.Settings.Combat["Kill Aura"] = state
         end)
@@ -2843,10 +2313,12 @@ ItemsTab:CreateToggle("Auto True Triple Katana (TTK)", "AutoFarmTTKFlag", false,
             _G.Settings.Combat["Attack Speed"] = val
         end)
 
+        CombatTab:CreateSection("Haki & Attack Assistance")
         CombatTab:CreateToggle("Auto Enable Buso Haki (Once Per Life)", "AutoHakiOnceFlag", false, function(state)
             _G.Settings.Combat["Auto Enable Haki"] = state
         end)
 
+        CombatTab:CreateSection("PvP Safety")
         CombatTab:CreateToggle("Auto PvP Escape & Safety Return", "AutoPvPEscapeFlag", false, function(state)
             _G.Settings.Combat["Auto PvP Escape"] = state
             if not state then StopTween() end
@@ -2862,156 +2334,100 @@ ItemsTab:CreateToggle("Auto True Triple Katana (TTK)", "AutoFarmTTKFlag", false,
 
 
         ---------------------------------------------------------
-        -- Combat Runtime Engine V30 - stable target/reacquire controller
+        -- Combat Runtime Engine V26
         ---------------------------------------------------------
-        local CombatRuntime = {LastTarget=nil, LastAttack=0, LastReacquire=0}
-
+        local CombatRuntime = {LastTarget=nil, LastAttack=0}
         local function getSelectedPlayer()
             local name = _G.Settings.Combat["Selected Player"]
             if not name or name == "None" then return nil end
-            local p = Players:FindFirstChild(tostring(name))
+            local p = Players:FindFirstChild(name)
             if p == LocalPlayer then return nil end
             return p
         end
-
         local function playerModel(p)
             return p and p.Character or nil
         end
-
-        local function getTargetRoot(model)
-            if not model then return nil end
-            return model:FindFirstChild("HumanoidRootPart") or model.PrimaryPart or model:FindFirstChild("Head")
-        end
-
-        local function getTargetHumanoid(model)
-            return model and model:FindFirstChildOfClass("Humanoid")
-        end
-
         local function attackPlayerTarget(model)
-            local root = getTargetRoot(model)
-            local hum = getTargetHumanoid(model)
+            local root = model and model:FindFirstChild("HumanoidRootPart")
+            local hum = model and model:FindFirstChildOfClass("Humanoid")
             if not root or not hum or hum.Health <= 0 then return false end
-            local char, hrp, myHum = GetCharacter()
-            if not char or not hrp or not myHum or myHum.Health <= 0 then return false end
-
-            myHum.Sit = false
             AutoHaki()
-            local hover = math.clamp(tonumber(_G.Settings.Combat["PvP Hover Height"]) or 8, 4, 25)
+            local char, hrp, myHum = GetCharacter()
+            if not hrp or not myHum then return false end
+            myHum.Sit = false
+            local hover = math.clamp(tonumber(_G.Settings.Combat["PvP Hover Height"]) or 8, 4, 18)
             local above = root.Position + Vector3.new(0, hover, 0)
-            local distance = (hrp.Position - above).Magnitude
-
-            if distance > (tonumber(_G.Settings.Combat["PvP Attack Range"]) or 35) then
+            if (hrp.Position-above).Magnitude > 14 then
                 TweenPlayer(CFrame.lookAt(above, root.Position), nil, "CombatPVP")
-                return true
+                pcall(function() myHum.AutoRotate = false end)
             end
-
-            if currentTween and currentTweenOwner == "CombatPVP" then pcall(function() currentTween:Cancel() end) end
-            currentTween=nil
-            currentTweenOwner="CombatPVP"
-
+            -- Once close, continuously lock above the target and attack. This avoids the
+            -- old state where the tween completed but the combat loop stopped applying damage.
             pcall(function()
-                hrp.CFrame=CFrame.lookAt(above, root.Position)
-                hrp.AssemblyLinearVelocity=Vector3.zero
-                hrp.AssemblyAngularVelocity=Vector3.zero
-                myHum.AutoRotate=false
+                hrp.CFrame = CFrame.lookAt(above, root.Position)
+                hrp.AssemblyLinearVelocity = Vector3.zero
+                myHum.AutoRotate = false
             end)
-
-            EquipWeapon(_G.Settings.Main["Select Weapon"] or "Melee")
-            local tool=char:FindFirstChildOfClass("Tool")
-            if tool then pcall(function() tool:Activate() end) end
             AimAtTarget(root.Position)
-
-            local now=os.clock()
-            local attackDelay=1/math.max(1, tonumber(_G.Settings.Combat["Attack Speed"]) or 1)
-            if now-CombatRuntime.LastAttack >= attackDelay then
-                CombatRuntime.LastAttack=now
-                FastAttackTarget(model)
-            end
+            EquipWeapon(_G.Settings.Main["Select Weapon"])
+            pcall(function()
+                local tool = char:FindFirstChildOfClass("Tool")
+                if tool and type(tool.Activate)=="function" then tool:Activate() end
+            end)
+            pcall(function()
+                VirtualInputManager:SendMouseButtonEvent(0,0,0,true,game,0)
+                VirtualInputManager:SendMouseButtonEvent(0,0,0,false,game,0)
+            end)
+            FastAttackTarget(model)
             return true
         end
 
-        local function reacquireSelectedPlayer()
-            local p=getSelectedPlayer()
-            if not p then return nil end
-            local model=p.Character
-            local hum=getTargetHumanoid(model)
-            local root=getTargetRoot(model)
-            if not model or not hum or hum.Health<=0 or not root then
-                return nil
-            end
-            CombatRuntime.LastTarget=p
-            return p
-        end
-
         task.spawn(function()
-            while task.wait(0.08) do
+            while task.wait(0.12) do
                 pcall(function()
-                    local C=_G.Settings.Combat
-                    local p=getSelectedPlayer()
-
+                    local C = _G.Settings.Combat
+                    local p = getSelectedPlayer()
                     if C["Spectate Player"] and p and p.Character then
-                        local ph=p.Character:FindFirstChildOfClass("Humanoid")
-                        if ph then workspace.CurrentCamera.CameraSubject=ph end
+                        local ph = p.Character:FindFirstChildOfClass("Humanoid")
+                        if ph then workspace.CurrentCamera.CameraSubject = ph end
                     elseif not C["Spectate Player"] then
-                        local _,_,h=GetCharacter()
-                        if h then workspace.CurrentCamera.CameraSubject=h end
+                        local _, _, h = GetCharacter()
+                        if h then workspace.CurrentCamera.CameraSubject = h end
                     end
-
-                    -- Reacquire after respawn/name changes without requiring the user to reselect.
-                    if C["Auto Attack Selected Player"] or C["Teleport To Player"] or C["Aimbot Gun"] then
-                        if not p or not p.Character or not getTargetHumanoid(p.Character) or getTargetHumanoid(p.Character).Health<=0 then
-                            if os.clock()-CombatRuntime.LastReacquire >= (tonumber(C["PvP Reacquire Delay"]) or 0.15) then
-                                CombatRuntime.LastReacquire=os.clock()
-                                p=reacquireSelectedPlayer()
-                            end
-                        end
-                    end
-
                     if C["Teleport To Player"] and p and p.Character then
-                        local root=getTargetRoot(p.Character)
-                        local _,hrp=GetCharacter()
-                        if root and hrp then
-                            local safe=root.Position+Vector3.new(0,100,0)
-                            if (hrp.Position-safe).Magnitude>25 then
-                                TweenPlayer(CFrame.lookAt(safe,root.Position),nil,"CombatTP")
+                        local root = p.Character:FindFirstChild("HumanoidRootPart")
+                        if root then
+                            local safe = root.Position + Vector3.new(0,100,0)
+                            local char, hrp = GetCharacter()
+                            if hrp and (hrp.Position-safe).Magnitude > 20 then
+                                TweenPlayer(CFrame.lookAt(safe, root.Position), nil, "CombatPVP")
                             end
                         end
                     end
-
-                    if p and C["Auto Attack Selected Player"] then
-                        attackPlayerTarget(p.Character)
-                    elseif C["Aimbot Gun"] and p then
-                        local root=getTargetRoot(p.Character)
-                        if root then AimAtTarget(root.Position) end
-                    end
-
                     if C["Kill Aura"] then
-                        local _,hrp=GetCharacter()
-                        local enemies=workspace:FindFirstChild("Enemies")
-                        local range=tonumber(C["Kill Aura Range"]) or 25
+                        local _, hrp = GetCharacter()
+                        local enemies = workspace:FindFirstChild("Enemies")
+                        local range = tonumber(C["Kill Aura Range"]) or 25
                         if hrp and enemies then
-                            local nearest,bestD=nil,range
-                            for _,mob in ipairs(enemies:GetChildren()) do
-                                local mh=mob:IsA("Model") and getTargetHumanoid(mob)
-                                local mr=mob:IsA("Model") and getTargetRoot(mob)
-                                if mh and mh.Health>0 and mr then
-                                    local d=(hrp.Position-mr.Position).Magnitude
-                                    if d<=bestD then nearest,bestD=mob,d end
-                                end
+                            local nearest
+                            for _, mob in ipairs(enemies:GetChildren()) do
+                                local mh=mob:IsA("Model") and mob:FindFirstChildOfClass("Humanoid")
+                                local mr=mob:IsA("Model") and (mob:FindFirstChild("HumanoidRootPart") or mob.PrimaryPart)
+                                if mh and mh.Health>0 and mr and (hrp.Position-mr.Position).Magnitude<=range then nearest=mob break end
                             end
                             if nearest then SmartAttackMob(nearest) end
                         end
                     end
-
                     if C["Auto Enable Haki"] then AutoHaki() end
-
+                    if p and (C["Aimbot Gun"] or C["Auto Attack Selected Player"]) then attackPlayerTarget(playerModel(p)) end
                     if C["Auto PvP Escape"] then
-                        local _,myRoot,myHum=GetCharacter()
+                        local _, myRoot, myHum = GetCharacter()
                         if myRoot and myHum then
                             local hpPercent=(myHum.Health/math.max(myHum.MaxHealth,1))*100
                             if hpPercent <= (tonumber(C["Escape HP %"]) or 30) then
-                                CombatRuntime.SafeReturn=CombatRuntime.SafeReturn or myRoot.CFrame
-                                pcall(function() myRoot.CFrame=myRoot.CFrame*CFrame.new(0,100,0); myRoot.AssemblyLinearVelocity=Vector3.zero end)
+                                CombatRuntime.SafeReturn = CombatRuntime.SafeReturn or myRoot.CFrame
+                                local safe = CombatRuntime.SafeReturn * CFrame.new(0,100,0)
+                                pcall(function() myRoot.CFrame=safe; myRoot.AssemblyLinearVelocity=Vector3.zero end)
                             elseif CombatRuntime.SafeReturn and hpPercent >= (tonumber(C["Return HP %"]) or 70) then
                                 pcall(function() myRoot.CFrame=CombatRuntime.SafeReturn end)
                                 CombatRuntime.SafeReturn=nil
@@ -3097,9 +2513,7 @@ ItemsTab:CreateToggle("Auto True Triple Katana (TTK)", "AutoFarmTTKFlag", false,
         ---------------------------------------------------------
         VisualTab:CreateSection("Visual Object Detectors")
 
-        VisualTab:CreateSection("👤 Players")
         VisualTab:CreateToggle("ESP Players", "ESPPlayersFlag", false, function(state) _G.Settings.Visuals["ESP Players"] = state end)
-        VisualTab:CreateSection("⚔️ World Objects")
         VisualTab:CreateToggle("ESP Bosses", "ESPBossesFlag", false, function(state) _G.Settings.Visuals["ESP Bosses"] = state end)
         VisualTab:CreateToggle("ESP Chests", "ESPChestsFlag", false, function(state) _G.Settings.Visuals["ESP Chests"] = state end)
         VisualTab:CreateToggle("ESP Enemies", "ESPEnemiesFlag", false, function(state) _G.Settings.Visuals["ESP Enemies"] = state end)
@@ -3513,98 +2927,8 @@ ItemsTab:CreateToggle("Auto True Triple Katana (TTK)", "AutoFarmTTKFlag", false,
         end)
         SettingsTab:CreateSection("Hub Controls")
 
-        local function getCurrentWorldName()
-            if World1 then return "First Sea" end
-            if World2 then return "Second Sea" end
-            if World3 then return "Third Sea" end
-            return "Current World"
-        end
-
-        local function rejoinSameWorldServer()
-            local placeId = currentWorldPlaceId()
-            local jobId = tostring(game.JobId or "")
-            if jobId == "" then
-                if AetherUI then
-                    AetherUI:Notify({Title="Rejoin", Content="Current JobId is unavailable.", Duration=2.5})
-                end
-                return
-            end
-            TeleportService:TeleportToPlaceInstance(placeId, jobId, LocalPlayer)
-        end
-
-        local function fetchCurrentWorldServers()
-            local list, seen = {}, {}
-            local cursor = nil
-            for _ = 1, 4 do
-                local url = "https://games.roblox.com/v1/games/" ..
-                    tostring(currentWorldPlaceId()) ..
-                    "/servers/Public?sortOrder=Asc&limit=100"
-
-                if cursor and cursor ~= "" then
-                    url = url .. "&cursor=" .. HttpService:UrlEncode(cursor)
-                end
-
-                local raw = safeHttpGet(url)
-                if not raw then
-                    local resp = safeRequest({Url=url, Method="GET"})
-                    raw = resp and (resp.Body or resp.body)
-                end
-                if not raw then break end
-
-                local ok, data = pcall(function()
-                    return HttpService:JSONDecode(raw)
-                end)
-                if not ok or type(data) ~= "table" then break end
-
-                for _, server in ipairs(data.data or {}) do
-                    local id = tostring(server.id or "")
-                    local playing = tonumber(server.playing or 0) or 0
-                    local maxPlayers = tonumber(server.maxPlayers or 0) or 0
-
-                    if id ~= "" and id ~= tostring(game.JobId)
-                        and playing < maxPlayers and not seen[id] then
-                        seen[id] = true
-                        list[#list+1] = id
-                    end
-                end
-
-                cursor = data.nextPageCursor
-                if not cursor or cursor == "" then break end
-            end
-            return list
-        end
-
-        local function rejoinAnotherWorldServer()
-            local placeId = currentWorldPlaceId()
-            local servers = fetchCurrentWorldServers()
-            if #servers == 0 then
-                if AetherUI then
-                    AetherUI:Notify({
-                        Title="Rejoin",
-                        Content="No other public server was returned for "..getCurrentWorldName()..".",
-                        Duration=3
-                    })
-                end
-                return
-            end
-
-            local target = servers[math.random(1, #servers)]
-            if AetherUI then
-                AetherUI:Notify({
-                    Title="Rejoin",
-                    Content="Joining another server in "..getCurrentWorldName().."...",
-                    Duration=2.5
-                })
-            end
-            TeleportService:TeleportToPlaceInstance(placeId, target, LocalPlayer)
-        end
-
-        SettingsTab:CreateButton("Rejoin Same Server • "..getCurrentWorldName(), function()
-            rejoinSameWorldServer()
-        end)
-
-        SettingsTab:CreateButton("Rejoin Another Server • "..getCurrentWorldName(), function()
-            rejoinAnotherWorldServer()
+        SettingsTab:CreateButton("Rejoin Current Server", function()
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
         end)
 
         SettingsTab:CreateButton("Destroy Hub Interface", function()
@@ -3899,30 +3223,6 @@ task.spawn(function()
         if _G.Settings.Quests["Auto Soul Guitar Puzzle"] then pcall(autoSoulGuitarPuzzle) end
     end
 end)
-
---------------------------------------------------------------------------------
--- 10A. Quest Recovery Guard - Yama / Tushita / CDK / TTK
---------------------------------------------------------------------------------
-local QuestRecovery={Last=0}
-local function questRecoveryStep()
-    if os.clock()-QuestRecovery.Last<0.5 then return end
-    QuestRecovery.Last=os.clock()
-    if not World3 then return end
-    if _G.Settings.Quests["Auto Yama Puzzle"] then pcall(autoYamaPuzzle) end
-    if _G.Settings.Quests["Auto Tushita Puzzle"] then pcall(autoTushitaPuzzle) end
-    if _G.Settings.ItemsQuests["Auto Farm CDK"] then
-        pcall(function()
-            if CommF_ then
-                local t=_G.Settings.ItemsQuests["CDK Trial Type"]
-                if t=="Quest Yama" then CommF_:InvokeServer("CDKQuest","OpenDoor"); CommF_:InvokeServer("CDKQuest","StartTrial","Evil")
-                elseif t=="Quest Tushita" then CommF_:InvokeServer("CDKQuest","OpenDoor"); CommF_:InvokeServer("CDKQuest","StartTrial","Good")
-                end
-            end
-        end)
-    end
-end
-task.spawn(function() while task.wait(0.5) do pcall(questRecoveryStep) end end)
-
 
 --------------------------------------------------------------------------------
 -- 10. ADVANCED RAID ENGINE
@@ -4367,76 +3667,45 @@ local function interactSpyBribe(spy)
     return clue:find("leviathan is out there",1,true) ~= nil or clue:find("bribe",1,true) ~= nil
 end
 
-local function getLeviathanBribeStage()
-    if not CommF_ then return 0 end
-    local ok, value = pcall(function() return CommF_:InvokeServer("InfoLeviathan", "1") end)
-    local n = tonumber(value)
-    return n or 0
-end
-
 local function ensureLeviathanBribed()
-    if not World3 then return false end
-    if not _G.Settings.Sea["Auto Bribe Spy"] then return true end
-
-    -- Do not start sailing until the Spy has actually confirmed Leviathan.
-    local clue=readLeviathanClue()
-    if clue:find("leviathan is out there",1,true) then return true end
-
-    local stage=getLeviathanBribeStage()
-    if stage>=5 then return true end
+    if not _G.Settings.Sea["Auto Bribe Spy"] or not World3 then return true end
     local spy=findLeviathanSpy()
     if not spy then return false end
-
-    for attempt=1,6 do
-        clue=readLeviathanClue()
-        if clue:find("leviathan is out there",1,true) then return true end
-        stage=getLeviathanBribeStage()
-        if stage>=5 then return true end
+    local clue=readLeviathanClue()
+    if clue:find("leviathan is out there",1,true) then return true end
+    for i=1,4 do
+        if os.clock()-LeviathanRuntime.LastBribe<1 then task.wait(1) end
         if not playerHasFragments(1500) then return false end
-        local spyCF=GetModelCFrame(spy)
-        local _,hrp=GetCharacter()
-        if spyCF and hrp and (hrp.Position-spyCF.Position).Magnitude>25 then
-            TweenPlayer(spyCF*CFrame.new(0,3,0),nil,"LeviathanSpy")
-            task.wait(0.25)
-        end
-        local prompt=spy:FindFirstChildWhichIsA("ProximityPrompt",true)
-        if prompt and type(fireproximityprompt)=="function" then pcall(function() fireproximityprompt(prompt,1,true) end) end
-        if CommF_ then
-            pcall(function() CommF_:InvokeServer("Spy","Bribe") end)
-            pcall(function() CommF_:InvokeServer("Spy","Clues") end)
+        if interactSpyBribe(spy) then
+            clue=readLeviathanClue()
+            if clue:find("leviathan is out there",1,true) then return true end
         end
         LeviathanRuntime.LastBribe=os.clock()
-        task.wait(0.65)
-        clue=readLeviathanClue()
-        if clue:find("leviathan is out there",1,true) then return true end
-        -- The official flow can impose a short interaction delay; don't hammer the NPC.
-        task.wait(1.0)
     end
-    return readLeviathanClue():find("leviathan is out there",1,true) ~= nil or getLeviathanBribeStage()>=5
+    return readLeviathanClue():find("leviathan is out there",1,true) ~= nil
 end
 
 local function findLeviathanBoat()
     local boats=workspace:FindFirstChild("Boats")
     if not boats then return nil end
-    local fallback=nil
     for _,boat in ipairs(boats:GetChildren()) do
         if boat:IsA("Model") and boat:FindFirstChildWhichIsA("VehicleSeat",true) then
+            local n=boat.Name:lower()
             local owner=getBoatOwnerName(boat)
             if owner and (owner==LocalPlayer.Name or owner==tostring(LocalPlayer.UserId)) then
-                local n=boat.Name:lower()
-                if n:find("beast hunter",1,true) or n:find("beasthunter",1,true) or n:find("hydra",1,true) or n:find("leviathan",1,true) then return boat end
-                fallback=fallback or boat
+                if n:find("beast",1,true) or n:find("hydra",1,true) or n:find("leviathan",1,true) then return boat end
             end
         end
     end
-    return fallback
+    return nil
 end
 
 local function ensureLeviathanBoat()
     local boat=findLeviathanBoat()
     if boat then mountMyBoat(boat); return boat end
     local old=_G.Settings.Sea["Selected Boat"]
-    _G.Settings.Sea["Selected Boat"]=_G.Settings.Sea["Leviathan Boat"] or "Beast Hunter"
+    -- Leviathan hunting requires the Beast Hunter boat for the intended heart/harpoon flow.
+    _G.Settings.Sea["Selected Boat"]="Beast Hunter"
     boat=ensureBoat()
     _G.Settings.Sea["Selected Boat"]=old
     return boat
@@ -4464,32 +3733,28 @@ end
 
 autoFindLeviathanStep = function()
     if not World3 or not _G.Settings.Sea["Auto Find Leviathan"] then return false end
-    -- Requirement: bribe/confirmation first. No boat search before this succeeds.
     if not ensureLeviathanBribed() then return false end
-
     local boat=ensureLeviathanBoat()
     if not boat then return false end
+    -- Do not start the sea search until the driver is actually seated in the boat.
+    local _, boatHRP, boatHum = GetCharacter()
+    local seat = getBoatSeat(boat)
+    if not seat or not boatHum then return false end
+    if boatHum.SeatPart ~= seat then
+        mountMyBoat(boat)
+        task.wait(0.12)
+        if boatHum.SeatPart ~= seat then return false end
+    end
     local _,hrp,hum=GetCharacter()
     if not hrp or not hum then return false end
-
     local target,cf=findFrozenDimensionOrLeviathan()
     if target and cf then
-        -- Found the Frozen Dimension/gate: drive directly to it.
         moveBoatOverSea(boat,cf,true)
-        local watcher=target:FindFirstChild("Frozen Watcher",true) or target:FindFirstChild("FrozenWatcher",true)
-        if watcher and GetModelCFrame(watcher) and (hrp.Position-GetModelCFrame(watcher).Position).Magnitude<80 then
-            local prompt=watcher:FindFirstChildWhichIsA("ProximityPrompt",true)
-            if prompt and type(fireproximityprompt)=="function" then pcall(function() fireproximityprompt(prompt,1,true) end) end
-        end
         return true
     end
-
-    -- Frozen Dimension is tied to Sea Danger Level 6; sweep a deterministic set of waypoints instead of oscillating.
-    local zone=ZoneCFrames[_G.Settings.Sea["Leviathan Sea Zone"] or "Zone 6"] or ZoneCFrames["Zone 6"]
-    if os.clock()-LeviathanRuntime.LastMove>1.0 then
-        LeviathanRuntime.LastMove=os.clock()
-        moveBoatOverSea(boat,zone,true)
-    end
+    local zoneName=_G.Settings.Sea["Leviathan Sea Zone"] or "Zone 6"
+    local zone=ZoneCFrames[zoneName] or ZoneCFrames["Zone 6"]
+    moveBoatOverSea(boat,zone,true)
     return true
 end
 
@@ -4513,52 +3778,39 @@ end
 
 function moveBoatOverSea(boat, targetCF, precise)
     if not boat or not boat.Parent or typeof(targetCF) ~= "CFrame" then return false end
-    local seat = getBoatSeat(boat)
+    local seat=getBoatSeat(boat)
     if not seat then return false end
-    local _, hrp, hum = GetCharacter()
+    local _,hrp,hum=GetCharacter()
     if not hrp or not hum then return false end
-    if not hum.Sit then
-        pcall(function()
-            hrp.CFrame = seat.CFrame * CFrame.new(0,2.5,0)
-            seat:Sit(hum)
-        end)
-        return false
-    end
-    local current = boat:GetPivot()
-    local targetPos = Vector3.new(targetCF.Position.X, getBoatHeight(), targetCF.Position.Z)
-    local distance = (current.Position - targetPos).Magnitude
-    local threshold = precise and 45 or 80
-    if distance <= threshold then return true end
+    if not hum.Sit then pcall(function() hrp.CFrame=seat.CFrame*CFrame.new(0,2.5,0); seat:Sit(hum) end); return false end
+    local p=seat.Position
+    local target=Vector3.new(targetCF.Position.X,getBoatHeight(),targetCF.Position.Z)
+    local dist=(p-target).Magnitude
+    local threshold=precise and 35 or 70
+    if dist<=threshold then return true end
     if boat:GetAttribute("HaroonBoatMoving") then return false end
-    local speed = math.clamp(tonumber(_G.Settings.Sea["Boat Tween Speed"]) or 200, 50, 500)
-    local stepDistance = math.min(distance, math.max(300, speed * 2.0))
-    local dir = targetPos - current.Position
-    if dir.Magnitude < 1 then return true end
-    local waypoint = current.Position + dir.Unit * stepDistance
-    waypoint = Vector3.new(waypoint.X, getBoatHeight(), waypoint.Z)
-    local look = Vector3.new(targetPos.X, getBoatHeight(), targetPos.Z)
-    local goal = CFrame.lookAt(waypoint, look)
-    local duration = math.clamp(stepDistance / speed, 0.25, 2.2)
-    boat:SetAttribute("HaroonBoatMoving", true)
-    local cv = Instance.new("CFrameValue")
-    cv.Value = current
-    local conn = cv:GetPropertyChangedSignal("Value"):Connect(function()
-        if boat and boat.Parent then pcall(function() boat:PivotTo(cv.Value) end) end
-    end)
-    local ok = pcall(function()
-        local tween = TweenService:Create(cv, TweenInfo.new(duration, Enum.EasingStyle.Linear), {Value = goal})
+    local speed=math.max(60,tonumber(_G.Settings.Sea["Boat Tween Speed"]) or 200)
+    local stepDistance=math.min(dist, math.max(250,speed*1.8))
+    local dir=(target-p)
+    if dir.Magnitude<1 then return true end
+    local waypoint=p+dir.Unit*stepDistance
+    waypoint=Vector3.new(waypoint.X,getBoatHeight(),waypoint.Z)
+    local look=Vector3.new(target.X, getBoatHeight(), target.Z)
+    local goal=CFrame.lookAt(waypoint,look)
+    local duration=math.clamp(stepDistance/speed,0.35,2.5)
+    boat:SetAttribute("HaroonBoatMoving",true)
+    local tween
+    local ok=pcall(function()
+        local pivot=boat:GetPivot()
+        local targetPivot=pivot*CFrame.new(waypoint-pivot.Position)
+        targetPivot=CFrame.lookAt(waypoint,look)
+        tween=TweenService:Create(boat.PrimaryPart or seat,TweenInfo.new(duration,Enum.EasingStyle.Linear),{CFrame=targetPivot})
         tween.Completed:Connect(function()
-            if conn then conn:Disconnect() end
-            if cv then cv:Destroy() end
-            if boat and boat.Parent then boat:SetAttribute("HaroonBoatMoving", nil) end
+            if boat and boat.Parent then boat:SetAttribute("HaroonBoatMoving",nil) end
         end)
         tween:Play()
     end)
-    if not ok then
-        if conn then conn:Disconnect() end
-        cv:Destroy()
-        boat:SetAttribute("HaroonBoatMoving", nil)
-    end
+    if not ok then boat:SetAttribute("HaroonBoatMoving",nil) end
     return false
 end
 
@@ -4643,13 +3895,8 @@ local function mirageStep()
     if not _G.Settings.Race["Auto Find Mirage"] then return end
     local boat = ensureBoat()
     if not boat then return end
-    local _, _, hum = GetCharacter()
     local seat = getBoatSeat(boat)
-    if not seat or not hum then return end
-    if not hum.Sit then
-        mountMyBoat(boat)
-        return
-    end
+    if seat and not (GetCharacter()) then return end
     if os.clock()-MirageLastMove < 0.75 then return end
     MirageLastMove = os.clock()
     local route = MirageSearchRoute[MirageRouteIndex]
@@ -4675,9 +3922,6 @@ local function kitsuneStep()
     if not _G.Settings.Sea["Auto Find Kitsune Island"] then return end
     local boat = ensureBoat()
     if not boat then return end
-    local _, _, hum = GetCharacter()
-    if not hum then return end
-    if not hum.Sit then mountMyBoat(boat); return end
     if os.clock()-KitsuneLastMove < 0.75 then return end
     KitsuneLastMove = os.clock()
     local target = isFullMoonLikely() and KitsuneDanger6Point or KitsuneHoldingPoint
@@ -4892,174 +4136,95 @@ end)
 
 --------------------------------------------------------------------------------
 -- 15. Advanced Dynamic ESP Engine (All Categories)
+--------------------------------------------------------------------------------
 local ESPCache = {}
 
 local function RemoveESP(key)
     local obj = ESPCache[key]
-    if obj then
-        if obj.Gui then pcall(function() obj.Gui:Destroy() end) end
-        if obj.Highlight then pcall(function() obj.Highlight:Destroy() end) end
-        ESPCache[key] = nil
-    end
+    if obj and obj.Gui then pcall(function() obj.Gui:Destroy() end) end
+    ESPCache[key] = nil
 end
 
 local function RemoveAllESP()
-    for key in pairs(ESPCache) do
-        RemoveESP(key)
-    end
+    for key in pairs(ESPCache) do RemoveESP(key) end
 end
 
 local function getEspPart(obj)
     if not obj then return nil end
     if obj:IsA("BasePart") then return obj end
     if obj:IsA("Model") then
-        return obj:FindFirstChild("HumanoidRootPart")
-            or obj.PrimaryPart
-            or obj:FindFirstChild("RootPart")
-            or obj:FindFirstChild("Head")
-            or obj:FindFirstChildWhichIsA("BasePart", true)
+        return obj:FindFirstChild("HumanoidRootPart") or obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart", true)
     end
-    if obj:IsA("Tool") then
-        return obj:FindFirstChild("Handle")
-            or obj:FindFirstChildWhichIsA("BasePart", true)
-    end
-end
-
-local function createESPEntry(key, part, title, color, showHP)
-    local bill = Instance.new("BillboardGui")
-    bill.Name = "HaroonESP"
-    bill.Adornee = part
-    bill.Size = UDim2.new(0, 190, 0, showHP and 56 or 32)
-    bill.StudsOffset = Vector3.new(0, 3.2, 0)
-    bill.AlwaysOnTop = true
-    bill.MaxDistance = 15000
-    bill.ResetOnSpawn = false
-
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.fromScale(1, 1)
-    frame.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
-    frame.BackgroundTransparency = 0.18
-    frame.BorderSizePixel = 0
-    frame.Parent = bill
-
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 6)
-    corner.Parent = frame
-
-    local stroke = Instance.new("UIStroke")
-    stroke.Thickness = 1
-    stroke.Transparency = 0.2
-    stroke.Color = color
-    stroke.Parent = frame
-
-    local titleLabel = Instance.new("TextLabel")
-    titleLabel.Name = "Title"
-    titleLabel.Size = UDim2.new(1, -8, 0, 17)
-    titleLabel.Position = UDim2.new(0, 4, 0, 1)
-    titleLabel.BackgroundTransparency = 1
-    titleLabel.Font = Enum.Font.GothamBold
-    titleLabel.TextSize = 11
-    titleLabel.TextXAlignment = Enum.TextXAlignment.Center
-    titleLabel.TextColor3 = color
-    titleLabel.Parent = frame
-
-    local distLabel = Instance.new("TextLabel")
-    distLabel.Name = "Distance"
-    distLabel.Size = UDim2.new(1, -8, 0, 15)
-    distLabel.Position = UDim2.new(0, 4, 0, 18)
-    distLabel.BackgroundTransparency = 1
-    distLabel.Font = Enum.Font.Gotham
-    distLabel.TextSize = 9
-    distLabel.TextColor3 = Color3.fromRGB(235,235,235)
-    distLabel.Parent = frame
-
-    local hpBg, hpFill
-    if showHP then
-        hpBg = Instance.new("Frame")
-        hpBg.Name = "HP"
-        hpBg.Size = UDim2.new(1, -12, 0, 5)
-        hpBg.Position = UDim2.new(0, 6, 0, 35)
-        hpBg.BackgroundColor3 = Color3.fromRGB(45,45,48)
-        hpBg.BorderSizePixel = 0
-        hpBg.Parent = frame
-
-        local hpCorner = Instance.new("UICorner")
-        hpCorner.CornerRadius = UDim.new(0, 3)
-        hpCorner.Parent = hpBg
-
-        hpFill = Instance.new("Frame")
-        hpFill.Name = "Fill"
-        hpFill.Size = UDim2.new(1,0,1,0)
-        hpFill.BackgroundColor3 = color
-        hpFill.BorderSizePixel = 0
-        hpFill.Parent = hpBg
-
-        local fillCorner = Instance.new("UICorner")
-        fillCorner.CornerRadius = UDim.new(0, 3)
-        fillCorner.Parent = hpFill
-    end
-
-    bill.Parent = part
-
-    local highlight
-    if part.Parent and (part.Parent:IsA("Model") or part:IsA("BasePart")) then
-        local adornee = part.Parent:IsA("Model") and part.Parent or part
-        highlight = Instance.new("Highlight")
-        highlight.Name = "HaroonESPHighlight"
-        highlight.Adornee = adornee
-        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-        highlight.FillTransparency = 0.78
-        highlight.OutlineTransparency = 0.05
-        highlight.FillColor = color
-        highlight.OutlineColor = color
-        highlight.Parent = adornee
-    end
-
-    local entry = {
-        Gui = bill,
-        Highlight = highlight,
-        Part = part,
-        Title = titleLabel,
-        Distance = distLabel,
-        HPFill = hpFill,
-    }
-    ESPCache[key] = entry
-    return entry
+    if obj:IsA("Tool") then return obj:FindFirstChild("Handle") or obj:FindFirstChildWhichIsA("BasePart", true) end
 end
 
 local function EnsureESP(key, part, title, color, showHP, maxHP, hp)
-    if not part or not part.Parent then
-        RemoveESP(key)
-        return
-    end
-
+    if not part or not part.Parent then return end
     local entry = ESPCache[key]
-    if not entry
-        or not entry.Gui
-        or not entry.Gui.Parent
-        or not entry.Part
-        or not entry.Part.Parent
-        or entry.Part ~= part then
-        RemoveESP(key)
-        entry = createESPEntry(key, part, title, color, showHP)
-    end
+    if not entry or not entry.Gui or not entry.Gui.Parent or entry.Part ~= part then
+        if entry and entry.Gui then pcall(function() entry.Gui:Destroy() end) end
+        local bill = Instance.new("BillboardGui")
+        bill.Name = "HaroonESP"
+        bill.Adornee = part
+        bill.Size = UDim2.new(0, 180, 0, showHP and 52 or 30)
+        bill.StudsOffset = Vector3.new(0, 2.8, 0)
+        bill.AlwaysOnTop = true
+        bill.MaxDistance = 10000
 
+        local frame = Instance.new("Frame")
+        frame.Size = UDim2.fromScale(1, 1)
+        frame.BackgroundColor3 = Color3.fromRGB(12,12,16)
+        frame.BackgroundTransparency = 0.22
+        frame.Parent = bill
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 6)
+        corner.Parent = frame
+
+        local titleLabel = Instance.new("TextLabel")
+        titleLabel.Name = "Title"
+        titleLabel.Size = UDim2.new(1, -8, 0, 16)
+        titleLabel.Position = UDim2.new(0,4,0,1)
+        titleLabel.BackgroundTransparency = 1
+        titleLabel.Font = Enum.Font.GothamBold
+        titleLabel.TextSize = 11
+        titleLabel.TextXAlignment = Enum.TextXAlignment.Center
+        titleLabel.Parent = frame
+
+        local distLabel = Instance.new("TextLabel")
+        distLabel.Name = "Distance"
+        distLabel.Size = UDim2.new(1, -8, 0, 14)
+        distLabel.Position = UDim2.new(0,4,0,17)
+        distLabel.BackgroundTransparency = 1
+        distLabel.Font = Enum.Font.Gotham
+        distLabel.TextSize = 9
+        distLabel.TextColor3 = Color3.fromRGB(220,220,220)
+        distLabel.Parent = frame
+
+        local hpBg, hpFill
+        if showHP then
+            hpBg = Instance.new("Frame")
+            hpBg.Name = "HP"
+            hpBg.Size = UDim2.new(1, -12, 0, 5)
+            hpBg.Position = UDim2.new(0,6,0,33)
+            hpBg.BackgroundColor3 = Color3.fromRGB(45,45,48)
+            hpBg.Parent = frame
+            hpFill = Instance.new("Frame")
+            hpFill.Name = "Fill"
+            hpFill.Size = UDim2.new(1,0,1,0)
+            hpFill.BackgroundColor3 = Color3.fromRGB(50,220,120)
+            hpFill.Parent = hpBg
+        end
+        bill.Parent = part
+        entry = {Gui=bill, Part=part, Title=titleLabel, Distance=distLabel, HPFill=hpFill}
+        ESPCache[key] = entry
+    end
     local _, hrp = GetCharacter()
     local dist = hrp and math.floor((hrp.Position - part.Position).Magnitude) or 0
-
     entry.Title.Text = title
     entry.Title.TextColor3 = color
-    entry.Distance.Text = tostring(dist) .. " studs"
-
+    entry.Distance.Text = "" .. dist .. " studs"
     if entry.HPFill and showHP and maxHP and maxHP > 0 then
-        entry.HPFill.BackgroundColor3 = color
-        entry.HPFill.Size = UDim2.new(math.clamp((hp or 0) / maxHP, 0, 1), 0, 1, 0)
-    end
-
-    if entry.Highlight then
-        entry.Highlight.FillColor = color
-        entry.Highlight.OutlineColor = color
-        entry.Highlight.Enabled = true
+        entry.HPFill.Size = UDim2.new(math.clamp((hp or 0)/maxHP, 0, 1), 0, 1, 0)
     end
 end
 
@@ -5075,121 +4240,53 @@ local function getPlayerLevelText(player)
     if level and tonumber(level.Value) then
         return "Lv." .. tostring(level.Value)
     end
-    local attrLevel = player:GetAttribute("Level")
-    if tonumber(attrLevel) then return "Lv." .. tostring(attrLevel) end
     return "Lv.?"
 end
 
+local FruitRuntimeSeen = {}
+
 local function isBossModel(obj)
-    if not obj or not obj:IsA("Model") then return false end
+    if not obj:IsA("Model") then return false end
     local name = obj.Name:lower()
-    return name:find("king",1,true) ~= nil
-        or name:find("prince",1,true) ~= nil
-        or name:find("boss",1,true) ~= nil
-        or name:find("reaper",1,true) ~= nil
-        or name:find("leviathan",1,true) ~= nil
-        or name:find("terror",1,true) ~= nil
-        or name:find("god",1,true) ~= nil
-end
-
-local ESPFruitHints = {
-    "rocket","spin","blade","bomb","smoke","flame","ice","sand","dark","light",
-    "diamond","barrier","ghost","magma","quake","buddha","love","spider","sound",
-    "phoenix","portal","rumble","pain","blizzard","gravity","mammoth","trex","dough",
-    "shadow","venom","control","spirit","dragon","leopard","yeti","kitsune","gas",
-    "rubber","falcon","eagle","spring","chop","revive","tiger","lightning","creation"
-}
-
-local function looksLikeFruit(obj)
-    if not obj then return false end
-    local name = tostring(obj.Name or ""):lower()
-    local attr = (
-        tostring(obj:GetAttribute("Fruit") or "") .. " " ..
-        tostring(obj:GetAttribute("FruitName") or "") .. " " ..
-        tostring(obj:GetAttribute("ItemType") or "")
-    ):lower()
-
-    if name:find("fruit",1,true) or attr:find("fruit",1,true) then return true end
-    for _, hint in ipairs(ESPFruitHints) do
-        if name == hint or name:find(hint .. " fruit",1,true)
-            or name:find("blox fruit",1,true) then
-            return true
-        end
-    end
-    return false
-end
-
-local function collectWorldChestsForESP()
-    local roots = {}
-    local chestModels = workspace:FindFirstChild("ChestModels")
-    if chestModels then roots[#roots+1] = chestModels end
-    for _, name in ipairs({"Map","_WorldOrigin"}) do
-        local root = workspace:FindFirstChild(name)
-        if root then roots[#roots+1] = root end
-    end
-    return roots
+    return name:find("king") or name:find("prince") or name:find("boss") or name:find("reaper") or name:find("leviathan") or name:find("terror") or name:find("god")
 end
 
 local function espTick()
     local _, hrp = GetCharacter()
     if not hrp then return end
-
     local seen = {}
     local S = _G.Settings.Visuals
-
-    -- Preserve legacy fruit toggles without breaking the Visuals tab.
+    local fruitEnabled = _G.Settings.Fruits["Fruit ESP"] == true
     if _G.Settings.Fruits["Player ESP"] then S["ESP Players"] = true end
     if _G.Settings.Fruits["Chest ESP"] then S["ESP Chests"] = true end
 
-    --------------------------------------------------------------------------
-    -- Players
-    --------------------------------------------------------------------------
     if S["ESP Players"] then
         for _, p in ipairs(Players:GetPlayers()) do
             if p ~= LocalPlayer and p.Character then
                 local part = getEspPart(p.Character)
                 local h = p.Character:FindFirstChildOfClass("Humanoid")
                 if part then
-                    local key = "P:" .. tostring(p.UserId)
+                    local key = "P:" .. p.UserId
                     seen[key] = true
-                    EnsureESP(
-                        key, part,
-                        "👤 " .. tostring(p.DisplayName or p.Name) ..
-                            " [" .. getPlayerLevelText(p) .. "]",
-                        Color3.fromRGB(255,90,90),
-                        true,
-                        h and h.MaxHealth or 100,
-                        h and h.Health or 0
-                    )
+                    EnsureESP(key, part, "👤 " .. p.Name .. "  [" .. getPlayerLevelText(p) .. "]", Color3.fromRGB(255,90,90), true, h and h.MaxHealth or 100, h and h.Health or 0)
                 end
             end
         end
     end
 
-    --------------------------------------------------------------------------
-    -- Enemies / Bosses
-    --------------------------------------------------------------------------
     if S["ESP Enemies"] or S["ESP Bosses"] then
         local enemies = workspace:FindFirstChild("Enemies")
         if enemies then
             for _, mob in ipairs(enemies:GetChildren()) do
                 if mob:IsA("Model") then
-                    local h = mob:FindFirstChildOfClass("Humanoid")
-                    local part = getEspPart(mob)
-                    if h and part and h.Health > 0 then
-                        local boss = isBossModel(mob)
-                        if (boss and S["ESP Bosses"]) or ((not boss) and S["ESP Enemies"]) then
+                    local boss = isBossModel(mob)
+                    if (S["ESP Bosses"] and boss) or (S["ESP Enemies"] and not boss) then
+                        local part = getEspPart(mob)
+                        local h = mob:FindFirstChildOfClass("Humanoid")
+                        if part and h then
                             local key = "E:" .. mob:GetDebugId()
                             seen[key] = true
-                            EnsureESP(
-                                key,
-                                part,
-                                (boss and "👑 " or "⚔️ ") .. mob.Name,
-                                boss and Color3.fromRGB(255,170,40) or Color3.fromRGB(255,210,90),
-                                true,
-                                h.MaxHealth,
-                                h.Health
-                            )
+                            EnsureESP(key, part, (boss and "👑 " or "⚔️ ") .. mob.Name, boss and Color3.fromRGB(255,170,40) or Color3.fromRGB(255,210,90), true, h.MaxHealth, h.Health)
                         end
                     end
                 end
@@ -5197,72 +4294,60 @@ local function espTick()
         end
     end
 
-    --------------------------------------------------------------------------
-    -- Fruits / Drops
-    --------------------------------------------------------------------------
-    if _G.Settings.Fruits["Fruit ESP"] then
-        local roots = {
-            workspace:FindFirstChild("Fruit"),
-            workspace:FindFirstChild("Fruits"),
-            workspace:FindFirstChild("Map"),
-            workspace:FindFirstChild("_WorldOrigin"),
+    if fruitEnabled then
+        -- Robust Fruit Notifier: real spawned fruit Tools/Models use fruit names,
+        -- not necessarily the word "Fruit" in the instance name.
+        local FruitNames = {
+            ["rocket-rocket"]=true,["spin-spin"]=true,["blade-blade"]=true,["bomb-bomb"]=true,["smoke-smoke"]=true,
+            ["spike-spike"]=true,["flame-flame"]=true,["falcon-falcon"]=true,["ice-ice"]=true,["sand-sand"]=true,
+            ["dark-dark"]=true,["diamond-diamond"]=true,["light-light"]=true,["rubber-rubber"]=true,["barrier-barrier"]=true,
+            ["ghost-ghost"]=true,["magma-magma"]=true,["quake-quake"]=true,["buddha-buddha"]=true,["love-love"]=true,
+            ["spider-spider"]=true,["sound-sound"]=true,["phoenix-phoenix"]=true,["portal-portal"]=true,["rumble-rumble"]=true,
+            ["pain-pain"]=true,["blizzard-blizzard"]=true,["gravity-gravity"]=true,["mammoth-mammoth"]=true,["t-rex-t-rex"]=true,
+            ["dough-dough"]=true,["shadow-shadow"]=true,["venom-venom"]=true,["control-control"]=true,["spirit-spirit"]=true,
+            ["dragon-dragon"]=true,["leopard-leopard"]=true,["yeti-yeti"]=true,["kitsune-kitsune"]=true,["gas-gas"]=true,
+            ["creation-creation"]=true,["eagle-eagle"]=true,["meme-meme"]=true
         }
-        local inspected = {}
-
-        local function inspectFruit(obj)
-            if not obj or inspected[obj] then return end
-            inspected[obj] = true
-            if not (obj:IsA("Tool") or obj:IsA("Model") or obj:IsA("BasePart")) then return end
-            if not looksLikeFruit(obj) then return end
-            local part = getEspPart(obj)
-            if not part then return end
-
-            local key = "F:" .. obj:GetDebugId()
-            seen[key] = true
-            EnsureESP(key, part, "🍎 " .. tostring(obj.Name), Color3.fromRGB(255,180,40), false)
+        local function isSpawnedFruit(obj)
+            if not (obj:IsA("Tool") or obj:IsA("Model")) then return false end
+            local raw = tostring(obj:GetAttribute("Fruit") or obj:GetAttribute("FruitName") or obj:GetAttribute("DisplayName") or obj.Name)
+            local n = raw:lower():gsub("%s+","-")
+            if FruitNames[n] then return true end
+            if n:find("fruit",1,true) or n:find("bloxfruit",1,true) or n:find("blox-fruit",1,true) then return true end
+            local parentName = obj.Parent and tostring(obj.Parent.Name):lower() or ""
+            return parentName:find("fruit",1,true) ~= nil
         end
-
-        for _, root in ipairs(roots) do
-            if root then
-                inspectFruit(root)
-                for _, obj in ipairs(root:GetDescendants()) do
-                    inspectFruit(obj)
-                end
-            end
-        end
-
-        for _, obj in ipairs(workspace:GetChildren()) do
-            inspectFruit(obj)
-        end
-    end
-
-    --------------------------------------------------------------------------
-    -- Chests
-    --------------------------------------------------------------------------
-    if S["ESP Chests"] then
-        local chestRoots = collectWorldChestsForESP()
-        local inspected = {}
-
-        for _, root in ipairs(chestRoots) do
-            for _, chest in ipairs(root:GetDescendants()) do
-                if chest:IsA("Model") and not inspected[chest] then
-                    inspected[chest] = true
-                    if chest.Name:lower():find("chest",1,true) then
-                        local part = getEspPart(chest)
-                        if part then
-                            local key = "C:" .. chest:GetDebugId()
-                            seen[key] = true
-                            EnsureESP(key, part, "📦 " .. chest.Name, Color3.fromRGB(255,255,80), false)
-                        end
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if isSpawnedFruit(obj) then
+                local part = getEspPart(obj)
+                if part then
+                    local key = "F:" .. obj:GetDebugId()
+                    seen[key] = true
+                    local title = "🍎 " .. tostring(obj.Name)
+                    EnsureESP(key, part, title, Color3.fromRGB(255,180,40), false)
+                    if not FruitRuntimeSeen[key] then
+                        FruitRuntimeSeen[key] = true
+                        if AetherUI then AetherUI:Notify({Title="Fruit Notifier", Content="Spawned: "..tostring(obj.Name), Duration=4}) end
                     end
                 end
             end
         end
     end
 
-    --------------------------------------------------------------------------
-    -- Special islands
-    --------------------------------------------------------------------------
+    if S["ESP Chests"] then
+        local chests = workspace:FindFirstChild("ChestModels")
+        if chests then
+            for _, chest in ipairs(chests:GetChildren()) do
+                local part = getEspPart(chest)
+                if part then
+                    local key = "C:" .. chest:GetDebugId()
+                    seen[key] = true
+                    EnsureESP(key, part, "📦 " .. chest.Name, Color3.fromRGB(255,255,80), false)
+                end
+            end
+        end
+    end
+
     if S["ESP Mirage Island"] then
         local island = GetMirageIsland()
         local part = getEspPart(island)
@@ -5283,33 +4368,17 @@ local function espTick()
         end
     end
 
-    --------------------------------------------------------------------------
-    -- Garbage collection: remove stale objects immediately.
-    --------------------------------------------------------------------------
     for key in pairs(ESPCache) do
-        if not seen[key] then
-            RemoveESP(key)
-        end
+        if not seen[key] then RemoveESP(key) end
     end
 
-    local active =
-        S["ESP Players"] or
-        S["ESP Enemies"] or
-        S["ESP Bosses"] or
-        S["ESP Chests"] or
-        S["ESP Mirage Island"] or
-        S["ESP Kitsune Island"] or
-        _G.Settings.Fruits["Fruit ESP"]
-
-    if not active then
+    if not (S["ESP Players"] or S["ESP Enemies"] or S["ESP Bosses"] or fruitEnabled or S["ESP Chests"] or S["ESP Mirage Island"] or S["ESP Kitsune Island"]) then
         RemoveAllESP()
     end
 end
 
 task.spawn(function()
-    while task.wait(0.20) do
-        pcall(espTick)
-    end
+    while task.wait(0.25) do pcall(espTick) end
 end)
 
 -- Robust Fruit Notifier / Mirage / Leviathan recovery watcher.
@@ -5517,146 +4586,55 @@ task.spawn(function()
     while task.wait(0.12) do pcall(bossFarmStepV5) end
 end)
 
-local function chestWorldAllowed()
-    -- Each Blox Fruits sea is its own PlaceId/world. Keeping the detector bound
-    -- to the current place prevents accidentally touching another world's cache.
-    return World1 or World2 or World3
-end
-
-local function chestRootsForCurrentWorld()
-    local roots = {}
-    local chestModels = workspace:FindFirstChild("ChestModels")
-    if chestModels then roots[#roots+1] = chestModels end
-
-    -- Fallbacks for newer layouts where chest models are nested under Map or
-    -- _WorldOrigin. They are still filtered by the current world PlaceId.
-    for _, name in ipairs({"Map", "_WorldOrigin"}) do
-        local root = workspace:FindFirstChild(name)
-        if root then roots[#roots+1] = root end
-    end
-    return roots
-end
-
-local function chestModelsV5()
-    local out, seen = {}, {}
-    if not chestWorldAllowed() then return out end
-
-    for _, root in ipairs(chestRootsForCurrentWorld()) do
-        for _, obj in ipairs(root:GetDescendants()) do
-            if obj:IsA("Model") and not seen[obj] then
-                local n = obj.Name:lower()
-                if n:find("chest",1,true) and anyPart(obj) then
-                    seen[obj] = true
-                    out[#out+1] = obj
-                end
-            end
-        end
-    end
-
-    -- Very last fallback: direct Workspace children only, avoiding a full
-    -- Workspace:GetDescendants() scan every tick.
-    for _, obj in ipairs(workspace:GetChildren()) do
+local function chestModelsV4()
+    local out,seen={},{}
+    for _,obj in ipairs(workspace:GetDescendants()) do
         if obj:IsA("Model") and not seen[obj] then
-            local n = obj.Name:lower()
+            local n=obj.Name:lower()
             if n:find("chest",1,true) and anyPart(obj) then
-                seen[obj] = true
-                out[#out+1] = obj
+                seen[obj]=true
+                table.insert(out,obj)
             end
         end
     end
     return out
 end
-
-local function chestFarmStepV5()
-    local tweenMode = _G.Settings.SubFarm["Auto Chest Tween"]
-    local instantMode = _G.Settings.SubFarm["Auto Chest Instant"]
-    local active = tweenMode or instantMode
-    if not active then
-        ChestFarmState.Target = nil
-        ChestFarmState.visited = {}
-        return
-    end
-
-    local _, hrp = GetCharacter()
-    if not hrp then return end
-
-    local target = ChestFarmState.Target
-    local function valid(c)
-        return c and c.Parent and anyPart(c) and not ChestFarmState.visited[c:GetDebugId()]
-    end
-
+local function chestFarmStepV4()
+    local active=_G.Settings.SubFarm["Auto Chest Tween"] or _G.Settings.SubFarm["Auto Chest Instant"]
+    if not active then ChestFarmState.Target=nil; return end
+    local _,hrp=GetCharacter(); if not hrp then return end
+    local target=ChestFarmState.Target
+    local function valid(c) return c and c.Parent and anyPart(c) and not ChestFarmState.visited[c:GetDebugId()] end
     if not valid(target) then
-        target = nil
-        local best, dist = nil, math.huge
-        for _, chest in ipairs(chestModelsV5()) do
-            local key = chest:GetDebugId()
-            local part = anyPart(chest)
-            if part and not ChestFarmState.visited[key] then
-                local d = (hrp.Position - part.Position).Magnitude
-                if d < dist then
-                    best, dist = chest, d
-                end
+        target=nil
+        local best,dist=nil,math.huge
+        for _,c in ipairs(chestModelsV4()) do
+            local k=c:GetDebugId(); local part=anyPart(c)
+            if not ChestFarmState.visited[k] and part then
+                local d=(hrp.Position-part.Position).Magnitude
+                if d<dist then best,dist=c,d end
             end
         end
-        target = best
-        ChestFarmState.Target = target
+        target=best; ChestFarmState.Target=target
     end
-
     if not target then
-        -- All currently visible chests were visited: start a fresh world round.
-        ChestFarmState.visited = {}
-        ChestFarmState.Target = nil
-
-        local best, dist = nil, math.huge
-        for _, chest in ipairs(chestModelsV5()) do
-            local part = anyPart(chest)
-            if part then
-                local d = (hrp.Position - part.Position).Magnitude
-                if d < dist then
-                    best, dist = chest, d
-                end
-            end
-        end
-        if best then
-            ChestFarmState.Target = best
+        if next(ChestFarmState.visited) then
+            task.delay(0.35,function() if _G.Settings.SubFarm["Auto Chest Tween"] or _G.Settings.SubFarm["Auto Chest Instant"] then ChestFarmState.visited={} end end)
         end
         return
     end
-
-    local part = anyPart(target)
-    if not part then
-        ChestFarmState.Target = nil
-        return
-    end
-
-    local pos = part.Position + Vector3.new(0, 7, 0)
-    if (hrp.Position - pos).Magnitude > 10 then
-        if instantMode and not tweenMode then
-            pcall(function()
-                hrp.CFrame = CFrame.lookAt(pos, part.Position)
-                hrp.AssemblyLinearVelocity = Vector3.zero
-                hrp.AssemblyAngularVelocity = Vector3.zero
-            end)
-        else
-            TweenPlayer(CFrame.lookAt(pos, part.Position), nil, "ChestFarm")
-        end
+    local part=anyPart(target); if not part then ChestFarmState.Target=nil; return end
+    local pos=part.Position+Vector3.new(0,3.5,0)
+    if (hrp.Position-pos).Magnitude>12 then
+        if _G.Settings.SubFarm["Auto Chest Instant"] then pcall(function() hrp.CFrame=CFrame.new(pos) end) else TweenPlayer(CFrame.new(pos),nil,"ChestFarm") end
     else
-        pcall(function()
-            hrp.CFrame = CFrame.lookAt(pos, part.Position)
-            hrp.AssemblyLinearVelocity = Vector3.zero
-            hrp.AssemblyAngularVelocity = Vector3.zero
-        end)
-        ChestFarmState.visited[target:GetDebugId()] = true
-        ChestFarmState.Target = nil
+        pcall(function() hrp.CFrame=CFrame.new(pos); hrp.AssemblyLinearVelocity=Vector3.zero; hrp.AssemblyAngularVelocity=Vector3.zero end)
+        ChestFarmState.visited[target:GetDebugId()]=true
+        ChestFarmState.Target=nil
     end
 end
 
-task.spawn(function()
-    while task.wait(0.12) do
-        pcall(chestFarmStepV5)
-    end
-end)
-
+task.spawn(function() while task.wait(0.15) do pcall(chestFarmStepV4) end end)
 -- Highest priority for spawned Cake Prince / Dough King; ordered Dough King controller.
 local DoughController = {Stage="NeedGodsChalice", LastAction=0, LastNotice=0}
 local DoughCakeLandPosition = CFrame.new(-2077, 252, -12373)
