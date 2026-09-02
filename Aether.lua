@@ -8,7 +8,7 @@ end
 
 local env = (getgenv and getgenv()) or _G
 
-local AetherUI = rawget(env, "AetherUI")
+local AetherUI = rawget(env, "Aether.lua")
 
 local AETHERUI_SOURCE_URL =
     env.HAROON_AETHERUI_URL
