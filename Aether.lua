@@ -1,229 +1,429 @@
-local function safeHttpGet(url)
-    local ok, result = pcall(function()
-        return game:HttpGet(url)
-    end)
+----------------------------------------------------------------
+-- AETHERUI PRO X LOADER
+----------------------------------------------------------------
 
-    return ok and result or nil
+local LIBRARY_URL =
+    "https://pastebin.com/raw/y3wUhBTN"
+
+----------------------------------------------------------------
+-- DOWNLOAD
+----------------------------------------------------------------
+
+local function HttpGet(url)
+
+    local ok, result =
+        pcall(function()
+
+            return game:HttpGet(url)
+
+        end)
+
+    if not ok then
+
+        error(
+            "AetherUI Loader: HttpGet failed."
+        )
+    end
+
+    if type(result) ~= "string"
+        or #result < 100
+    then
+
+        error(
+            "AetherUI Loader: Invalid library source."
+        )
+    end
+
+    return result
 end
 
-local env = (getgenv and getgenv()) or _G
+----------------------------------------------------------------
+-- LOAD
+----------------------------------------------------------------
 
-local AetherUI = rawget(env, "Aether.lua")
-
-local AETHERUI_SOURCE_URL =
-    env.HAROON_AETHERUI_URL
-    or "https://pastebin.com/raw/y3wUhBTN"
-
-if not AetherUI then
-    local source = safeHttpGet(AETHERUI_SOURCE_URL)
-
-    assert(
-        type(source) == "string"
-        and #source > 100,
-        "Failed to load AetherUI Library"
+local Source =
+    HttpGet(
+        LIBRARY_URL
     )
 
-    source = source:gsub("\nI%s*$", "\n")
-
-    local chunk, err = loadstring(source)
-
-    assert(chunk, err)
-
-    AetherUI = chunk()
-
-    assert(
-        type(AetherUI) == "table",
-        "Invalid AetherUI Library"
+local Chunk, Error =
+    loadstring(
+        Source
     )
 
-    env.AetherUI = AetherUI
+if not Chunk then
+
+    error(
+        "AetherUI Loader: "
+        .. tostring(Error)
+    )
 end
 
---==================================================
--- LOADING
---==================================================
+local AetherUI =
+    Chunk()
+
+if type(AetherUI) ~= "table" then
+
+    error(
+        "AetherUI Loader: Library did not return a table."
+    )
+end
+
+----------------------------------------------------------------
+-- GLOBAL
+----------------------------------------------------------------
+
+local ENV =
+    (type(getgenv) == "function" and getgenv())
+    or _G
+
+ENV.AetherUI =
+    AetherUI
+
+----------------------------------------------------------------
+-- START EXAMPLE
+----------------------------------------------------------------
 
 AetherUI:InitLoadingScreen(
-    "Aether Hub",
-    "Loading interface...",
+    "AetherUI Pro X",
+    "Loading...",
     function()
 
-        --==================================================
-        -- WINDOW
-        --==================================================
+        local Window =
+            AetherUI:CreateWindow({
 
-        local Window = AetherUI:CreateWindow({
-            Title = "Aether Hub",
-            Subtitle = "Professional Hub",
-            ToggleKey = Enum.KeyCode.RightControl
-        })
+                Title =
+                    "AetherUI Pro X",
 
-        --==================================================
-        -- CATEGORY
-        --==================================================
+                Subtitle =
+                    "Standalone Library",
 
-        local MainCategory =
-            Window:CreateCategory("MAIN")
+                ToggleKey =
+                    Enum.KeyCode.RightControl,
 
-        --==================================================
-        -- HOME
-        --==================================================
+                Width =
+                    760,
 
-        local Home =
-            MainCategory:CreateTab(
-                "Home",
-                "6031280882"
+                Height =
+                    500
+            })
+
+        --------------------------------------------------------
+        -- MAIN
+        --------------------------------------------------------
+
+        local Main =
+            Window:CreateTab(
+                "Main",
+                "Main"
             )
 
-        Home:CreateSection("Dashboard")
+        Main:CreateSection(
+            "Basic Components"
+        )
 
-        Home:CreateParagraph({
-            Title = "Welcome",
-            Content = "Welcome to Aether Hub. The library is loaded successfully."
+        Main:CreateParagraph({
+
+            Title =
+                "Welcome",
+
+            Desc =
+                "This window is running from a completely standalone " ..
+                "AetherUI library. The library itself contains no URL " ..
+                "and does not download any dependency."
         })
 
-        Home:CreateButton(
+        Main:CreateButton(
             "Test Notification",
             "TestNotification",
             function()
 
                 AetherUI:Notify({
-                    Title = "Aether Hub",
-                    Content = "Everything is working correctly!",
-                    Duration = 4,
-                    Type = "Success"
-                })
 
+                    Title =
+                        "AetherUI",
+
+                    Content =
+                        "Button is working successfully!",
+
+                    Duration =
+                        5
+                })
             end
         )
 
-        --==================================================
-        -- COMBAT
-        --==================================================
+        --------------------------------------------------------
+        -- TOGGLE
+        --------------------------------------------------------
 
-        local Combat =
-            MainCategory:CreateTab(
-                "Combat",
-                "6031280882"
-            )
+        Main:CreateSection(
+            "Toggle"
+        )
 
-        Combat:CreateSection("Main")
-
-        Combat:CreateToggle(
+        Main:CreateToggle(
             "Example Toggle",
             "ExampleToggle",
             false,
             function(value)
 
                 AetherUI:Notify({
-                    Title = "Toggle",
-                    Content = "Value: " .. tostring(value),
-                    Duration = 2
-                })
 
+                    Title =
+                        "Toggle",
+
+                    Content =
+                        "Value: "
+                        .. tostring(value),
+
+                    Duration =
+                        2
+                })
             end
         )
 
-        Combat:CreateSlider(
-            "Smoothness",
-            "Smoothness",
-            0,
-            100,
-            50,
-            function(value)
+        --------------------------------------------------------
+        -- SLIDER
+        --------------------------------------------------------
 
-                print("Smoothness:", value)
-
-            end,
-            1
+        Main:CreateSection(
+            "Slider"
         )
 
-        --==================================================
-        -- SETTINGS
-        --==================================================
+        Main:CreateSlider(
+            "Player Speed",
+            "PlayerSpeed",
+            16,
+            200,
+            30,
+            function(value)
 
-        local SettingsCategory =
-            Window:CreateCategory("SETTINGS")
+                print(
+                    "Player Speed:",
+                    value
+                )
+            end
+        )
 
-        local Settings =
-            SettingsCategory:CreateTab(
-                "Settings",
-                "6031280882"
-            )
+        --------------------------------------------------------
+        -- DROPDOWN
+        --------------------------------------------------------
 
-        Settings:CreateSection("Mode")
+        Main:CreateSection(
+            "Dropdown"
+        )
 
-        Settings:CreateDropdown(
-            "Mode",
-            "Mode",
+        Main:CreateDropdown(
+            "Weapon",
+            "Weapon",
             {
-                "Legit",
-                "Rage",
-                "Silent"
+                "Melee",
+                "Sword",
+                "Gun",
+                "Blox Fruit"
             },
-            "Legit",
+            "Melee",
             function(value)
 
-                AetherUI:Notify({
-                    Title = "Mode",
-                    Content = "Selected: " .. tostring(value),
-                    Duration = 2
-                })
-
+                print(
+                    "Weapon:",
+                    value
+                )
             end
         )
 
-        --==================================================
+        --------------------------------------------------------
         -- MULTI DROPDOWN
-        --==================================================
+        --------------------------------------------------------
 
-        Settings:CreateSection("Targets")
-
-        Settings:CreateMultiDropdown(
-            "Targets",
-            "Targets",
+        Main:CreateMultiDropdown(
+            "Features",
+            "Features",
             {
-                "Players",
-                "NPCs",
-                "Friends",
-                "Enemies"
+                "Auto Farm",
+                "Auto Boss",
+                "Auto Chest",
+                "ESP",
+                "Auto Raid"
             },
             {
-                "Players",
-                "Enemies"
+                "ESP"
             },
             function(values)
 
                 print(
-                    "Selected:",
-                    table.concat(values, ", ")
+                    "Selected Features:"
                 )
 
+                for _, value
+                    in ipairs(values)
+                do
+
+                    print(
+                        " -",
+                        value
+                    )
+                end
             end
         )
 
-        --==================================================
-        -- NOTES
-        --==================================================
+        --------------------------------------------------------
+        -- COMPONENT
+        --------------------------------------------------------
 
-        Settings:CreateSection("Information")
+        Main:CreateSection(
+            "Tabbed Component"
+        )
 
-        local paragraph =
-            Settings:CreateParagraph({
-                Title = "Library",
-                Content = "AetherUI is loaded externally and is completely separated from this Hub script."
-            })
+        Main:CreateComponent({
 
-        -- Dynamic paragraph example
-        task.delay(3, function()
+            Title =
+                "Advanced Components",
 
-            paragraph:SetContent(
-                "AetherUI Version: "
-                .. tostring(AetherUI.Version)
-                .. "\nExecutor: "
-                .. tostring(AetherUI:GetExecutor())
+            Height =
+                230,
+
+            Tabs = {
+
+                {
+                    Name =
+                        "Combat",
+
+                    Build =
+                        function(UI)
+
+                            UI:Label(
+                                "Combat Settings"
+                            )
+
+                            UI:Button(
+                                "Test Attack",
+                                function()
+
+                                    AetherUI:Notify({
+
+                                        Title =
+                                            "Combat",
+
+                                        Content =
+                                            "Attack pressed!",
+
+                                        Duration =
+                                            2
+                                    })
+                                end
+                            )
+                        end
+                },
+
+                {
+                    Name =
+                        "Farm",
+
+                    Build =
+                        function(UI)
+
+                            UI:Label(
+                                "Farm Settings"
+                            )
+
+                            UI:Button(
+                                "Start Farm",
+                                function()
+
+                                    print(
+                                        "Farm Started"
+                                    )
+                                end
+                            )
+
+                            UI:Button(
+                                "Stop Farm",
+                                function()
+
+                                    print(
+                                        "Farm Stopped"
+                                    )
+                                end
+                            )
+                        end
+                },
+
+                {
+                    Name =
+                        "Visual",
+
+                    Build =
+                        function(UI)
+
+                            UI:Label(
+                                "Visual Settings"
+                            )
+
+                            UI:Button(
+                                "Enable ESP",
+                                function()
+
+                                    print(
+                                        "ESP Enabled"
+                                    )
+                                end
+                            )
+                        end
+                }
+            }
+        })
+
+        --------------------------------------------------------
+        -- SECOND TAB
+        --------------------------------------------------------
+
+        local Settings =
+            Window:CreateTab(
+                "Settings",
+                "Settings"
             )
 
-        end)
+        Settings:CreateSection(
+            "Settings"
+        )
+
+        Settings:CreateParagraph({
+
+            Title =
+                "Library",
+
+            Desc =
+                "AetherUI Pro X is loaded directly from the Loader URL. " ..
+                "The actual library source contains no HttpGet code."
+        })
+
+        Settings:CreateToggle(
+            "UI Animations",
+            "Animations",
+            true,
+            function(value)
+
+                print(
+                    "Animations:",
+                    value
+                )
+            end
+        )
+
+        --------------------------------------------------------
+        -- READY
+        --------------------------------------------------------
+
+        AetherUI:Notify({
+
+            Title =
+                "AetherUI Pro X",
+
+            Content =
+                "Library loaded successfully!",
+
+            Duration =
+                5
+        })
     end
 )
